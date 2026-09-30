@@ -245,8 +245,9 @@ Pero **frontend y backend pueden necesitar modificar archivos de otras carpetas*
 
 # 🌿 Ramas
 
-Cada tarea debe tener su propia rama, revisar *metodo de trabajo* para crear tus ramas.
-
+Cada tarea debe tener su propia rama, revisar *metodo de trabajo* para crear tus ramas, no olvidar la 
+*documentacion, para crear los pullrequest* y que cada HU tiene un indicativo cuando es de backend y cuando es de f si la hu es de backend termine en *B* en el jira y frontend el indicativo es *F* usarlo
+y la estructura de cada commit que tambien esta detalla de en *metodo de trabajo*
 
 
 No se trabaja directamente sobre `main` ni `develop`.
