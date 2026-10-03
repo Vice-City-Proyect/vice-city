@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model access_logs {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticket_id    String   @db.Uuid
+  scanned_by   String?  @db.Uuid
+  result       String
+  reason       String?
+  access_point String?
+  ip_address   String?  @db.Inet
+  metadata     Json     @default("{}")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  users        users?   @relation(fields: [scanned_by], references: [id], onUpdate: NoAction)
+  tickets      tickets  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)])
+  @@index([scanned_by])
+  @@index([ticket_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model bookings {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String             @db.Uuid
+  service_id          String             @db.Uuid
+  schedule_id         String?            @db.Uuid
+  start_at            DateTime           @db.Timestamptz(6)
+  end_at              DateTime           @db.Timestamptz(6)
+  quantity            Int                @default(1)
+  total_amount        Decimal            @db.Decimal(12, 2)
+  status              String             @default("pending")
+  expires_at          DateTime?          @db.Timestamptz(6)
+  notes               String?
+  cancelled_at        DateTime?          @db.Timestamptz(6)
+  cancellation_reason String?
+  metadata            Json               @default("{}")
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime           @default(now()) @db.Timestamptz(6)
+  service_schedules   service_schedules? @relation(fields: [schedule_id], references: [id], onUpdate: NoAction)
+  services            services           @relation(fields: [service_id], references: [id], onUpdate: NoAction)
+  users               users              @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  payments            payments[]
+  tickets             tickets[]
+
+  @@index([schedule_id])
+  @@index([service_id])
+  @@index([start_at])
+  @@index([status])
+  @@index([user_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model categories {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String     @unique
+  description String?
+  sort_order  Int        @default(0)
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime   @default(now()) @db.Timestamptz(6)
+  services    services[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payments {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id         String    @db.Uuid
+  amount             Decimal   @db.Decimal(12, 2)
+  currency           String    @default("COP") @db.Char(3)
+  method             String
+  status             String    @default("pending")
+  provider           String?
+  provider_reference String?
+  paid_at            DateTime? @db.Timestamptz(6)
+  raw_response       Json      @default("{}")
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  bookings           bookings  @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([booking_id])
+  @@index([status])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roles {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  description String?
+  permissions Json     @default("{}")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model service_schedules {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_id  String     @db.Uuid
+  day_of_week Int        @db.SmallInt
+  start_time  DateTime   @db.Time(6)
+  end_time    DateTime   @db.Time(6)
+  valid_from  DateTime?  @db.Date
+  valid_until DateTime?  @db.Date
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime   @default(now()) @db.Timestamptz(6)
+  bookings    bookings[]
+  services    services   @relation(fields: [service_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([service_id, day_of_week, start_time], map: "schedules_unique_slot")
+  @@index([service_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model services {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id       String              @db.Uuid
+  name              String
+  slug              String              @unique
+  description       String?
+  price             Decimal             @db.Decimal(12, 2)
+  currency          String              @default("COP") @db.Char(3)
+  duration_minutes  Int                 @default(60)
+  capacity          Int                 @default(1)
+  image_url         String?
+  is_active         Boolean             @default(true)
+  metadata          Json                @default("{}")
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  bookings          bookings[]
+  service_schedules service_schedules[]
+  categories        categories          @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+
+  @@index([category_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tickets {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id  String        @db.Uuid
+  code        String        @unique @default(dbgenerated("replace((gen_random_uuid())::text, '-'::text, ''::text)"))
+  holder_name String?
+  status      String        @default("valid")
+  valid_from  DateTime?     @db.Timestamptz(6)
+  valid_until DateTime?     @db.Timestamptz(6)
+  used_at     DateTime?     @db.Timestamptz(6)
+  metadata    Json          @default("{}")
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime      @default(now()) @db.Timestamptz(6)
+  access_logs access_logs[]
+  bookings    bookings      @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([booking_id])
+  @@index([status])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model users {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id       String        @db.Uuid
+  email         String
+  password_hash String?
+  full_name     String
+  phone         String?
+  document_id   String?
+  is_active     Boolean       @default(true)
+  last_login_at DateTime?     @db.Timestamptz(6)
+  metadata      Json          @default("{}")
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @default(now()) @db.Timestamptz(6)
+  access_logs   access_logs[]
+  bookings      bookings[]
+  roles         roles         @relation(fields: [role_id], references: [id], onUpdate: NoAction)
+
+  @@index([role_id])
+}
+
+enum access_note_code_enum {
+  ENTRY_GRANTED
+  LATE_ENTRY_ALLOWED
+  EXPIRED_TICKET
+  ALREADY_USED
+  WRONG_SERVICE
+  MAINTENANCE_DAY_CLOSED
+}
+
+enum access_status_enum {
+  GRANTED
+  DENIED
+}
+
+enum booking_status_enum {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+enum payment_method_enum {
+  STRIPE
+  CASH
+  CARD
+}
+
+enum payment_status_enum {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum role_name_enum {
+  ADMIN
+  CLIENT
+  TICKET_SELLER
+  QR_VALIDATOR
+}
+
+enum sales_channel_enum {
+  WEB
+  POS
+}
+
+enum service_modality_enum {
+  PER_PERSON_HOUR
+  EXCLUSIVE_RESERVATION
+}
