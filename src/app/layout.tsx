@@ -14,13 +14,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Vice City Iguana Club",
-  description: "Premium sports experience — Train. Compete. Be Your Best.",
+  description:
+    "Complejo deportivo en Barranquilla: piscinas semiolímpicas, canchas de fútbol y polideportivo, gimnasio y zona húmeda con sauna.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

@@ -1,59 +1,88 @@
-"use client";
+'use client';
 
-import React from 'react';
-import { ShoppingCart } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useCart } from '@/features/landing/components/Cart/CartContext';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Menu, X } from 'lucide-react';
+import { ButtonLink } from '@/components/ui/Button';
 
-interface HeaderProps {
-  onOpenCart?: () => void;
-  totalBookings?: number;
-}
+const NAV_LINKS = [
+  { href: '#piscinas', label: 'Piscinas' },
+  { href: '#instalaciones', label: 'Instalaciones' },
+  { href: '#ubicacion', label: 'Ubicación' },
+];
 
-export function Header({ onOpenCart, totalBookings: propTotalBookings }: HeaderProps = {}) {
-  const { totalBookings: contextTotalBookings, openCart } = useCart();
-  const totalBookings = propTotalBookings !== undefined ? propTotalBookings : contextTotalBookings;
-  const handleOpenCart = onOpenCart || openCart;
+export function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const closeMenu = () => setIsMenuOpen(false);
 
   return (
-    <nav className="fixed w-full z-50 bg-club-bg/80 backdrop-blur-md border-b border-text-main/10 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3 cursor-pointer"
-          >
-            <span className="text-4xl" role="img" aria-label="Iguana">🦎</span>
-            <span className="font-display font-black text-2xl tracking-tight text-club-accent uppercase">
-              Vice City <span className="text-club-primary">Iguana</span>
-            </span>
-          </motion.div>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-text-main/10 bg-club-bg/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:h-20 lg:px-8">
+        <Link
+          href="/"
+          onClick={closeMenu}
+          className="flex items-center gap-2 font-black uppercase leading-none tracking-tight text-club-accent"
+        >
+          <span aria-hidden className="text-2xl lg:text-3xl">
+            🦎
+          </span>
+          <span className="whitespace-nowrap text-base sm:text-lg lg:text-2xl">
+            Vice City <span className="text-club-primary">Iguana</span>
+          </span>
+        </Link>
 
-          <div className="hidden md:flex items-center gap-8 font-bold text-sm tracking-widest uppercase">
-            <a href="#facilities" className="hover:text-club-primary transition-colors">Facilities</a>
-            <a href="#about" className="hover:text-club-primary transition-colors">About</a>
-            <a href="#contact" className="hover:text-club-primary transition-colors">Contact</a>
-          </div>
+        <nav aria-label="Navegación principal" className="hidden items-center gap-8 md:flex">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-xs font-bold uppercase tracking-widest text-text-main transition-colors hover:text-club-primary"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
 
-          <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={handleOpenCart}
-            className="relative p-3 rounded-full hover:bg-black/5 transition-colors"
-            aria-label="Abrir carrito de compras"
+        <div className="flex items-center gap-2">
+          <ButtonLink href="#reservas" size="sm">
+            Reservar
+          </ButtonLink>
+
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((open) => !open)}
+            aria-expanded={isMenuOpen}
+            aria-controls="menu-movil"
+            aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-text-main/15 text-club-accent transition-colors hover:bg-club-surface md:hidden"
           >
-            <ShoppingCart className="w-6 h-6 text-club-accent" />
-            {totalBookings > 0 && (
-              <span className="absolute top-1 right-1 bg-club-primary text-btn-text text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-md">
-                {totalBookings}
-              </span>
-            )}
-          </motion.button>
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
-    </nav>
+
+      {isMenuOpen && (
+        <nav
+          id="menu-movil"
+          aria-label="Navegación móvil"
+          className="border-t border-text-main/10 bg-club-surface px-4 py-4 md:hidden"
+        >
+          <ul className="flex flex-col gap-1">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  onClick={closeMenu}
+                  className="block rounded-lg px-3 py-2.5 text-sm font-bold uppercase tracking-wider text-text-main transition-colors hover:bg-club-bg"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+    </header>
   );
 }
-
-export default Header;
