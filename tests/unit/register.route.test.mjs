@@ -84,3 +84,4 @@ describe("HU01-B: API Endpoint de registro (/api/auth/register)", () => {
     assert.ok(content.paths["/api/auth/register"].post.responses["409"]);
   });
 });
+
