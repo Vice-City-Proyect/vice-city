@@ -13,7 +13,8 @@
                     "db:studio":  "prisma studio",
                     "db:test":  "node --env-file=.env scripts/test-db.mjs",
                     "db:test:users":  "node --env-file=.env scripts/test-users.mjs",
-                    "db:seed:admin":  "node --env-file=.env scripts/seed-admin.mjs"
+                    "db:seed:admin":  "node --env-file=.env scripts/seed-admin.mjs",
+                    "db:test:login":  "node --env-file=.env scripts/test-login-query.mjs"
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.19.3",
