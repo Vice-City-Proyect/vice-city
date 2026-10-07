@@ -83,7 +83,7 @@ async function main() {
 
   // --- 4. Limpieza ---
   console.log("4️⃣  Eliminando usuario de prueba...");
-  await prisma.users.delete({ where: { id: user.id } });
+  await prisma.users.deleteMany({ where: { id: user.id } });
   console.log("   ✅ Limpieza completada\n");
 
   console.log("🎉 Todas las verificaciones pasaron.");

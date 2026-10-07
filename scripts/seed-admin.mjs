@@ -63,15 +63,18 @@ async function main() {
   // 5. Aplicar trigger en la base de datos para proteger al usuario admin contra UPDATE y DELETE
   console.log("⏳ Configurando trigger de inmutabilidad en la base de datos...");
   await prisma.$executeRawUnsafe(`
-    CREATE OR REPLACE FUNCTION protect_admin_user()
-    RETURNS TRIGGER AS $$
+    CREATE OR REPLACE FUNCTION public.protect_admin_user()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    SET search_path = ''
+    AS $$
     BEGIN
       IF OLD.email = '${ADMIN_EMAIL}' THEN
         RAISE EXCEPTION 'El usuario administrador principal (%) no puede ser modificado ni eliminado.', OLD.email;
       END IF;
-      RETURN OLD;
+      RETURN NEW;
     END;
-    $$ LANGUAGE plpgsql;
+    $$;
   `);
 
   await prisma.$executeRawUnsafe(`
