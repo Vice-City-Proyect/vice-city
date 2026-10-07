@@ -24,6 +24,15 @@ src/
 ├── types/
 └── middleware.ts
 ```
+## Dev Stack 
+  - Next.js App Router
+  - TypeScript
+  - Prisma 6
+  - PostgreSQL / Supabase
+  - Zod
+  - Arquitectura por capas
+  - Arquitectura modular por Feature
+  - Swagger / OpenAPI 3.0
 
 ## `src/app`
 

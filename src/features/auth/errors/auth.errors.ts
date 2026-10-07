@@ -25,3 +25,48 @@ export class AuthValidationError extends Error {
   }
 }
 
+export class InvalidTokenError extends Error {
+  readonly code = "INVALID_TOKEN";
+
+  constructor(message = "El token de confirmación no es válido") {
+    super(message);
+    this.name = "InvalidTokenError";
+  }
+}
+
+export class TokenExpiredError extends Error {
+  readonly code = "TOKEN_EXPIRED";
+
+  constructor(message = "El token de confirmación ha expirado") {
+    super(message);
+    this.name = "TokenExpiredError";
+  }
+}
+
+export class TokenAlreadyUsedError extends Error {
+  readonly code = "TOKEN_ALREADY_USED";
+
+  constructor(message = "El token de confirmación ya ha sido utilizado") {
+    super(message);
+    this.name = "TokenAlreadyUsedError";
+  }
+}
+
+export class EmailAlreadyConfirmedError extends Error {
+  readonly code = "EMAIL_ALREADY_CONFIRMED";
+
+  constructor(message = "El correo electrónico ya ha sido confirmado previamente") {
+    super(message);
+    this.name = "EmailAlreadyConfirmedError";
+  }
+}
+
+export class UserNotFoundError extends Error {
+  readonly code = "USER_NOT_FOUND";
+
+  constructor(message = "No se encontró ningún usuario con el correo electrónico proporcionado") {
+    super(message);
+    this.name = "UserNotFoundError";
+  }
+}
+

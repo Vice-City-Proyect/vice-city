@@ -12,3 +12,22 @@ export interface RegisteredUser {
   createdAt: Date;
 }
 
+export interface ConfirmEmailInput {
+  token: string;
+}
+
+export interface ConfirmEmailResult {
+  email: string;
+  emailVerified: boolean;
+  message?: string;
+}
+
+export interface ResendConfirmationInput {
+  email: string;
+}
+
+export interface ResendConfirmationResult {
+  success: boolean;
+  message: string;
+}
+
