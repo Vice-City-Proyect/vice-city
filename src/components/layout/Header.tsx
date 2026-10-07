@@ -45,7 +45,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <ButtonLink href="#reservas" size="sm">
+          <ButtonLink href="/login" size="sm">
             Reservar
           </ButtonLink>
 

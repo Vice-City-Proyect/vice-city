@@ -35,9 +35,9 @@ export function CTA() {
         </p>
 
         <div className="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
-          <ButtonLink href="tel:+573009123456" size="lg" className="w-full sm:w-auto">
+          <ButtonLink href="/login" size="lg" className="w-full sm:w-auto">
             <PhoneCall className="h-4 w-4" />
-            Hablar con concierge
+            Reservar
           </ButtonLink>
           <ButtonLink href="#piscinas" size="lg" variant="light" className="w-full sm:w-auto">
             Ver las piscinas
