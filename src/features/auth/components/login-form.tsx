@@ -102,7 +102,7 @@ export function LoginForm() {
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* ── Campo: Correo ─────────────────────────────────────────── */}
-            <FormField htmlFor="email" label="Usuario / Correo" error={fieldErrors.email}>
+            <FormField htmlFor="text" label="Usuario / Correo" error={fieldErrors.email}>
               <Input
                 id="email"
                 type="email"
