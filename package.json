@@ -11,7 +11,9 @@
     "db:pull": "prisma db pull",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:test": "node --env-file=.env scripts/test-db.mjs"
+    "db:test": "node --env-file=.env scripts/test-db.mjs",
+    "test": "tsx --test tests/unit/email.confirmation.test.mjs",
+    "test:unit": "tsx --test tests/unit/*.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -29,6 +31,7 @@
     "eslint-config-next": "16.3.7",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
