@@ -195,3 +195,4 @@ HU04-BD ──► password_reset tokens en verification_tokens
 ## Autor
 
 **Jose Gutierrez** — `feature/HU04-BD-ORM/prisma-recuperacion/jose-gutierrez`
+
