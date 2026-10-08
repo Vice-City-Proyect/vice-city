@@ -18,7 +18,9 @@
                     "db:migrate:verification":  "node --env-file=.env scripts/migrate-email-verification.mjs",
                     "db:test:verification":  "node --env-file=.env scripts/test-verification.mjs",
                     "db:migrate:password-reset":  "node --env-file=.env scripts/migrate-password-reset.mjs",
-                    "db:test:password-reset":  "node --env-file=.env scripts/test-password-reset.mjs"
+                    "db:test:password-reset":  "node --env-file=.env scripts/test-password-reset.mjs",
+                    "test": "tsx --test tests/unit/google.auth.test.mjs",
+                    "test:unit": "tsx --test tests/unit/*.test.mjs"
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.19.3",
@@ -38,6 +40,7 @@
                             "eslint-config-next":  "16.3.7",
                             "prisma":  "^6.19.3",
                             "tailwindcss":  "^4",
+                            "tsx":  "^4.23.15",
                             "typescript":  "^5"
                         }
 }
