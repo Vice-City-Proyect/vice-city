@@ -18,7 +18,9 @@
                     "db:migrate:verification":  "node --env-file=.env scripts/migrate-email-verification.mjs",
                     "db:test:verification":  "node --env-file=.env scripts/test-verification.mjs",
                     "db:migrate:password-reset":  "node --env-file=.env scripts/migrate-password-reset.mjs",
-                    "db:test:password-reset":  "node --env-file=.env scripts/test-password-reset.mjs"
+                    "db:test:password-reset":  "node --env-file=.env scripts/test-password-reset.mjs",
+                    "db:migrate:linked-accounts":  "node --env-file=.env scripts/migrate-linked-accounts.mjs",
+                    "db:test:linked-accounts":  "node --env-file=.env scripts/test-linked-accounts.mjs"
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.19.3",

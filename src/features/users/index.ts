@@ -1,6 +1,6 @@
 /**
- * Módulo de Usuarios, Verificación y Recuperación de Contraseña (Features: Users)
- * Vice City - Soporte para HU01-BD, HU02-BD, HU03-BD y HU04-BD
+ * Módulo de Usuarios, Verificación, Recuperación y Cuentas Vinculadas (Features: Users)
+ * Vice City - Soporte para HU01-BD, HU02-BD, HU03-BD, HU04-BD y HU05-BD
  */
 
 // Repositorio principal de usuarios (HU01-BD y HU02-BD)
@@ -31,7 +31,15 @@ export {
   resetPassword,
 } from "./password-reset.repository";
 
-// Tipos compartidos (HU01-BD a HU04-BD)
+// Repositorio de cuentas vinculadas externas (HU05-BD)
+export {
+  findLinkedAccount,
+  linkAccount,
+  getLinkedAccountsByUser,
+  unlinkAccount,
+} from "./linked-accounts.repository";
+
+// Tipos compartidos (HU01-BD a HU05-BD)
 export type {
   CreateUserData,
   UserWithRole,
@@ -44,4 +52,8 @@ export type {
   CreatePasswordResetTokenParams,
   CreatePasswordResetTokenResult,
   ResetPasswordResult,
+  LinkedAccountWithUser,
+  LinkAccountParams,
+  LinkAccountResult,
 } from "./types";
+
