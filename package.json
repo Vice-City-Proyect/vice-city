@@ -23,7 +23,8 @@
                     "db:test:linked-accounts":  "node --env-file=.env scripts/test-linked-accounts.mjs",
                     "db:seed:services":  "node --env-file=.env scripts/seed-services.mjs",
                     "test:services":  "node --env-file=.env scripts/test-categories-services.mjs",
-                    "test:pricing":  "node --env-file=.env scripts/test-dynamic-pricing.mjs"
+                    "test:pricing":  "node --env-file=.env scripts/test-dynamic-pricing.mjs",
+                    "test:employees":  "node --env-file=.env scripts/test-employees.mjs"
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.19.3",
