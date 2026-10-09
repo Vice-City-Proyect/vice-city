@@ -12,7 +12,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:test": "node --env-file=.env scripts/test-db.mjs",
-    "test": "tsx --test tests/unit/availability.test.mjs",
+    "test": "tsx --test tests/unit/reservations.hold.test.mjs",
     "test:unit": "tsx --test tests/unit/*.test.mjs"
   },
   "dependencies": {

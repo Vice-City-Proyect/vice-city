@@ -527,5 +527,34 @@ npm run test:unit
 npm run build
 ```
 
+---
+
+# ⏱️ FT-04 / HU21: Reserva con Retención (HOLD) de 10 Minutos
+
+Esta funcionalidad implementa la creación atómica de reservas con retención temporal (HOLD) de 10 minutos (RN-006, RN-009, RN-011 y RN-012).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/reservations/services/reservation-hold.service.ts`: Motor de retención atómica con transacciones de Prisma, fijación de tarifa histórica, cálculo de expiración de 10 minutos y liberación automática de cupos vencidos.
+* `src/features/reservations/schemas/reservation.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/reservations/errors/reservation.errors.ts`: Errores de dominio (`SlotFullConflictError` 409, `HoldExpiredError` 410, `InvalidDurationError` 400).
+* `src/app/api/reservations/hold/route.ts`: Endpoint POST para generar el HOLD de 10 minutos.
+* `src/app/api/reservations/[id]/route.ts`: Endpoint GET para consultar estado y segundos restantes del temporizador.
+* `src/app/(public)/checkout/[bookingId]/page.tsx`: Pantalla de checkout con temporizador regresivo reactivo y resumen de reserva.
+* `docs/swagger/hu21-reservation-hold.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/reservations.hold.test.mjs`: Pruebas unitarias de la lógica y concurrencia.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+
 
 
