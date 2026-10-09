@@ -549,12 +549,34 @@ npm test
 # o:
 npm run test:unit
 ```
-
 ### Compilación y Validación de Tipos
 ```bash
 npm run build
 ```
 
+---
 
+# 🏷️ FT-04 / HU22: Descuentos y Promociones
 
+Esta funcionalidad implementa el cálculo automático de precios y aplicación de promociones y descuentos oficiales de Vice City (RN-013, RN-014 y RN-015).
 
+### Ubicación del Código (Vertical Slice)
+* `src/features/pricing/services/discount-calculator.service.ts`: Motor de cálculo de precios, evaluación de descuento del 20% los miércoles (RN-013), descuento del 20% por reserva completa de piscina con bloqueo de 50 cupos (RN-014), restricción en viernes, fines de semana y festivos, y regla de no acumulación (RN-015).
+* `src/features/pricing/schemas/pricing.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/pricing/errors/discount.errors.ts`: Errores de dominio (`FullPoolDayRestrictedError` 422, `PricingError`).
+* `src/features/pricing/types/discount.types.ts`: Tipos TypeScript para parámetros y desglose de tarifas.
+* `src/features/pricing/components/DiscountBadge.tsx`: Chip UI de Tailwind v4 que resalta el tipo de descuento aplicado.
+* `src/features/pricing/components/PricingBreakdown.tsx`: Desglose monetario en pesos colombianos (COP).
+* `src/app/api/pricing/calculate/route.ts`: Endpoint POST `/api/pricing/calculate` para cálculo dinámico de precios.
+* `docs/swagger/hu22-discounts.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/discounts.test.mjs`: Pruebas unitarias de las reglas RN-013, RN-014 y RN-015.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
