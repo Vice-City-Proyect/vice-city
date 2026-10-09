@@ -207,3 +207,118 @@ export async function deleteOrDeactivateService(id: string): Promise<DeleteServi
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// HU18: Precios dinámicos de servicios (RN-007)
+// ---------------------------------------------------------------------------
+
+/**
+ * Modifica la tarifa base de un servicio (HU18 / RN-007).
+ *
+ * Reglas de negocio y criterios de aceptación:
+ * - CA01: Cambiar un precio se refleja en las nuevas reservas creadas después de este cambio.
+ * - CA02: Las reservas existentes y las reservas en HOLD conservan el precio con el que se crearon.
+ * - CA03: Rechaza precios negativos o no numéricos.
+ * - Retorna el resultado con el precio anterior y el nuevo precio para trazabilidad.
+ *
+ * @param id ID del servicio
+ * @param newPrice Nueva tarifa base (debe ser número >= 0)
+ */
+export async function updateServicePrice(
+  id: string,
+  newPrice: number
+): Promise<ServicePriceUpdateResult> {
+  if (!id?.trim()) {
+    throw new Error("ID de servicio inválido");
+  }
+
+  // Criterio de Aceptación: un precio negativo o vacío es rechazado
+  if (newPrice === undefined || newPrice === null || typeof newPrice !== "number" || isNaN(newPrice) || newPrice < 0) {
+    throw new Error("El precio debe ser un número válido mayor o igual a cero");
+  }
+
+  // 1. Obtener precio actual para trazabilidad
+  const currentService = await prisma.services.findUnique({
+    where: { id },
+  });
+
+  if (!currentService) {
+    throw new Error("Servicio no encontrado");
+  }
+
+  const previousPrice = Number(currentService.price);
+
+  // 2. Actualizar precio base del servicio en la BD
+  const updatedService = await prisma.services.update({
+    where: { id },
+    data: {
+      price: newPrice,
+      updated_at: new Date(),
+    },
+  });
+
+  return {
+    success: true,
+    serviceId: updatedService.id,
+    previousPrice,
+    newPrice: Number(updatedService.price),
+    updatedAt: updatedService.updated_at,
+  };
+}
+
+/**
+ * Crea una reserva persistiendo su precio aplicado como valor histórico (RN-007).
+ *
+ * Regla de negocio RN-007:
+ * "When a reservation is created, its applied price must remain associated with that reservation
+ * even if the current service price changes later."
+ *
+ * Soporta creación de reserva en estado HOLD (10 minutos) o 'confirmed'.
+ */
+export async function createBookingWithAppliedPrice(input: CreateBookingInput) {
+  if (!input.service_id?.trim() || !input.user_id?.trim()) {
+    throw new Error("user_id y service_id son requeridos");
+  }
+
+  // 1. Obtener el servicio y su tarifa vigente al momento de la reserva
+  const service = await prisma.services.findUnique({
+    where: { id: input.service_id },
+  });
+
+  if (!service) {
+    throw new Error("Servicio no encontrado");
+  }
+
+  const quantity = input.quantity ?? 1;
+  const appliedUnitPrice = input.unit_price !== undefined ? input.unit_price : Number(service.price);
+  const totalAmount = appliedUnitPrice * quantity;
+
+  // Si el estado es 'pending', calcular hold de exactamente 10 minutos (Regla de negocio: Payment hold)
+  const isHold = input.status === "pending" || !input.status;
+  const holdExpiresAt = isHold ? new Date(Date.now() + 10 * 60 * 1000) : null;
+
+  // 2. Persistir la reserva guardando applied_price y total_amount como valores congelados
+  const booking = await prisma.bookings.create({
+    data: {
+      user_id: input.user_id,
+      service_id: input.service_id,
+      schedule_id: input.schedule_id || null,
+      start_at: input.start_at,
+      end_at: input.end_at,
+      quantity,
+      total_amount: totalAmount,
+      status: input.status || "pending",
+      expires_at: holdExpiresAt,
+      notes: input.notes || null,
+      metadata: {
+        applied_unit_price: appliedUnitPrice,
+        service_name_at_booking: service.name,
+      },
+    },
+    include: {
+      services: true,
+    },
+  });
+
+  return booking;
+}

@@ -22,7 +22,8 @@
                     "db:migrate:linked-accounts":  "node --env-file=.env scripts/migrate-linked-accounts.mjs",
                     "db:test:linked-accounts":  "node --env-file=.env scripts/test-linked-accounts.mjs",
                     "db:seed:services":  "node --env-file=.env scripts/seed-services.mjs",
-                    "test:services":  "node --env-file=.env scripts/test-categories-services.mjs"
+                    "test:services":  "node --env-file=.env scripts/test-categories-services.mjs",
+                    "test:pricing":  "node --env-file=.env scripts/test-dynamic-pricing.mjs"
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.19.3",

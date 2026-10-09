@@ -67,3 +67,42 @@ export type DeleteServiceResult = {
   message: string;
   activeBookingsCount?: number;
 };
+
+// ---------------------------------------------------------------------------
+// HU18: Precios dinámicos de servicios (RN-007)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parámetros para modificar la tarifa base de un servicio (HU18)
+ */
+export type UpdateServicePriceInput = {
+  price: number;
+};
+
+/**
+ * Resultado de la modificación de precio de un servicio
+ */
+export type ServicePriceUpdateResult = {
+  success: boolean;
+  serviceId: string;
+  previousPrice: number;
+  newPrice: number;
+  updatedAt: Date;
+};
+
+/**
+ * Parámetros para crear una reserva asegurando la congelación del precio histórico
+ */
+export type CreateBookingInput = {
+  user_id: string;
+  service_id: string;
+  start_at: Date;
+  end_at: Date;
+  quantity?: number;
+  schedule_id?: string | null;
+  notes?: string | null;
+  /** Estado de la reserva: 'pending' (HOLD de 10 min) o 'confirmed' */
+  status?: "pending" | "confirmed";
+  /** Override opcional de monto unitario; si no se envía, toma el precio actual del servicio */
+  unit_price?: number;
+};

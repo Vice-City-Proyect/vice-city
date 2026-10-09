@@ -50,12 +50,27 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    // Criterio de Aceptación: Aforo <= 0 rechazado
+    // Criterio de Aceptación HU17: Aforo <= 0 rechazado
     if (body.capacity !== undefined && (typeof body.capacity !== "number" || body.capacity <= 0)) {
       return NextResponse.json(
         { error: "El aforo (max_capacity) debe ser mayor a cero" },
         { status: 400 }
       );
+    }
+
+    // Criterio de Aceptación HU18: Precio negativo o vacío rechazado
+    if (body.price !== undefined) {
+      if (
+        body.price === null ||
+        typeof body.price !== "number" ||
+        isNaN(body.price) ||
+        body.price < 0
+      ) {
+        return NextResponse.json(
+          { error: "El precio debe ser un número válido mayor o igual a cero" },
+          { status: 400 }
+        );
+      }
     }
 
     const updated = await updateService(id, body);
