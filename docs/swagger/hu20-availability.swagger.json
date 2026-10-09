@@ -1,0 +1,175 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City - Catálogo y Disponibilidad de Servicios (HU20)",
+    "description": "Especificación de API para consulta pública de catálogo y motor de aforo/disponibilidad por franja horaria (FT-04, RN-001 a RN-012).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/catalog": {
+      "get": {
+        "summary": "Obtener catálogo público de servicios y categorías",
+        "description": "Retorna las categorías activas y sus servicios asociados con precios, duraciones y aforos configurados.",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "UUID opcional de la categoría a filtrar",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "required": false,
+            "description": "true para incluir registros inactivos (solo administración)",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catálogo obtenido exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Catálogo de servicios obtenido exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalServices": { "type": "integer", "example": 8 },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string", "format": "uuid" },
+                              "name": { "type": "string", "example": "Canchas" },
+                              "slug": { "type": "string", "example": "canchas" },
+                              "services": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": { "type": "string", "format": "uuid" },
+                                    "name": { "type": "string", "example": "Cancha Fútbol Grande" },
+                                    "price": { "type": "number", "example": 140000 },
+                                    "currency": { "type": "string", "example": "COP" },
+                                    "capacity": { "type": "integer", "example": 11 }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros de consulta inválidos"
+          }
+        }
+      }
+    },
+    "/api/availability": {
+      "get": {
+        "summary": "Consultar disponibilidad y aforo de un servicio por fecha",
+        "description": "Calcula el aforo restante para las 9 franjas horarias del día (08:00 a 17:00), validando días de mantenimiento (lunes o martes festivo), anticipación máxima (15 o 20 días) y franjas en curso (RN-010). Misma fuente para Web y POS.",
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "query",
+            "required": true,
+            "description": "UUID del servicio a consultar",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "description": "Fecha a consultar en formato YYYY-MM-DD",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-15"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disponibilidad calculada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Disponibilidad calculada exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "date": { "type": "string", "example": "2026-10-15" },
+                        "isMaintenanceDay": { "type": "boolean", "example": false },
+                        "service": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string", "format": "uuid" },
+                            "name": { "type": "string", "example": "Cancha Fútbol Grande" },
+                            "capacity": { "type": "integer", "example": 11 },
+                            "price": { "type": "number", "example": 140000 }
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startTime": { "type": "string", "example": "08:00" },
+                              "endTime": { "type": "string", "example": "09:00" },
+                              "totalCapacity": { "type": "integer", "example": 11 },
+                              "occupiedCapacity": { "type": "integer", "example": 2 },
+                              "remainingCapacity": { "type": "integer", "example": 9 },
+                              "status": {
+                                "type": "string",
+                                "enum": ["AVAILABLE", "FULL", "MAINTENANCE", "IN_PROGRESS", "PAST"],
+                                "example": "AVAILABLE"
+                              },
+                              "isCurrentSlot": { "type": "boolean", "example": false },
+                              "canBePurchased": { "type": "boolean", "example": true }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Fecha fuera de rango de anticipación, en el pasado o formato inválido"
+          },
+          "404": {
+            "description": "Servicio no encontrado o inactivo"
+          }
+        }
+      }
+    }
+  }
+}
+

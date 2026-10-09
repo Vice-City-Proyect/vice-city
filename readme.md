@@ -497,4 +497,35 @@ npm run build
 | `P1001: Can't reach database server` | Puerto o host incorrecto, o red bloqueada. | Asegúrate de usar el Transaction Pooler en el puerto `6543` para runtime y el Session Pooler en `5432` para `DIRECT_URL`. |
 | `Middleware is missing expected function export` | `src/middleware.ts` está vacío. | Asegúrate de exportar una función `export function middleware(request: NextRequest)` válida. |
 
+---
+
+# 📅 FT-04 / HU20: Catálogo y Disponibilidad de Servicios
+
+Esta funcionalidad implementa el catálogo público y el motor de disponibilidad y aforo por franja horaria para Vice City (RN-001 a RN-012).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/services/services/availability.service.ts`: Motor de cálculo de aforo por franja horaria, validación de horario operativo (8:00 AM — 5:00 PM), bloqueo de mantenimiento semanal y compras en curso (RN-010).
+* `src/features/services/services/catalog.service.ts`: Consulta de categorías y servicios activos con precio y aforo.
+* `src/features/services/utils/colombian-holidays.util.ts`: Detección algorítmica de festivos en Colombia (Ley Emiliani) y traslado de mantenimiento a martes (RN-003).
+* `src/features/services/utils/date-bogota.util.ts`: Cálculos en zona horaria oficial `America/Bogota` (RN-002).
+* `src/features/services/schemas/availability.schema.ts`: Esquemas de validación Zod con `.strict()`.
+* `src/app/api/catalog/route.ts`: Endpoint público GET `/api/catalog`.
+* `src/app/api/availability/route.ts`: Endpoint unificado GET `/api/availability` (Web y POS, RN-012).
+* `src/app/(public)/catalog/page.tsx`: Vista pública responsiva con Tailwind v4.
+* `docs/swagger/hu20-availability.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/availability.test.mjs`: Pruebas unitarias de la lógica y casos de borde.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+
 
