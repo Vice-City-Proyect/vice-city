@@ -20,7 +20,9 @@
                     "db:migrate:password-reset":  "node --env-file=.env scripts/migrate-password-reset.mjs",
                     "db:test:password-reset":  "node --env-file=.env scripts/test-password-reset.mjs",
                     "db:migrate:linked-accounts":  "node --env-file=.env scripts/migrate-linked-accounts.mjs",
-                    "db:test:linked-accounts":  "node --env-file=.env scripts/test-linked-accounts.mjs"
+                    "db:test:linked-accounts":  "node --env-file=.env scripts/test-linked-accounts.mjs",
+                    "db:seed:services":  "node --env-file=.env scripts/seed-services.mjs",
+                    "test:services":  "node --env-file=.env scripts/test-categories-services.mjs"
                 },
     "dependencies":  {
                          "@prisma/client":  "^6.19.3",
