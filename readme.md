@@ -559,3 +559,97 @@ Expone la ruta API en Next.js para recibir y procesar el registro de nuevos usua
 npm test
 ```
 Ejecuta la suite completa de pruebas unitarias tanto de la capa API (`register.route.test.mjs`) como de la capa de negocio (`register.service.test.mjs`).
+
+---
+
+# 🔐 Autenticación: Endpoints de Login y Sesión (HU02-B)
+
+### 📡 `POST /api/auth/login`
+
+Expone la ruta API en Next.js para el inicio de sesión de usuarios, validando las credenciales de entrada con esquema estricto (Zod), delegando la comprobación a la lógica de negocio (`authenticateUser`) y retornando los datos del usuario autenticado con su rol asignado según el SRS.
+
+* **Método:** `POST`
+* **Content-Type:** `application/json`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json)
+
+#### Estructura de la Solicitud (Body):
+```json
+{
+  "email": "usuario@ejemplo.com",
+  "password": "Password123!"
+}
+```
+
+#### Respuestas del Servidor:
+* **`200 OK`**: Inicio de sesión exitoso.
+  ```json
+  {
+    "success": true,
+    "message": "Inicio de sesión exitoso",
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "usuario@ejemplo.com",
+      "name": "Nombre Usuario",
+      "role": "CLIENT"
+    }
+  }
+  ```
+* **`400 Bad Request`**: Datos inválidos, campos obligatorios faltantes, cuerpo vacío o campos extra no reconocidos (`.strict()`).
+  ```json
+  {
+    "success": false,
+    "error": "VALIDATION_ERROR",
+    "message": "Datos de inicio de sesión inválidos",
+    "details": [
+      { "field": "email", "message": "El formato del correo electrónico es inválido" }
+    ]
+  }
+  ```
+* **`401 Unauthorized`**: Credenciales incorrectas o usuario no autorizado.
+  ```json
+  {
+    "success": false,
+    "error": "INVALID_CREDENTIALS",
+    "message": "Credenciales incorrectas: correo o contraseña no válidos"
+  }
+  ```
+* **`500 Internal Server Error`**: Error no controlado en el servidor.
+
+---
+
+### 📡 `GET /api/auth/session`
+
+Endpoint para consultar la sesión activa actual del usuario autenticado vía NextAuth.
+
+* **Método:** `GET`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json)
+
+#### Respuestas del Servidor:
+* **`200 OK` (Sin sesión activa):**
+  ```json
+  {
+    "success": true,
+    "authenticated": false,
+    "data": null
+  }
+  ```
+* **`200 OK` (Con sesión activa):**
+  ```json
+  {
+    "success": true,
+    "authenticated": true,
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "usuario@ejemplo.com",
+      "name": "Nombre Usuario",
+      "role": "CLIENT"
+    }
+  }
+  ```
+* **`500 Internal Server Error`**: Error al consultar la sesión del usuario.
+
+#### Ejecución de Pruebas Automatizadas:
+```bash
+npm test
+```
+Ejecuta la suite completa de pruebas unitarias (`tests/unit/*.test.mjs`), cubriendo los endpoints de la API (`login.route.test.mjs`, `register.route.test.mjs`) y la lógica de negocio y roles SRS (`auth.jwt.test.mjs`, `register.service.test.mjs`).
