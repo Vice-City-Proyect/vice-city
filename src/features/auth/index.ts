@@ -23,3 +23,14 @@ export {
   UserInactiveError,
 } from "./errors/google-auth.errors";
 
+// Esquemas de Validación Zod (HU05-B API)
+export {
+  googleProfileSchema,
+  type GoogleProfileInput,
+} from "./schemas/google-auth.schema";
+
+// Utilidades y Manejador de Errores OAuth (HU05-B API)
+export {
+  GOOGLE_AUTH_ERROR_MESSAGES,
+  resolveGoogleAuthErrorMessage,
+} from "./utils/google-error-handler";

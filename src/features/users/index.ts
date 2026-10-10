@@ -31,7 +31,15 @@ export {
   resetPassword,
 } from "./password-reset.repository";
 
-// Tipos compartidos (HU01-BD a HU04-BD)
+// Repositorio de cuentas vinculadas de Google/OAuth (HU05-BD)
+export {
+  findLinkedAccount,
+  linkAccount,
+  getLinkedAccountsByUser,
+  unlinkAccount,
+} from "./linked-accounts.repository";
+
+// Tipos compartidos (HU01-BD a HU05-BD)
 export type {
   CreateUserData,
   UserWithRole,
@@ -44,4 +52,7 @@ export type {
   CreatePasswordResetTokenParams,
   CreatePasswordResetTokenResult,
   ResetPasswordResult,
+  LinkedAccountWithUser,
+  LinkAccountParams,
+  LinkAccountResult,
 } from "./types";
