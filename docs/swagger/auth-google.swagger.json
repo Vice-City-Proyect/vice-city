@@ -1,0 +1,303 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Autenticación con Google (HU05-B)",
+    "description": "Especificación OpenAPI 3.0.3 para el flujo de inicio de sesión federado con Google OAuth, endpoints de integración con NextAuth, Route Handlers y consulta de sesión en Vice City.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth - Google",
+      "description": "Endpoints de autenticación y vinculación de cuentas con Google OAuth"
+    }
+  ],
+  "paths": {
+    "/api/auth/google": {
+      "post": {
+        "tags": ["Auth - Google"],
+        "summary": "Iniciar sesión o vincular cuenta con Google",
+        "description": "Procesa los datos autenticados de Google OAuth. Si el usuario no existe, se registra automáticamente con rol CLIENT y correo verificado. Si ya existe, se vincula sin duplicidad.",
+        "operationId": "handleGoogleAuth",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticación exitosa o cuenta vinculada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleAuthSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación, cuerpo malformado o error reportado por Google/usuario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cuenta de usuario inactiva o bloqueada en el sistema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Auth - Google"],
+        "summary": "Consultar estado o resolver error de flujo Google",
+        "description": "Permite resolver códigos de error recibidos durante la redirección de OAuth (ej. ?error=access_denied) devolviendo un mensaje amigable en español.",
+        "operationId": "getGoogleAuthStatus",
+        "parameters": [
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "description": "Código de error reportado por el proveedor de Google (ej. AccessDenied, access_denied, OAuthCallback)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado activo del servicio de autenticación con Google",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Endpoint de autenticación con Google activo" },
+                    "signInUrl": { "type": "string", "example": "/api/auth/signin/google" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error resuelto reportado con mensaje amigable y URL de redirección",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "access_denied" },
+                    "message": { "type": "string", "example": "Has cancelado el inicio de sesión con Google. Por favor, intenta de nuevo si deseas ingresar." },
+                    "redirectUrl": { "type": "string", "example": "/login?error=access_denied" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/signin/google": {
+      "get": {
+        "tags": ["Auth - Google"],
+        "summary": "Iniciar redirección a la pantalla de consentimiento de Google (NextAuth)",
+        "description": "Inicia el flujo OAuth 2.0 solicitando permisos de perfil y correo con prompt='consent' y access_type='offline'.",
+        "operationId": "initiateGoogleSignIn",
+        "responses": {
+          "302": {
+            "description": "Redirección al servidor de cuentas de Google (accounts.google.com)"
+          }
+        }
+      }
+    },
+    "/api/auth/callback/google": {
+      "get": {
+        "tags": ["Auth - Google"],
+        "summary": "Ruta de callback de Google OAuth (NextAuth)",
+        "description": "Recibe el código de autorización desde Google o el código de cancelación/error (error=access_denied). En caso de éxito establece la cookie JWT de sesión. En caso de error redirige a /login con el motivo correspondiente.",
+        "operationId": "handleGoogleCallback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "description": "Código de autorización temporal devuelto por Google",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "description": "Código de error cuando el usuario cancela o Google falla",
+            "schema": { "type": "string", "example": "access_denied" }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirección a la aplicación principal o a /login ante error"
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": ["Auth - Google"],
+        "summary": "Consultar la sesión activa del usuario",
+        "description": "Retorna los datos del usuario autenticado en la sesión actual, incluyendo id, email, full_name y role (ADMIN, CLIENT, TICKET_SELLER, QR_VALIDATOR).",
+        "operationId": "getActiveSession",
+        "responses": {
+          "200": {
+            "description": "Información de la sesión",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error al recuperar la sesión",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GoogleProfileRequest": {
+        "type": "object",
+        "required": ["id", "email"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identificador único de Google (sub o id)",
+            "example": "104928172938472918234"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Correo electrónico asociado a la cuenta de Google",
+            "example": "usuario@gmail.com"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Nombre completo del usuario",
+            "example": "Carlos Pérez"
+          },
+          "picture": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "description": "URL de la foto de perfil en Google",
+            "example": "https://lh3.googleusercontent.com/a/ACg8oc..."
+          },
+          "email_verified": {
+            "type": "boolean",
+            "description": "Indica si el correo está verificado por Google",
+            "example": true
+          }
+        }
+      },
+      "GoogleAuthSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Usuario creado exitosamente con rol CLIENT y correo verificado." },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string", "format": "uuid", "example": "4a7b9c1d-1234-5678-9abc-def012345678" },
+                  "email": { "type": "string", "format": "email", "example": "usuario@gmail.com" },
+                  "name": { "type": "string", "example": "Carlos Pérez" },
+                  "role": { "type": "string", "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"], "example": "CLIENT" }
+                }
+              },
+              "isNewUser": { "type": "boolean", "example": true },
+              "isLinked": { "type": "boolean", "example": false }
+            }
+          }
+        }
+      },
+      "SessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "authenticated": { "type": "boolean", "example": true },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": { "type": "string", "format": "uuid", "example": "4a7b9c1d-1234-5678-9abc-def012345678" },
+              "email": { "type": "string", "format": "email", "example": "usuario@gmail.com" },
+              "name": { "type": "string", "example": "Carlos Pérez" },
+              "role": { "type": "string", "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"], "example": "CLIENT" }
+            }
+          }
+        }
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "VALIDATION_ERROR" },
+          "message": { "type": "string", "example": "Datos de perfil de Google inválidos" },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": { "type": "string", "example": "email" },
+                "message": { "type": "string", "example": "El correo electrónico de Google es obligatorio" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
