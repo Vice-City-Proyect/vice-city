@@ -1,6 +1,6 @@
 /**
  * Módulo de Autenticación (Features: Auth)
- * Vice City - Soporte para HU05-B (Google Auth) y HU06-B (Cierre de Sesión)
+ * Vice City - Soporte para HU05-B (Google Auth), HU06-B (Cierre de Sesión) y HU08-B (Permisos por Rol)
  */
 
 // Servicio de Inicio de Sesión con Google (HU05-B)
@@ -44,3 +44,16 @@ export {
   type InvalidateSessionOptions,
   type ExpiredCookieDescriptor,
 } from "./services/logout.service";
+
+// Matriz de Permisos por Rol y Protección de Rutas (HU08-B LN & API)
+export {
+  SRS_ROLES,
+  normalizeRole,
+  isPublicRoute,
+  isProtectedRoute,
+  getAllowedRolesForRoute,
+  isRouteAllowed,
+  ROUTE_PERMISSION_RULES,
+  type SRSRole,
+  type RoutePermissionRule,
+} from "./permissions/route-permissions";
