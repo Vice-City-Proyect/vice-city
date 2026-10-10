@@ -1,6 +1,6 @@
 /**
  * Módulo de Autenticación (Features: Auth)
- * Vice City - Soporte para HU05-B (Inicio de Sesión con Google)
+ * Vice City - Soporte para HU05-B (Google Auth) y HU06-B (Cierre de Sesión)
  */
 
 // Servicio de Inicio de Sesión con Google (HU05-B)
@@ -34,3 +34,13 @@ export {
   GOOGLE_AUTH_ERROR_MESSAGES,
   resolveGoogleAuthErrorMessage,
 } from "./utils/google-error-handler";
+
+// Servicio y Utilidades de Cierre de Sesión (HU06-B LN & API)
+export {
+  LogoutService,
+  logoutService,
+  AUTH_COOKIE_NAMES,
+  type LogoutResult,
+  type InvalidateSessionOptions,
+  type ExpiredCookieDescriptor,
+} from "./services/logout.service";
