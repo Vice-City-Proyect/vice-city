@@ -1,0 +1,114 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Cierre de Sesión (HU06-B)",
+    "description": "Especificación OpenAPI 3.0.3 para la acción de cierre de sesión (Logout), invalidación de cookies JWT y redirección al login en Vice City.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth - Logout",
+      "description": "Endpoints de invalidación de sesión y cierre seguro"
+    }
+  ],
+  "paths": {
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth - Logout"],
+        "summary": "Cerrar sesión activa del usuario",
+        "description": "Invalida y purga todas las cookies de sesión (next-auth.session-token, CSRF, etc.) con Max-Age=0 y devuelve instrucciones de redirección al login. Es completamente idempotente: si no hay sesión activa o el token ya expiró, responde 200 exitosamente.",
+        "operationId": "logoutUser",
+        "responses": {
+          "200": {
+            "description": "Sesión cerrada exitosamente y cookies purgadas",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Encabezados Set-Cookie que instruyen al navegador a eliminar las cookies de sesión con Max-Age=0 y Expires en 1970",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutSuccessResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor al procesar el cierre de sesión",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Auth - Logout"],
+        "summary": "Cerrar sesión con redirección automática al login",
+        "description": "Limpia las cookies de sesión y emite una redirección HTTP 302/307 hacia la página de login (/login).",
+        "operationId": "logoutWithRedirect",
+        "responses": {
+          "302": {
+            "description": "Redirección a /login tras purgar las cookies de sesión"
+          }
+        }
+      }
+    },
+    "/api/auth/signout": {
+      "post": {
+        "tags": ["Auth - Logout"],
+        "summary": "Endpoint nativo de NextAuth para cierre de sesión (signOut)",
+        "description": "Proporcionado de forma nativa por el Route Handler de NextAuth para invalidar la sesión y redireccionar al login.",
+        "operationId": "nextAuthSignOut",
+        "responses": {
+          "200": {
+            "description": "Sesión invalidada por NextAuth"
+          },
+          "302": {
+            "description": "Redirección a la URL configurada en signOut (/login)"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LogoutSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Sesión cerrada exitosamente." },
+          "data": {
+            "type": "object",
+            "properties": {
+              "loggedOut": { "type": "boolean", "example": true },
+              "redirectTo": { "type": "string", "example": "/login" }
+            }
+          }
+        }
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+          "message": { "type": "string", "example": "Ocurrió un error inesperado al procesar el cierre de sesión" }
+        }
+      }
+    }
+  }
+}
+
