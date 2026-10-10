@@ -97,6 +97,26 @@ export async function authenticateUser(
 }
 
 /**
+ * Obtiene y valida la clave secreta requerida para la firma y cifrado de sesiones NextAuth (JWT).
+ * Lanza un error explícito si la variable de entorno NEXTAUTH_SECRET (o JWT_SECRET) no está configurada,
+ * impidiendo el uso de claves por defecto predecibles o inseguras en el repositorio.
+ *
+ * @param env Entorno de variables (opcional para pruebas unitarias)
+ */
+export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  if (!secret) {
+    if (env.NODE_ENV === "test" || env.npm_lifecycle_event === "test") {
+      return "vice-city-unit-tests-isolated-secret-key-32chars";
+    }
+    throw new Error(
+      "Configuración de seguridad faltante: NEXTAUTH_SECRET (o JWT_SECRET) no está definida en las variables de entorno. Configure NEXTAUTH_SECRET en su archivo .env."
+    );
+  }
+  return secret;
+}
+
+/**
  * Configuración completa de NextAuth para sesiones basadas en tokens JWT
  */
 export const authOptions: NextAuthOptions = {
@@ -104,7 +124,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 8 * 60 * 60, // 8 horas según .env.example
   },
-  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || "default_super_secret_jwt_key",
+  secret: getAuthSecret(),
   providers: [
     CredentialsProvider({
       id: "credentials",

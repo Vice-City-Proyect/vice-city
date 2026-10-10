@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { authenticateUser, authOptions, VALID_SRS_ROLES } from "../../src/lib/auth.ts";
+import { authenticateUser, authOptions, getAuthSecret, VALID_SRS_ROLES } from "../../src/lib/auth.ts";
 import { hashPassword } from "../../src/lib/password.ts";
 
 /**
@@ -233,6 +233,32 @@ describe("HU02-B: Lógica de Negocio - Autenticación y JWT (NextAuth)", () => {
       },
       (err) => {
         assert.ok(err.message.includes("obligatorio"));
+        return true;
+      }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // VALIDACIONES DE SEGURIDAD (PR #8 - Corrección de secreto JWT)
+  // -------------------------------------------------------------------------
+  it("Seguridad (PR #8): getAuthSecret retorna la clave cuando NEXTAUTH_SECRET está configurada", () => {
+    const secret = getAuthSecret({ NEXTAUTH_SECRET: "mi-clave-super-secreta-de-prueba-12345" });
+    assert.equal(secret, "mi-clave-super-secreta-de-prueba-12345");
+  });
+
+  it("Seguridad (PR #8): getAuthSecret retorna la clave cuando JWT_SECRET está configurada como fallback", () => {
+    const secret = getAuthSecret({ JWT_SECRET: "fallback-jwt-secret-key-prueba" });
+    assert.equal(secret, "fallback-jwt-secret-key-prueba");
+  });
+
+  it("Seguridad (PR #8): getAuthSecret lanza error explícito si falta la variable de entorno en runtime", () => {
+    assert.throws(
+      () => {
+        getAuthSecret({ NODE_ENV: "production" });
+      },
+      (err) => {
+        assert.ok(err.message.includes("Configuración de seguridad faltante"));
+        assert.ok(err.message.includes("NEXTAUTH_SECRET"));
         return true;
       }
     );
