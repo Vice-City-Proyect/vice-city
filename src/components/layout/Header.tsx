@@ -37,15 +37,16 @@ export function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="text-xs font-bold uppercase tracking-widest text-text-main transition-colors hover:text-club-primary"
+              className="group relative text-xs font-bold uppercase tracking-widest text-text-main transition-all duration-300 hover:text-club-primary hover:-translate-y-0.5"
             >
               {link.label}
+              <span className="absolute -bottom-1.5 left-0 h-[2px] w-0 rounded-full bg-club-primary transition-all duration-300 group-hover:w-full" />
             </a>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
-          <ButtonLink href="/login" size="sm">
+          <ButtonLink href="/login" size="md">
             Reservar
           </ButtonLink>
 
