@@ -25,3 +25,21 @@ export {
   WeakPasswordError,
 } from "./errors/password-reset.errors";
 
+// Esquemas de Validación (HU04-B)
+export {
+  forgotPasswordSchema,
+  type ForgotPasswordInput,
+} from "./schemas/forgot-password.schema";
+export {
+  resetPasswordSchema,
+  validateResetTokenSchema,
+  type ResetPasswordInput,
+  type ValidateResetTokenInput,
+} from "./schemas/reset-password.schema";
+
+// Tipos de Retorno (HU04-B)
+export type {
+  RequestPasswordResetResult,
+  ResetPasswordResult,
+  ValidateTokenStatusResult,
+} from "./types/password-reset.types";
