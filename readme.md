@@ -497,4 +497,29 @@ npm run build
 | `P1001: Can't reach database server` | Puerto o host incorrecto, o red bloqueada. | Asegúrate de usar el Transaction Pooler en el puerto `6543` para runtime y el Session Pooler en `5432` para `DIRECT_URL`. |
 | `Middleware is missing expected function export` | `src/middleware.ts` está vacío. | Asegúrate de exportar una función `export function middleware(request: NextRequest)` válida. |
 
+---
+
+# 🌐 HU05-B: Lógica de Negocio de Inicio de Sesión con Google
+
+Esta funcionalidad implementa las reglas de negocio para el acceso federado mediante Google OAuth en Vice City.
+
+### Ubicación del Código
+* `src/features/auth/services/google-auth.service.ts`: Servicio con la lógica de registro de nuevos clientes (`CLIENT`), vinculación transparente de cuentas existentes sin duplicados, tratamiento de correos verificados y normalización insensible a mayúsculas.
+* `src/features/auth/errors/google-auth.errors.ts`: Errores de dominio tipados (`GoogleEmailNotProvidedError`, `UserInactiveError`, `GoogleAuthError`).
+* `src/features/auth/index.ts`: Barrel exports del módulo de autenticación.
+* `tests/unit/google.auth.test.mjs`: Pruebas unitarias de la lógica sin dependencias de red o endpoints HTTP.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+
 

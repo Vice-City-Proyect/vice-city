@@ -1,34 +1,52 @@
 {
-  "name": "vice-city",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "postinstall": "prisma generate",
-    "db:pull": "prisma db pull",
-    "db:generate": "prisma generate",
-    "db:studio": "prisma studio",
-    "db:test": "node --env-file=.env scripts/test-db.mjs"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.19.3",
-    "next": "16.3.7",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.7",
-    "prisma": "^6.19.3",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+    "name":  "vice-city",
+    "version":  "0.1.0",
+    "private":  true,
+    "scripts":  {
+                    "dev":  "next dev",
+                    "build":  "next build",
+                    "start":  "next start",
+                    "lint":  "eslint",
+                    "postinstall":  "prisma generate",
+                    "db:pull":  "prisma db pull",
+                    "db:generate":  "prisma generate",
+                    "db:studio":  "prisma studio",
+                    "db:test":  "node --env-file=.env scripts/test-db.mjs",
+                    "db:test:users":  "node --env-file=.env scripts/test-users.mjs",
+                    "db:seed:admin":  "node --env-file=.env scripts/seed-admin.mjs",
+                    "db:test:login":  "node --env-file=.env scripts/test-login-query.mjs",
+                    "db:migrate:verification":  "node --env-file=.env scripts/migrate-email-verification.mjs",
+                    "db:test:verification":  "node --env-file=.env scripts/test-verification.mjs",
+                    "db:migrate:password-reset":  "node --env-file=.env scripts/migrate-password-reset.mjs",
+                    "db:test:password-reset":  "node --env-file=.env scripts/test-password-reset.mjs",
+                    "db:migrate:linked-accounts": "node --env-file=.env scripts/migrate-linked-accounts.mjs",
+                    "db:test:linked-accounts": "node --env-file=.env scripts/test-linked-accounts.mjs",
+                    "test": "tsx --test tests/unit/*.test.mjs",
+                    "test:unit": "tsx --test tests/unit/*.test.mjs"
+                },
+    "dependencies":  {
+                         "@prisma/client":  "^6.19.3",
+                         "bcryptjs": "^3.0.3",
+                         "framer-motion":  "^14.0.0",
+                         "lucide-react":  "^1.50.0",
+                         "next":  "16.3.7",
+                         "next-auth": "^4.24.15",
+                         "react":  "19.2.8",
+                         "react-dom":  "19.2.8",
+                         "zod": "^4.6.5"
+                     },
+    "devDependencies":  {
+                            "@tailwindcss/postcss":  "^4",
+                            "@types/bcryptjs": "^2.4.6",
+                            "@types/node":  "^20",
+                            "@types/react":  "^19",
+                            "@types/react-dom":  "^19",
+                            "babel-plugin-react-compiler":  "1.0.0",
+                            "eslint":  "^9",
+                            "eslint-config-next":  "16.3.7",
+                            "prisma":  "^6.19.3",
+                            "tailwindcss":  "^4",
+                            "tsx":  "^4.23.15",
+                            "typescript":  "^5"
+                        }
 }
