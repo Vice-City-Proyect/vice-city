@@ -1,6 +1,6 @@
 /**
- * Módulo de Usuarios, Verificación y Recuperación de Contraseña (Features: Users)
- * Vice City - Soporte para HU01-BD, HU02-BD, HU03-BD y HU04-BD
+ * Módulo de Usuarios, Verificación, Roles y Auditoría (Features: Users)
+ * Vice City - Soporte para HU01-BD a HU07-BD/API
  */
 
 // Repositorio principal de usuarios (HU01-BD y HU02-BD)
@@ -39,7 +39,47 @@ export {
   unlinkAccount,
 } from "./linked-accounts.repository";
 
-// Tipos compartidos (HU01-BD a HU05-BD)
+// Repositorio de gestión de roles y auditoría (HU07-BD)
+export {
+  listUsersWithRolePaged,
+  countAdminUsers,
+  findRole,
+  updateUserRoleWithAudit,
+  type ListUsersWithRoleParams,
+  type PagedUsersResult,
+  type UpdateUserRoleParams,
+  type UpdateUserRoleResult,
+} from "./role-management.repository";
+
+// Servicio de Lógica de Negocio de Gestión de Roles (HU07-B LN)
+export {
+  RoleManagementService,
+  roleManagementService,
+  VALID_SRS_ROLES,
+  type RequesterUser,
+  type ChangeUserRoleInput,
+  type ChangeUserRoleResult,
+} from "./services/role-management.service";
+
+// Errores de Dominio de Gestión de Roles (HU07-B)
+export {
+  RoleManagementError,
+  UnauthorizedRoleManagerError,
+  InvalidRoleError,
+  CannotDemoteLastAdminError,
+  TargetUserNotFoundError,
+  RoleNotFoundError,
+} from "./errors/role-management.errors";
+
+// Esquemas de Validación Zod (HU07-B API)
+export {
+  changeUserRoleSchema,
+  listUsersQuerySchema,
+  type ChangeUserRoleInput as ChangeUserRoleSchemaInput,
+  type ListUsersQueryInput,
+} from "./schemas/role-management.schema";
+
+// Tipos compartidos (HU01-BD a HU07-BD)
 export type {
   CreateUserData,
   UserWithRole,
