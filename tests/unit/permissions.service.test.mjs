@@ -119,3 +119,4 @@ describe("HU08-B: Lógica de Negocio - Matriz de Permisos por Rol (SRS Sección 
     assert.equal(normalizeRole("unknown"), null);
   });
 });
+

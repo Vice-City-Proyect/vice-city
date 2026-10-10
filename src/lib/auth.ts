@@ -161,7 +161,9 @@ export const authOptions: NextAuthOptions = {
           };
 
           // Delegación estricta a la capa de lógica de negocio (HU05-B LN)
-          const result = await googleAuthService.handleGoogleAuth(googleProfile);
+          const activeGoogleService =
+            (authOptions as any).__googleAuthService ?? googleAuthService;
+          const result = await activeGoogleService.handleGoogleAuth(googleProfile);
 
           // Si la tabla linked_accounts está disponible, registrar persistencia ORM (HU05-BD)
           if (result?.user?.id && account.providerAccountId) {

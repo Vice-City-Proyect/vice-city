@@ -75,6 +75,8 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
         return user;
       },
     });
+
+    authOptions.__googleAuthService = mockService;
   });
 
   // -------------------------------------------------------------------------

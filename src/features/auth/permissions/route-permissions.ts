@@ -187,3 +187,4 @@ export function isRouteAllowed(role: string | null | undefined, pathname: string
   // 4. Verificar si el rol normalizado está dentro de los roles autorizados
   return allowedRoles.includes(normalizedRole);
 }
+

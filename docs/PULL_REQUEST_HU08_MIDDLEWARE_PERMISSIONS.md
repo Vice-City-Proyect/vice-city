@@ -100,3 +100,4 @@ npm test
 # Ejecutar únicamente las pruebas de middleware y permisos
 npx tsx --test tests/unit/permissions*.test.mjs tests/unit/middleware*.test.mjs
 ```
+

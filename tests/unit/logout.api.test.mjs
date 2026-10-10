@@ -102,11 +102,11 @@ describe("HU06-B: API Endpoints - Cierre de Sesión", () => {
   // -------------------------------------------------------------------------
   // CRITERIO 3: Caso límite - después de cerrar sesión, las rutas protegidas no son accesibles
   // -------------------------------------------------------------------------
-  test("Criterio 3 (Caso límite Middleware): Tras cerrar sesión, rutas de cliente (/client/*) redirigen al login", () => {
+  test("Criterio 3 (Caso límite Middleware): Tras cerrar sesión, rutas de cliente (/client/*) redirigen al login", async () => {
     // Solicitud a ruta protegida sin cookies de sesión
     const request = createMockRequest("http://localhost:3000/client/dashboard");
 
-    const response = middleware(request);
+    const response = await middleware(request);
 
     // Debe interceptar y redirigir al login
     assert.ok(response.status === 307 || response.status === 302);
@@ -115,18 +115,18 @@ describe("HU06-B: API Endpoints - Cierre de Sesión", () => {
     assert.ok(location.includes("callbackUrl"));
   });
 
-  test("Criterio 3 (Caso límite Middleware): Tras cerrar sesión, rutas administrativas (/admin/*) redirigen al login", () => {
+  test("Criterio 3 (Caso límite Middleware): Tras cerrar sesión, rutas administrativas (/admin/*) redirigen al login", async () => {
     const request = createMockRequest("http://localhost:3000/admin/users");
-    const response = middleware(request);
+    const response = await middleware(request);
 
     assert.ok(response.status === 307 || response.status === 302);
     const location = response.headers.get("Location");
     assert.ok(location.includes("/login"));
   });
 
-  test("Criterio 3 (Caso límite Middleware): Tras cerrar sesión, rutas de empleados (/employee/*) redirigen al login", () => {
+  test("Criterio 3 (Caso límite Middleware): Tras cerrar sesión, rutas de empleados (/employee/*) redirigen al login", async () => {
     const request = createMockRequest("http://localhost:3000/employee/pos");
-    const response = middleware(request);
+    const response = await middleware(request);
 
     assert.ok(response.status === 307 || response.status === 302);
     const location = response.headers.get("Location");

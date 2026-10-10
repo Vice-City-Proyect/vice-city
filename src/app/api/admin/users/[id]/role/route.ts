@@ -58,6 +58,14 @@ export async function PATCH(
     if (contextOrSession && "params" in contextOrSession) {
       const resolvedParams = await contextOrSession.params;
       targetUserId = resolvedParams?.id;
+      if (
+        contextOrSession.user ||
+        contextOrSession.role ||
+        contextOrSession.id ||
+        contextOrSession.email
+      ) {
+        sessionOverride = contextOrSession;
+      }
     } else if (contextOrSession && typeof contextOrSession === "object") {
       sessionOverride = contextOrSession;
       targetUserId = (sessionOverride as any)?.targetUserId;

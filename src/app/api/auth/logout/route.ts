@@ -15,10 +15,15 @@ import { logoutService, LogoutService } from "@/features/auth/services/logout.se
  */
 export async function POST(
   request: NextRequest,
+  contextOrService?: any,
   serviceOverride?: LogoutService
 ) {
   try {
-    const service = serviceOverride ?? logoutService;
+    const service =
+      serviceOverride ??
+      (contextOrService && typeof contextOrService === "object" && "invalidateSession" in contextOrService
+        ? (contextOrService as LogoutService)
+        : logoutService);
 
     // Obtener token opcional de los headers de cookies o Authorization
     const sessionToken =
@@ -68,10 +73,15 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
+  contextOrService?: any,
   serviceOverride?: LogoutService
 ) {
   try {
-    const service = serviceOverride ?? logoutService;
+    const service =
+      serviceOverride ??
+      (contextOrService && typeof contextOrService === "object" && "invalidateSession" in contextOrService
+        ? (contextOrService as LogoutService)
+        : logoutService);
     const isSecure = request.nextUrl.protocol === "https:";
 
     const result = await service.invalidateSession(null, {

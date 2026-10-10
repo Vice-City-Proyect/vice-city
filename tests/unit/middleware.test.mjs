@@ -146,3 +146,4 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
     assert.equal(resRegister.headers.get("Location"), null);
   });
 });
+
