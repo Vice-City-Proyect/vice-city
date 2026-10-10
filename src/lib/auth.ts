@@ -107,15 +107,32 @@ export async function authenticateUser(
  * Configuración completa de NextAuth para sesiones basadas en tokens JWT
  * Soporta autenticación local por credenciales y federada con Google OAuth (HU05-B).
  */
+/**
+ * Obtiene y valida la clave secreta requerida para la firma y cifrado de sesiones NextAuth (JWT).
+ * Lanza un error explícito si la variable de entorno NEXTAUTH_SECRET (o JWT_SECRET) no está configurada,
+ * impidiendo el uso de claves por defecto predecibles o inseguras en el repositorio.
+ *
+ * @param env Entorno de variables (opcional para pruebas unitarias)
+ */
+export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  if (!secret) {
+    if (env.NODE_ENV === "test" || env.npm_lifecycle_event === "test") {
+      return "vice-city-unit-tests-isolated-secret-key-32chars";
+    }
+    throw new Error(
+      "Configuración de seguridad faltante: NEXTAUTH_SECRET (o JWT_SECRET) no está definida en las variables de entorno. Configure NEXTAUTH_SECRET en su archivo .env."
+    );
+  }
+  return secret;
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 8 * 60 * 60, // 8 horas según configuración del proyecto
   },
-  secret:
-    process.env.NEXTAUTH_SECRET ||
-    process.env.JWT_SECRET ||
-    "default_super_secret_jwt_key_vice_city_2026",
+  secret: getAuthSecret(),
   providers: [
     // Proveedor Google OAuth (HU05-B)
     GoogleProvider({

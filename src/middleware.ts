@@ -9,6 +9,22 @@ import {
   normalizeRole,
 } from "@/features/auth/permissions/route-permissions";
 
+function getMiddlewareSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    if (
+      process.env.NODE_ENV === "test" ||
+      process.env.npm_lifecycle_event === "test"
+    ) {
+      return "vice-city-unit-tests-isolated-secret-key-32chars";
+    }
+    throw new Error(
+      "Configuración de seguridad faltante: NEXTAUTH_SECRET (o JWT_SECRET) no está definida en las variables de entorno."
+    );
+  }
+  return secret;
+}
+
 /**
  * Middleware de Next.js para Protección de Rutas y Permisos (HU08-B API)
  *
@@ -51,10 +67,7 @@ export async function middleware(
       try {
         token = await getToken({
           req: request,
-          secret:
-            process.env.NEXTAUTH_SECRET ||
-            process.env.JWT_SECRET ||
-            "default_super_secret_jwt_key_vice_city_2026",
+          secret: getMiddlewareSecret(),
         });
       } catch {
         // Criterio límite: Token manipulado o corrupto genera null (sin sesión)
