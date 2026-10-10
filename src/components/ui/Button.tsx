@@ -1,10 +1,12 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 const VARIANTS = {
-  primary: 'bg-club-primary text-btn-text hover:bg-club-primary-hover shadow-sm',
-  dark: 'bg-club-accent text-white hover:bg-club-accent/90 shadow-sm',
+  primary:
+    'group relative overflow-hidden bg-club-primary text-btn-text shadow-sm transition-all duration-300 hover:brightness-110 active:scale-95 before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:transition-transform before:duration-700 hover:before:translate-x-full',
+  dark: 
+    'group relative overflow-hidden bg-club-accent text-white shadow-sm transition-all duration-300 hover:brightness-110 active:scale-95 before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:transition-transform before:duration-700 hover:before:translate-x-full',
   light:
-    'border-2 border-white/50 text-white hover:bg-white hover:text-club-accent',
+    'border-2 border-white/50 text-white transition-all duration-300 hover:bg-white hover:text-club-accent active:scale-95',
 } as const;
 
 const SIZES = {
@@ -14,7 +16,7 @@ const SIZES = {
 } as const;
 
 const BASE =
-  'inline-flex items-center justify-center gap-2 rounded-xl font-bold uppercase tracking-wider transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2';
+  'inline-flex items-center justify-center gap-2 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-club-primary focus-visible:ring-offset-2';
 
 type Variant = keyof typeof VARIANTS;
 type Size = keyof typeof SIZES;
