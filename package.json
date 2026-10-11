@@ -25,6 +25,9 @@
     "test:services": "node --env-file=.env scripts/test-categories-services.mjs",
     "test:pricing": "node --env-file=.env scripts/test-dynamic-pricing.mjs",
     "test:employees": "node --env-file=.env scripts/test-employees.mjs",
+    "test:availability": "tsx --test tests/unit/availability.test.mjs",
+    "test:hold": "tsx --test tests/unit/reservations.hold.test.mjs",
+    "test:discounts": "tsx --test tests/unit/discounts.test.mjs",
     "test": "tsx --test tests/unit/*.test.mjs",
     "test:unit": "tsx --test tests/unit/*.test.mjs"
   },

@@ -498,6 +498,7 @@ npm run build
 | `Middleware is missing expected function export` | `src/middleware.ts` está vacío. | Asegúrate de exportar una función `export function middleware(request: NextRequest)` válida. |
 
 ---
+
 # 🔑 HU04-B: Lógica de Negocio de Recuperación de Contraseña
 
 Esta funcionalidad implementa las reglas de negocio para la recuperación y restablecimiento seguro de contraseñas de usuarios en Vice City.
@@ -807,6 +808,9 @@ Los contratos estáticos en formato JSON OpenAPI 3.0 se encuentran organizados e
 | **Cierre de Sesión** | [`docs/swagger/auth-logout.swagger.json`](file:///docs/swagger/auth-logout.swagger.json) | `POST /api/auth/logout` |
 | **Gestión de Roles** | [`docs/swagger/admin-roles.swagger.json`](file:///docs/swagger/admin-roles.swagger.json) | `GET /api/admin/users`, `PATCH /api/admin/users/{id}/role` |
 | **Gestión de Empleados (HU19)** | [`docs/swagger/employees.swagger.json`](file:///docs/swagger/employees.swagger.json) | `GET /api/employees`, `POST /api/employees`, `GET /api/employees/{id}`, `PATCH /api/employees/{id}`, `DELETE /api/employees/{id}` |
+| **Catálogo y Disponibilidad (HU20)** | [`docs/swagger/hu20-availability.swagger.json`](file:///docs/swagger/hu20-availability.swagger.json) | `GET /api/catalog`, `GET /api/availability` |
+| **Reserva y HOLD 10 min (HU21)** | [`docs/swagger/hu21-reservation-hold.swagger.json`](file:///docs/swagger/hu21-reservation-hold.swagger.json) | `POST /api/reservations/hold`, `GET /api/reservations/{id}` |
+| **Descuentos y Promociones (HU22)** | [`docs/swagger/hu22-discounts.swagger.json`](file:///docs/swagger/hu22-discounts.swagger.json) | `POST /api/pricing/calculate` |
 
 ---
 
@@ -821,3 +825,84 @@ Si deseas visualizar los archivos `.swagger.json` fuera del API Tester:
    * Instala la extensión **OpenAPI (Swagger) Editor** o **Swagger Viewer**.
    * Abre cualquiera de los archivos en `docs/swagger/` y presiona `Shift + Alt + E` para previsualizar.
 
+# 📅 FT-04 / HU20: Catálogo y Disponibilidad de Servicios
+
+Esta funcionalidad implementa el catálogo público y el motor de disponibilidad y aforo por franja horaria para Vice City (RN-001 a RN-012).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/services/services/availability.service.ts`: Motor de cálculo de aforo por franja horaria, validación de horario operativo (8:00 AM — 5:00 PM), bloqueo de mantenimiento semanal y compras en curso (RN-010).
+* `src/features/services/services/catalog.service.ts`: Consulta de categorías y servicios activos con precio y aforo.
+* `src/features/services/utils/colombian-holidays.util.ts`: Detección algorítmica de festivos en Colombia (Ley Emiliani) y traslado de mantenimiento a martes (RN-003).
+* `src/features/services/utils/date-bogota.util.ts`: Cálculos en zona horaria oficial `America/Bogota` (RN-002).
+* `src/features/services/schemas/availability.schema.ts`: Esquemas de validación Zod con `.strict()`.
+* `src/app/api/catalog/route.ts`: Endpoint público GET `/api/catalog`.
+* `src/app/api/availability/route.ts`: Endpoint unificado GET `/api/availability` (Web y POS, RN-012).
+* `src/app/(public)/catalog/page.tsx`: Vista pública responsiva con Tailwind v4.
+* `docs/swagger/hu20-availability.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/availability.test.mjs`: Pruebas unitarias de la lógica y casos de borde.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+---
+
+# ⏱️ FT-04 / HU21: Reserva con Retención (HOLD) de 10 Minutos
+
+Esta funcionalidad implementa la creación atómica de reservas con retención temporal (HOLD) de 10 minutos (RN-006, RN-009, RN-011 y RN-012).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/reservations/services/reservation-hold.service.ts`: Motor de retención atómica con transacciones de Prisma, fijación de tarifa histórica, cálculo de expiración de 10 minutos y liberación automática de cupos vencidos.
+* `src/features/reservations/schemas/reservation.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/reservations/errors/reservation.errors.ts`: Errores de dominio (`SlotFullConflictError` 409, `HoldExpiredError` 410, `InvalidDurationError` 400).
+* `src/app/api/reservations/hold/route.ts`: Endpoint POST para generar el HOLD de 10 minutos.
+* `src/app/api/reservations/[id]/route.ts`: Endpoint GET para consultar estado y segundos restantes del temporizador.
+* `src/app/(public)/checkout/[bookingId]/page.tsx`: Pantalla de checkout con temporizador regresivo reactivo y resumen de reserva.
+* `docs/swagger/hu21-reservation-hold.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/reservations.hold.test.mjs`: Pruebas unitarias de la lógica y concurrencia.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+---
+
+# 🏷️ FT-04 / HU22: Descuentos y Promociones
+
+Esta funcionalidad implementa el cálculo automático de precios y aplicación de promociones y descuentos oficiales de Vice City (RN-013, RN-014 y RN-015).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/pricing/services/discount-calculator.service.ts`: Motor de cálculo de precios, evaluación de descuento del 20% los miércoles (RN-013), descuento del 20% por reserva completa de piscina con bloqueo de 50 cupos (RN-014), restricción en viernes, fines de semana y festivos, y regla de no acumulación (RN-015).
+* `src/features/pricing/schemas/pricing.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/pricing/errors/discount.errors.ts`: Errores de dominio (`FullPoolDayRestrictedError` 422, `PricingError`).
+* `src/features/pricing/types/discount.types.ts`: Tipos TypeScript para parámetros y desglose de tarifas.
+* `src/features/pricing/components/DiscountBadge.tsx`: Chip UI de Tailwind v4 que resalta el tipo de descuento aplicado.
+* `src/features/pricing/components/PricingBreakdown.tsx`: Desglose monetario en pesos colombianos (COP).
+* `src/app/api/pricing/calculate/route.ts`: Endpoint POST `/api/pricing/calculate` para cálculo dinámico de precios.
+* `docs/swagger/hu22-discounts.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/discounts.test.mjs`: Pruebas unitarias de las reglas RN-013, RN-014 y RN-015.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```

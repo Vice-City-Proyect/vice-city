@@ -30,6 +30,7 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
     { name: 'Admin - Roles', description: 'Gestión administrativa de roles de usuarios y auditoría' },
     { name: 'Admin - Employees', description: 'Gestión administrativa de cuentas de empleados' },
     { name: 'Admin - Services', description: 'Gestión de servicios deportivos y categorías' },
+    { name: 'Reservations & Catalog (FT-04)', description: 'Catálogo público, disponibilidad horaria, HOLD de 10 min y descuentos' },
   ],
   paths: {
     '/api/auth/register': {
@@ -433,6 +434,118 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
         },
       },
     },
+    '/api/catalog': {
+      get: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Obtener catálogo público de servicios y categorías (HU20)',
+        description: 'Retorna las categorías activas y sus servicios con precios y aforos.',
+        operationId: 'getCatalog',
+        parameters: [
+          { name: 'categoryId', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+          { name: 'includeInactive', in: 'query', required: false, schema: { type: 'boolean', default: false } },
+        ],
+        responses: {
+          '200': { description: 'Catálogo obtenido exitosamente' },
+          '400': { description: 'Parámetros inválidos' },
+        },
+      },
+    },
+    '/api/availability': {
+      get: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Consultar disponibilidad y aforo por fecha (HU20)',
+        description: 'Calcula cupos restantes para las 9 franjas (08:00 a 17:00), validando mantenimiento (lunes/martes festivo) y compras en curso (RN-010).',
+        operationId: 'getAvailability',
+        parameters: [
+          { name: 'serviceId', in: 'query', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'date', in: 'query', required: true, schema: { type: 'string', format: 'date' }, example: '2026-10-15' },
+        ],
+        responses: {
+          '200': { description: 'Disponibilidad calculada exitosamente' },
+          '400': { description: 'Fecha fuera de rango o en el pasado' },
+          '404': { description: 'Servicio no encontrado' },
+        },
+      },
+    },
+    '/api/reservations/hold': {
+      post: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Crear reserva con retención temporal (HOLD) de 10 min (HU21)',
+        description: 'Crea reserva en pending bloqueando aforo y congelando tarifa histórica por 10 min.',
+        operationId: 'createHoldReservation',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['userId', 'serviceId', 'startAt', 'endAt'],
+                properties: {
+                  userId: { type: 'string', format: 'uuid', example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
+                  serviceId: { type: 'string', format: 'uuid', example: 'd290f1ee-6c54-4b01-90e6-d701748f0851' },
+                  startAt: { type: 'string', format: 'date-time', example: '2026-10-15T09:00:00-05:00' },
+                  endAt: { type: 'string', format: 'date-time', example: '2026-10-15T10:00:00-05:00' },
+                  quantity: { type: 'integer', default: 1, example: 2 },
+                  notes: { type: 'string', example: 'Reserva para entrenamiento' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Reserva creada y HOLD retenido' },
+          '400': { description: 'Horario o duración inválida' },
+          '409': { description: 'Aforo insuficiente / Cupo lleno' },
+        },
+      },
+    },
+    '/api/reservations/{id}': {
+      get: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Consultar detalles y tiempo restante de HOLD (HU21)',
+        description: 'Consulta estado de la reserva y segundos restantes antes de que expire el HOLD.',
+        operationId: 'getReservationHoldStatus',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Detalle de reserva obtenido' },
+          '404': { description: 'Reserva no encontrada' },
+        },
+      },
+    },
+    '/api/pricing/calculate': {
+      post: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Calcular tarifa de reserva con descuentos automáticos (HU22)',
+        description: 'Calcula descuentos del 20% los miércoles (RN-013) o piscina completa (RN-014) y regla de no acumulación (RN-015).',
+        operationId: 'calculatePricing',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['serviceId', 'date', 'startAt', 'endAt'],
+                properties: {
+                  serviceId: { type: 'string', format: 'uuid', example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
+                  date: { type: 'string', format: 'date', example: '2026-10-14' },
+                  startAt: { type: 'string', format: 'date-time', example: '2026-10-14T09:00:00-05:00' },
+                  endAt: { type: 'string', format: 'date-time', example: '2026-10-14T10:00:00-05:00' },
+                  quantity: { type: 'integer', default: 1, example: 1 },
+                  isFullPool: { type: 'boolean', default: false },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Tarifa calculada con descuentos exitosamente' },
+          '400': { description: 'Parámetros inválidos' },
+          '422': { description: 'Piscina completa restringida en fin de semana o festivo' },
+        },
+      },
+    },
   },
 };
 
@@ -500,6 +613,23 @@ export const PRESET_SPECS: PresetSpecItem[] = [
         '/api/categories': COMBINED_VICE_CITY_SPEC.paths['/api/categories'],
         '/api/services': COMBINED_VICE_CITY_SPEC.paths['/api/services'],
         '/api/services/{id}': COMBINED_VICE_CITY_SPEC.paths['/api/services/{id}'],
+      },
+    },
+  },
+  {
+    id: 'ft04-reservations',
+    name: 'FT-04 — Motor de Reservas & HOLD (HU20-22)',
+    description: 'Catálogo público (/api/catalog), disponibilidad horaria (/api/availability), retención HOLD 10 min (/api/reservations/hold) y descuentos (/api/pricing/calculate).',
+    badge: 'FT-04',
+    spec: {
+      openapi: '3.0.3',
+      info: { title: 'FT-04 — Motor de Reservas & HOLD', version: '1.0.0' },
+      paths: {
+        '/api/catalog': COMBINED_VICE_CITY_SPEC.paths['/api/catalog'],
+        '/api/availability': COMBINED_VICE_CITY_SPEC.paths['/api/availability'],
+        '/api/reservations/hold': COMBINED_VICE_CITY_SPEC.paths['/api/reservations/hold'],
+        '/api/reservations/{id}': COMBINED_VICE_CITY_SPEC.paths['/api/reservations/{id}'],
+        '/api/pricing/calculate': COMBINED_VICE_CITY_SPEC.paths['/api/pricing/calculate'],
       },
     },
   },
