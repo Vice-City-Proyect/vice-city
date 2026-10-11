@@ -14,6 +14,7 @@
     "db:test": "node --env-file=.env scripts/test-db.mjs",
     "db:test:users": "node --env-file=.env scripts/test-users.mjs",
     "db:seed:admin": "node --env-file=.env scripts/seed-admin.mjs",
+    "db:test:login": "node --env-file=.env scripts/test-login-query.mjs",
     "test": "tsx --test tests/unit/*.test.mjs",
     "test:unit": "tsx --test tests/unit/*.test.mjs"
   },
