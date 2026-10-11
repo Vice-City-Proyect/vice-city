@@ -497,6 +497,33 @@ npm run build
 | `P1001: Can't reach database server` | Puerto o host incorrecto, o red bloqueada. | Asegúrate de usar el Transaction Pooler en el puerto `6543` para runtime y el Session Pooler en `5432` para `DIRECT_URL`. |
 | `Middleware is missing expected function export` | `src/middleware.ts` está vacío. | Asegúrate de exportar una función `export function middleware(request: NextRequest)` válida. |
 
+# 📧 HU03-B: Lógica de Negocio de Confirmación de Correo
+
+Esta funcionalidad gestiona el ciclo de vida y validación de tokens seguros para la verificación de correos de usuarios registrados.
+
+### Ubicación del Código
+* `src/features/auth/services/email-confirmation.service.ts`: Servicio principal de lógica de negocio (generación de tokens criptográficos, expiración, validación, invalidación atómica al reenviar).
+* `src/features/auth/services/email.service.ts`: Abstracción desacoplada de envío de correos (`IEmailSender`, `ConsoleEmailSender`, `MockEmailSender`).
+* `src/features/auth/errors/email-confirmation.errors.ts`: Errores de dominio tipados (`TokenExpiredError`, `InvalidTokenError`, `UserAlreadyVerifiedError`, `UserNotFoundError`).
+* `tests/unit/email.confirmation.test.mjs`: Pruebas unitarias de la lógica de negocio sin depender de endpoints HTTP.
+
+### Ejecución de Pruebas Unitarias
+Para ejecutar las pruebas de lógica de confirmación:
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+### Política de Usuario No Verificado (Propuesta para Product Owner)
+* **Permitido:** Iniciar sesión, ver catálogo de servicios/canchas, consultar horarios y precios, y solicitar reenvío de correo.
+* **Restringido:** Crear reservas activas, efectuar pagos y generar tickets/códigos QR de acceso.
+
 ---
 
 # 🔐 Autenticación: Endpoint de Registro (HU01-B)
