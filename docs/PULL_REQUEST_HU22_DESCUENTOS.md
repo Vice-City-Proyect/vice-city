@@ -83,3 +83,4 @@ npm run build
 - [x] **Aislamiento:** Confinado en `src/features/pricing/` y `src/app/api/pricing/`.
 - [x] **Calidad:** 100% de tests unitarios aprobados.
 - [x] **Documentación completa:** Actualización en `README.md` y `docs/PULL_REQUEST_HU22_DESCUENTOS.md`.
+
