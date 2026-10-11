@@ -237,7 +237,6 @@ describe("HU02-B: Lógica de Negocio - Autenticación y JWT (NextAuth)", () => {
       }
     );
   });
-
   // -------------------------------------------------------------------------
   // VALIDACIONES DE SEGURIDAD (PR #8 - Corrección de secreto JWT)
   // -------------------------------------------------------------------------

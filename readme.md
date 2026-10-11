@@ -497,6 +497,35 @@ npm run build
 | `P1001: Can't reach database server` | Puerto o host incorrecto, o red bloqueada. | Asegúrate de usar el Transaction Pooler en el puerto `6543` para runtime y el Session Pooler en `5432` para `DIRECT_URL`. |
 | `Middleware is missing expected function export` | `src/middleware.ts` está vacío. | Asegúrate de exportar una función `export function middleware(request: NextRequest)` válida. |
 
+---
+
+### 8. Autenticación y Sesiones JWT con NextAuth (HU02-B)
+
+Esta sección describe la configuración de sesiones y tokens JWT implementada mediante **NextAuth.js**:
+
+#### A. Variables requeridas en `.env.local`:
+```env
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="tu-clave-secreta-super-segura-aqui"
+```
+
+#### B. Roles del SRS Soportados:
+La sesión y el token JWT adjuntan obligatoriamente uno de los cuatro roles válidos del SRS:
+* `ADMIN`
+* `CLIENT`
+* `TICKET_SELLER`
+* `QR_VALIDATOR`
+
+Cualquier usuario con rol ausente o fuera de este enum es rechazado con error de negocio.
+
+#### C. Ejecución de Pruebas Unitarias de Autenticación:
+```bash
+npm test
+```
+Verifica validación de credenciales, comparación de hashes bcrypt, asignación de roles y rechazo ante campos vacíos o con espacios.
+
+---
+
 # 📧 HU03-B: Lógica de Negocio de Confirmación de Correo
 
 Esta funcionalidad gestiona el ciclo de vida y validación de tokens seguros para la verificación de correos de usuarios registrados.
