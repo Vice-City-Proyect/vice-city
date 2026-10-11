@@ -12,14 +12,15 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:test": "node --env-file=.env scripts/test-db.mjs",
-    "test": "tsx --test tests/unit/availability.test.mjs tests/unit/reservations.hold.test.mjs tests/unit/discounts.test.mjs",
-    "test:unit": "tsx --test tests/unit/availability.test.mjs tests/unit/reservations.hold.test.mjs tests/unit/discounts.test.mjs"
+    "test": "tsx --test tests/unit/availability.test.mjs tests/unit/reservations.hold.test.mjs tests/unit/discounts.test.mjs tests/unit/payments.stripe.test.mjs",
+    "test:unit": "tsx --test tests/unit/availability.test.mjs tests/unit/reservations.hold.test.mjs tests/unit/discounts.test.mjs tests/unit/payments.stripe.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "next": "16.3.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "stripe": "^23.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

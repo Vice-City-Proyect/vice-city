@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { HoldTimer } from "@/features/reservations/components/HoldTimer";
 import { ReservationSummaryCard } from "@/features/reservations/components/ReservationSummaryCard";
+import { StripeCheckoutForm } from "@/features/payments/components/StripeCheckoutForm";
 import type { BookingDetails } from "@/features/reservations/types/reservation.types";
 
 export default function CheckoutHoldPage() {
@@ -84,26 +85,23 @@ export default function CheckoutHoldPage() {
             {/* Tarjeta de Resumen con Tarifa Congelada */}
             <ReservationSummaryCard booking={booking} />
 
-            {/* Acciones */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            {/* Formulario de Checkout con Stripe Test (HU23) */}
+            <div className="flex justify-center pt-2">
+              <StripeCheckoutForm
+                bookingId={booking.id}
+                amount={booking.totalAmount}
+                isHoldExpired={booking.isHoldExpired}
+              />
+            </div>
+
+            {/* Acciones de Navegación */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-start">
               <button
                 type="button"
                 onClick={() => router.push("/catalog")}
                 className="rounded-lg border border-zinc-300 bg-white px-5 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
               >
-                Volver al Catálogo
-              </button>
-
-              <button
-                type="button"
-                disabled={booking.isHoldExpired}
-                className={`rounded-lg px-6 py-2.5 text-xs font-bold text-white transition-all ${
-                  booking.isHoldExpired
-                    ? "cursor-not-allowed bg-zinc-400"
-                    : "bg-emerald-600 hover:bg-emerald-700 shadow-sm hover:shadow"
-                }`}
-              >
-                {booking.isHoldExpired ? "Cupo Expirado" : "Proceder al Pago"}
+                ← Volver al Catálogo
               </button>
             </div>
           </div>

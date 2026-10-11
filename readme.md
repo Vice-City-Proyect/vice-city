@@ -580,3 +580,32 @@ npm test
 ```bash
 npm run build
 ```
+
+---
+
+# 💳 FT-05 / HU23: Checkout con Tarjeta (Stripe Test)
+
+Esta funcionalidad implementa la creación de Payment Intents y el checkout seguro con tarjeta de crédito o débito mediante Stripe en modo de prueba (RN-016).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/payments/services/stripe-payment.service.ts`: Motor de pago con Stripe, validación de retención de 10 min (HOLD), cobro de tarifas congeladas e idempotencia contra doble clic.
+* `src/features/payments/schemas/create-payment-intent.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/payments/errors/payment.errors.ts`: Errores de dominio (`HoldExpiredPaymentError` 410, `BookingAlreadyPaidError` 409, `BookingNotFoundError` 404, `StripePaymentError` 502).
+* `src/features/payments/types/payment.types.ts`: Tipos TypeScript para pagos y resultados de checkout.
+* `src/features/payments/components/StripeCheckoutForm.tsx`: Formulario de pago con tarjeta con guía visual de Stripe Test en Tailwind v4.
+* `src/features/payments/components/PaymentStatusAlert.tsx`: Alertas de estado de pago.
+* `src/app/api/payments/create-intent/route.ts`: Endpoint POST `/api/payments/create-intent` para iniciar el checkout.
+* `src/app/(public)/checkout/[bookingId]/page.tsx`: Integración del formulario de tarjeta con el temporizador de HOLD.
+* `docs/swagger/hu23-stripe-checkout.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/payments.stripe.test.mjs`: Pruebas unitarias de montos, HOLD vencido e idempotencia.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
