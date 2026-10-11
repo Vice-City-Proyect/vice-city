@@ -499,6 +499,334 @@ npm run build
 
 ---
 
+# 🔑 HU04-B: Lógica de Negocio de Recuperación de Contraseña
+
+Esta funcionalidad implementa las reglas de negocio para la recuperación y restablecimiento seguro de contraseñas de usuarios en Vice City.
+
+### Ubicación del Código
+* `src/features/auth/services/password-reset.service.ts`: Servicio principal con validaciones, generación de tokens criptográficos de un solo uso con expiración de 1 hora, invalidación de tokens previos y restablecimiento seguro con encriptación bcrypt.
+* `src/features/auth/services/email.service.ts`: Abstracción desacoplada de correo (`IEmailSender`, `ConsoleEmailSender`, `MockEmailSender`).
+* `src/features/auth/errors/password-reset.errors.ts`: Errores de dominio tipados (`PasswordResetTokenExpiredError`, `InvalidPasswordResetTokenError`, `UserNotFoundError`, `WeakPasswordError`).
+* `src/features/auth/index.ts`: Barrel exports del módulo de autenticación.
+* `tests/unit/password.reset.test.mjs`: Pruebas unitarias de la lógica sin dependencias de red o endpoints HTTP.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+---
+
+# 🌐 HU05-B: Lógica de Negocio de Inicio de Sesión con Google
+
+Esta funcionalidad implementa las reglas de negocio para el acceso federado mediante Google OAuth en Vice City.
+
+### Ubicación del Código
+* `src/features/auth/services/google-auth.service.ts`: Servicio con la lógica de registro de nuevos clientes (`CLIENT`), vinculación transparente de cuentas existentes sin duplicados, tratamiento de correos verificados y normalización insensible a mayúsculas.
+* `src/features/auth/errors/google-auth.errors.ts`: Errores de dominio tipados (`GoogleEmailNotProvidedError`, `UserInactiveError`, `GoogleAuthError`).
+* `src/features/auth/index.ts`: Barrel exports del módulo de autenticación.
+* `tests/unit/google.auth.test.mjs`: Pruebas unitarias de la lógica sin dependencias de red o endpoints HTTP.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+### Guía de Configuración de Google Cloud Console (Desarrollo y Producción)
+Para configurar las credenciales OAuth 2.0 y el callback en Google Cloud Console, consulta:
+👉 [`docs/GOOGLE_OAUTH_SETUP_GUIDE.md`](./docs/GOOGLE_OAUTH_SETUP_GUIDE.md)
+
+---
+
+### 8. Autenticación y Sesiones JWT con NextAuth (HU02-B)
+
+Esta sección describe la configuración de sesiones y tokens JWT implementada mediante **NextAuth.js**:
+
+#### A. Variables requeridas en `.env.local`:
+```env
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="tu-clave-secreta-super-segura-aqui"
+```
+
+#### B. Roles del SRS Soportados:
+La sesión y el token JWT adjuntan obligatoriamente uno de los cuatro roles válidos del SRS:
+* `ADMIN`
+* `CLIENT`
+* `TICKET_SELLER`
+* `QR_VALIDATOR`
+
+Cualquier usuario con rol ausente o fuera de este enum es rechazado con error de negocio.
+
+#### C. Ejecución de Pruebas Unitarias de Autenticación:
+```bash
+npm test
+```
+Verifica validación de credenciales, comparación de hashes bcrypt, asignación de roles y rechazo ante campos vacíos o con espacios.
+
+---
+
+# 📧 HU03-B: Lógica de Negocio de Confirmación de Correo
+
+Esta funcionalidad gestiona el ciclo de vida y validación de tokens seguros para la verificación de correos de usuarios registrados.
+
+### Ubicación del Código
+* `src/features/auth/services/email-confirmation.service.ts`: Servicio principal de lógica de negocio (generación de tokens criptográficos, expiración, validación, invalidación atómica al reenviar).
+* `src/features/auth/services/email.service.ts`: Abstracción desacoplada de envío de correos (`IEmailSender`, `ConsoleEmailSender`, `MockEmailSender`).
+* `src/features/auth/errors/email-confirmation.errors.ts`: Errores de dominio tipados (`TokenExpiredError`, `InvalidTokenError`, `UserAlreadyVerifiedError`, `UserNotFoundError`).
+* `tests/unit/email.confirmation.test.mjs`: Pruebas unitarias de la lógica de negocio sin depender de endpoints HTTP.
+
+### Ejecución de Pruebas Unitarias
+Para ejecutar las pruebas de lógica de confirmación:
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+### Política de Usuario No Verificado (Propuesta para Product Owner)
+* **Permitido:** Iniciar sesión, ver catálogo de servicios/canchas, consultar horarios y precios, y solicitar reenvío de correo.
+* **Restringido:** Crear reservas activas, efectuar pagos y generar tickets/códigos QR de acceso.
+
+---
+
+# 🔐 Autenticación: Endpoint de Registro (HU01-B)
+
+### 📡 `POST /api/auth/register`
+
+Expone la ruta API en Next.js para recibir y procesar el registro de nuevos usuarios en el sistema, validando la entrada y delegando a la capa de lógica de negocio.
+
+* **Método:** `POST`
+* **Content-Type:** `application/json`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-register.swagger.json`](file:///docs/swagger/auth-register.swagger.json)
+
+#### Estructura de la Solicitud (Body):
+```json
+{
+  "fullName": "Jandy Peña",
+  "email": "jandy@ejemplo.com",
+  "password": "Password123!"
+}
+```
+
+#### Respuestas del Servidor:
+* **`201 Created`**: Usuario registrado exitosamente.
+  ```json
+  {
+    "success": true,
+    "message": "Usuario registrado exitosamente",
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "jandy@ejemplo.com",
+      "fullName": "Jandy Peña",
+      "role": "customer",
+      "createdAt": "2026-10-05T12:00:00.000Z"
+    }
+  }
+  ```
+* **`400 Bad Request`**: Datos inválidos, campos obligatorios faltantes, cuerpo vacío o campos extra no reconocidos (`.strict()`).
+  ```json
+  {
+    "success": false,
+    "error": "VALIDATION_ERROR",
+    "message": "Datos de registro inválidos",
+    "details": [
+      { "field": "email", "message": "El formato del correo electrónico es inválido" }
+    ]
+  }
+  ```
+* **`409 Conflict`**: Correo electrónico ya registrado en el sistema.
+  ```json
+  {
+    "success": false,
+    "error": "USER_ALREADY_EXISTS",
+    "message": "El correo electrónico ya se encuentra registrado"
+  }
+  ```
+* **`500 Internal Server Error`**: Error no controlado en el servidor.
+
+#### Ejecución de Pruebas Automatizadas:
+```bash
+npm test
+```
+Ejecuta la suite completa de pruebas unitarias tanto de la capa API (`register.route.test.mjs`) como de la capa de negocio (`register.service.test.mjs`).
+
+---
+
+# 🔐 Autenticación: Endpoints de Login y Sesión (HU02-B)
+
+### 📡 `POST /api/auth/login`
+
+Expone la ruta API en Next.js para el inicio de sesión de usuarios, validando las credenciales de entrada con esquema estricto (Zod), delegando la comprobación a la lógica de negocio (`authenticateUser`) y retornando los datos del usuario autenticado con su rol asignado según el SRS.
+
+* **Método:** `POST`
+* **Content-Type:** `application/json`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json)
+
+#### Estructura de la Solicitud (Body):
+```json
+{
+  "email": "usuario@ejemplo.com",
+  "password": "Password123!"
+}
+```
+
+#### Respuestas del Servidor:
+* **`200 OK`**: Inicio de sesión exitoso.
+  ```json
+  {
+    "success": true,
+    "message": "Inicio de sesión exitoso",
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "usuario@ejemplo.com",
+      "name": "Nombre Usuario",
+      "role": "CLIENT"
+    }
+  }
+  ```
+* **`400 Bad Request`**: Datos inválidos, campos obligatorios faltantes, cuerpo vacío o campos extra no reconocidos (`.strict()`).
+  ```json
+  {
+    "success": false,
+    "error": "VALIDATION_ERROR",
+    "message": "Datos de inicio de sesión inválidos",
+    "details": [
+      { "field": "email", "message": "El formato del correo electrónico es inválido" }
+    ]
+  }
+  ```
+* **`401 Unauthorized`**: Credenciales incorrectas o usuario no autorizado.
+  ```json
+  {
+    "success": false,
+    "error": "INVALID_CREDENTIALS",
+    "message": "Credenciales incorrectas: correo o contraseña no válidos"
+  }
+  ```
+* **`500 Internal Server Error`**: Error no controlado en el servidor.
+
+---
+
+### 📡 `GET /api/auth/session`
+
+Endpoint para consultar la sesión activa actual del usuario autenticado vía NextAuth.
+
+* **Método:** `GET`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json)
+
+#### Respuestas del Servidor:
+* **`200 OK` (Sin sesión activa):**
+  ```json
+  {
+    "success": true,
+    "authenticated": false,
+    "data": null
+  }
+  ```
+* **`200 OK` (Con sesión activa):**
+  ```json
+  {
+    "success": true,
+    "authenticated": true,
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "usuario@ejemplo.com",
+      "name": "Nombre Usuario",
+      "role": "CLIENT"
+    }
+  }
+  ```
+* **`500 Internal Server Error`**: Error al consultar la sesión del usuario.
+
+#### Ejecución de Pruebas Automatizadas:
+```bash
+npm test
+```
+Ejecuta la suite completa de pruebas unitarias (`tests/unit/*.test.mjs`), cubriendo los endpoints de la API (`login.route.test.mjs`, `register.route.test.mjs`) y la lógica de negocio y roles SRS (`auth.jwt.test.mjs`, `register.service.test.mjs`).
+
+---
+
+# 📖 Documentación Swagger / OpenAPI y Uso del API Tester
+
+El proyecto cuenta con especificaciones OpenAPI 3.0 para todos los endpoints desarrollados y dos formas principales de consumirlos y explorarlos:
+
+## 1. Explorador Visual Interactivo: Vice-City API Tester (Recomendado)
+
+Se incluye un aplicativo web local que embebe la interfaz oficial de **Swagger UI** y proporciona un constructor de peticiones HTTP en tiempo real para el equipo de frontend.
+
+### Cómo iniciarlo:
+```bash
+# 1. Asegúrate de tener el backend de Vice City corriendo (en una terminal):
+npm run dev
+
+# 2. En otra terminal, inicia el API Tester:
+cd api-tester
+npm run dev
+```
+
+Abre tu navegador en: **`http://127.0.0.1:5173`**
+
+### Funcionalidades Swagger en el API Tester:
+* **Pestaña "Swagger UI":** Renderiza la interfaz oficial de Swagger (`swagger-ui-dist`) con todos los modelos, schemas de solicitud y respuestas esperadas.
+* **Selector de Presets:** Permite alternar entre la especificación unificada completa o contratos individuales (Autenticación, Recuperación de Contraseña, Roles, Empleados, Complejo Deportivo).
+* **Importación:** Puedes cargar cualquier archivo `.json` / `.yaml` personalizado o consultar URLs externas.
+* **Pestaña "Endpoints":** Permite ejecutar peticiones directamente contra `http://localhost:3000` con autenticación simulada (Mock Role `ADMIN`, `CLIENT`, `TICKET_SELLER`, `QR_VALIDATOR`), cookies o JWT.
+
+Para más detalles, consulta: [`api-tester/README.md`](file:///api-tester/README.md).
+
+---
+
+## 2. Archivos de Contratos OpenAPI (`docs/swagger/`)
+
+Los contratos estáticos en formato JSON OpenAPI 3.0 se encuentran organizados en la carpeta `docs/swagger/`:
+
+| Contrato | Archivo | Endpoints Cubiertos |
+| :--- | :--- | :--- |
+| **Registro de Usuarios** | [`docs/swagger/auth-register.swagger.json`](file:///docs/swagger/auth-register.swagger.json) | `POST /api/auth/register` |
+| **Login y Sesión** | [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json) | `POST /api/auth/login`, `GET /api/auth/session` |
+| **Recuperación Contraseña** | [`docs/swagger/auth-password-reset.swagger.json`](file:///docs/swagger/auth-password-reset.swagger.json) | `POST /api/auth/forgot-password`, `GET /api/auth/reset-password`, `POST /api/auth/reset-password` |
+| **Google OAuth** | [`docs/swagger/auth-google.swagger.json`](file:///docs/swagger/auth-google.swagger.json) | `POST /api/auth/google`, `GET /api/auth/google` |
+| **Cierre de Sesión** | [`docs/swagger/auth-logout.swagger.json`](file:///docs/swagger/auth-logout.swagger.json) | `POST /api/auth/logout` |
+| **Gestión de Roles** | [`docs/swagger/admin-roles.swagger.json`](file:///docs/swagger/admin-roles.swagger.json) | `GET /api/admin/users`, `PATCH /api/admin/users/{id}/role` |
+| **Gestión de Empleados (HU19)** | [`docs/swagger/employees.swagger.json`](file:///docs/swagger/employees.swagger.json) | `GET /api/employees`, `POST /api/employees`, `GET /api/employees/{id}`, `PATCH /api/employees/{id}`, `DELETE /api/employees/{id}` |
+| **Catálogo y Disponibilidad (HU20)** | [`docs/swagger/hu20-availability.swagger.json`](file:///docs/swagger/hu20-availability.swagger.json) | `GET /api/catalog`, `GET /api/availability` |
+| **Reserva y HOLD 10 min (HU21)** | [`docs/swagger/hu21-reservation-hold.swagger.json`](file:///docs/swagger/hu21-reservation-hold.swagger.json) | `POST /api/reservations/hold`, `GET /api/reservations/{id}` |
+| **Descuentos y Promociones (HU22)** | [`docs/swagger/hu22-discounts.swagger.json`](file:///docs/swagger/hu22-discounts.swagger.json) | `POST /api/pricing/calculate` |
+| **Checkout con Stripe Test (HU23)** | [`docs/swagger/hu23-stripe-checkout.swagger.json`](file:///docs/swagger/hu23-stripe-checkout.swagger.json) | `POST /api/payments/create-intent` |
+| **Webhook de Stripe (HU24)** | [`docs/swagger/hu24-stripe-webhook.swagger.json`](file:///docs/swagger/hu24-stripe-webhook.swagger.json) | `POST /api/payments/webhook` |
+
+---
+
+## 3. Visualización Externa (Swagger Editor o VS Code)
+
+Si deseas visualizar los archivos `.swagger.json` fuera del API Tester:
+
+1. **Swagger Editor Online:**
+   * Abre [editor.swagger.io](https://editor.swagger.io/).
+   * Ve a **File** ➔ **Import File** (o pega el contenido JSON).
+2. **VS Code / Cursor (Extensión):**
+   * Instala la extensión **OpenAPI (Swagger) Editor** o **Swagger Viewer**.
+   * Abre cualquiera de los archivos en `docs/swagger/` y presiona `Shift + Alt + E` para previsualizar.
+
 # 📅 FT-04 / HU20: Catálogo y Disponibilidad de Servicios
 
 Esta funcionalidad implementa el catálogo público y el motor de disponibilidad y aforo por franja horaria para Vice City (RN-001 a RN-012).
@@ -632,4 +960,36 @@ npm test
 ### Compilación y Validación de Tipos
 ```bash
 npm run build
+```
+
+---
+
+## ⚙️ Configuración de Stripe Test y Pruebas Locales de Webhook
+
+Para operar el checkout y la recepción de webhooks en entorno de desarrollo local, configura en `.env.local`:
+
+```env
+# ==========================================
+# STRIPE TEST CREDENTIALS (FT-05)
+# ==========================================
+STRIPE_SECRET_KEY="sk_test_your_mock_secret_key"
+STRIPE_WEBHOOK_SECRET="whsec_your_mock_webhook_secret"
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_your_mock_publishable_key"
+```
+
+> [!NOTE]
+> En entorno de desarrollo o pruebas unitarias, el servicio utiliza mocks seguros desacoplados del SDK sin realizar llamadas HTTP externas a Stripe.
+
+### Pruebas de Webhook en Desarrollo con Stripe CLI:
+Para reenviar eventos reales desde el Dashboard de Stripe hacia tu entorno local:
+
+```bash
+# 1. Iniciar sesión en Stripe CLI:
+stripe login
+
+# 2. Reenviar eventos al endpoint local de Next.js:
+stripe listen --forward-to localhost:3000/api/payments/webhook
+
+# 3. Disparar un evento de prueba simulado:
+stripe trigger payment_intent.succeeded
 ```
