@@ -1,9 +1,9 @@
 /**
  * Módulo de Servicios, Catálogo y Disponibilidad (Features: Services)
- * Vice City - Soporte para FT-04 / HU20
+ * Vice City - Soporte para FT-04 / HU20 y Administración (HU17, HU18)
  */
 
-// Servicios principales
+// Servicios principales de catálogo y disponibilidad (FT-04 / HU20)
 export {
   CatalogService,
   catalogService,
@@ -18,7 +18,7 @@ export {
 } from "./services/availability.service";
 export type { AvailabilityServiceDependencies } from "./services/availability.service";
 
-// Tipos
+// Tipos de catálogo y disponibilidad
 export type {
   ServiceItem,
   CategoryWithServices,
@@ -71,3 +71,8 @@ export {
   isTimeSlotPast,
 } from "./utils/date-bogota.util";
 
+// Repositorios, guardias y tipos base de servicios y categorías (HU17, HU18)
+export * from "./types";
+export * from "./categories.repository";
+export * from "./services.repository";
+export * from "./auth-guard";

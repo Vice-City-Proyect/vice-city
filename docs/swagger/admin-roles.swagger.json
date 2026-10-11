@@ -1,0 +1,284 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Gestión de Roles y Auditoría (HU07-B)",
+    "description": "Especificación OpenAPI 3.0.3 para la gestión administrativa de roles de usuarios y registro de auditoría en Vice City.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin - Roles",
+      "description": "Endpoints administrativos para listar usuarios y actualizar roles con auditoría"
+    }
+  ],
+  "paths": {
+    "/api/admin/users": {
+      "get": {
+        "tags": ["Admin - Roles"],
+        "summary": "Listar usuarios con su rol de forma paginada",
+        "description": "Permite a un usuario con rol ADMIN consultar el listado de usuarios con soporte para paginación y filtros por texto o rol. Requiere sesión activa de administrador.",
+        "operationId": "listUsersWithRole",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Número de página (inicia en 1)",
+            "schema": { "type": "integer", "default": 1, "minimum": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Cantidad de registros por página (máximo 100)",
+            "schema": { "type": "integer", "default": 10, "minimum": 1, "maximum": 100 }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Filtro de búsqueda por nombre o correo electrónico",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por rol específico del SRS",
+            "schema": { "type": "string", "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de usuarios obtenido exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedUsersResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado: se requiere sesión activa",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: se requieren permisos de administrador (ADMIN)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/role": {
+      "patch": {
+        "tags": ["Admin - Roles"],
+        "summary": "Actualizar el rol de un usuario con registro de auditoría",
+        "description": "Permite a un ADMIN actualizar el rol de un usuario a cualquiera de los cuatro roles del SRS (ADMIN, CLIENT, TICKET_SELLER, QR_VALIDATOR). Registra la acción de forma transaccional en audit_logs y previene la revocación del rol al último administrador activo.",
+        "operationId": "updateUserRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID del usuario a actualizar",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeUserRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rol de usuario actualizado exitosamente y registrado en auditoría",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeUserRoleSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Rol inválido, solicitud malformada o intento de degradar al último administrador",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado: se requiere sesión activa",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: solo usuarios con rol ADMIN pueden cambiar roles",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario o rol no encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChangeUserRoleRequest": {
+        "type": "object",
+        "required": ["role"],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"],
+            "description": "Nuevo rol del usuario según el SRS de Vice City",
+            "example": "TICKET_SELLER"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Motivo administrativo del cambio de rol",
+            "example": "Ascenso a vendedor de taquilla"
+          }
+        }
+      },
+      "ChangeUserRoleSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "El rol del usuario ha sido actualizado a TICKET_SELLER exitosamente." },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "email": { "type": "string", "format": "email" },
+                  "full_name": { "type": "string" },
+                  "role": { "type": "string", "example": "TICKET_SELLER" },
+                  "role_id": { "type": "string", "format": "uuid" }
+                }
+              },
+              "auditLog": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "action": { "type": "string", "example": "UPDATE_USER_ROLE" },
+                  "entity": { "type": "string", "example": "users" },
+                  "entity_id": { "type": "string", "format": "uuid" },
+                  "created_at": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PagedUsersResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Listado de usuarios recuperado exitosamente" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "users": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "email": { "type": "string", "format": "email" },
+                    "full_name": { "type": "string" },
+                    "role": { "type": "string", "example": "CLIENT" },
+                    "role_id": { "type": "string", "format": "uuid" },
+                    "is_active": { "type": "boolean" },
+                    "created_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              },
+              "pagination": {
+                "type": "object",
+                "properties": {
+                  "total": { "type": "integer", "example": 25 },
+                  "page": { "type": "integer", "example": 1 },
+                  "limit": { "type": "integer", "example": 10 },
+                  "totalPages": { "type": "integer", "example": 3 }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "FORBIDDEN" },
+          "message": { "type": "string", "example": "Acceso denegado: se requieren permisos de administrador" },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": { "type": "string" },
+                "message": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
