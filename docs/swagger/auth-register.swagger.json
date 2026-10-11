@@ -1,0 +1,129 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Auth Module",
+    "version": "1.0.0",
+    "description": "Especificación Swagger/OpenAPI para el endpoint de registro de usuarios (HU-01-B / VCP-27)."
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "summary": "Registrar nuevo usuario",
+        "description": "Recibe los datos del formulario, valida la entrada con esquema estricto, invoca la capa de lógica de negocio y registra un usuario con rol CLIENT.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fullName", "email", "password"],
+                "additionalProperties": false,
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "example": "Jandy Peña"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "jandy@test.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8,
+                    "example": "Secret1234!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario registrado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Usuario registrado exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "email": { "type": "string", "format": "email" },
+                        "fullName": { "type": "string" },
+                        "role": { "type": "string", "example": "customer" },
+                        "createdAt": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada inválidos, campos faltantes, campos extra o cuerpo vacío",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "VALIDATION_ERROR" },
+                    "message": { "type": "string", "example": "Datos de registro inválidos" },
+                    "details": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": { "type": "string" },
+                          "message": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El correo ya se encuentra registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "USER_ALREADY_EXISTS" },
+                    "message": { "type": "string", "example": "El correo electrónico ya se encuentra registrado" }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+                    "message": { "type": "string", "example": "Ocurrió un error interno en el servidor" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
