@@ -1,7 +1,63 @@
 /**
  * Módulo de Autenticación (Features: Auth)
- * Vice City - Soporte para HU05-B (Google Auth), HU06-B (Cierre de Sesión) y HU08-B (Permisos por Rol)
+ * Vice City - Soporte para HU01 a HU06 y HU08 (Permisos por Rol)
  */
+
+// Exportaciones base de autenticación (HU01, HU02, HU03)
+export * from "./types";
+export * from "./errors/auth.errors";
+export * from "./schemas/register.schema";
+export * from "./schemas/login.schema";
+export * from "./services/register.service";
+export {
+  ConsoleEmailSender,
+  MockEmailSender,
+} from "./services/email.service";
+export type {
+  IEmailSender,
+  SendEmailOptions,
+  SendVerificationEmailParams,
+} from "./services/email.service";
+export * from "./services/email-confirmation.service";
+export {
+  TokenExpiredError,
+  InvalidTokenError,
+  UserAlreadyVerifiedError,
+} from "./errors/email-confirmation.errors";
+
+// Servicios de Recuperación de Contraseña (HU04-B)
+export {
+  PasswordResetService,
+  passwordResetService,
+} from "./services/password-reset.service";
+export type { PasswordResetServiceDependencies } from "./services/password-reset.service";
+
+// Errores de Dominio para Recuperación de Contraseña (HU04-B)
+export {
+  PasswordResetTokenExpiredError,
+  InvalidPasswordResetTokenError,
+  UserNotFoundError,
+  WeakPasswordError,
+} from "./errors/password-reset.errors";
+
+// Esquemas de Validación (HU04-B)
+export {
+  forgotPasswordSchema,
+  type ForgotPasswordInput,
+} from "./schemas/forgot-password.schema";
+export {
+  resetPasswordSchema,
+  validateResetTokenSchema,
+  type ResetPasswordInput,
+  type ValidateResetTokenInput,
+} from "./schemas/reset-password.schema";
+
+// Tipos de Retorno (HU04-B)
+export type {
+  RequestPasswordResetResult,
+  ResetPasswordResult,
+  ValidateTokenStatusResult,
+} from "./types/password-reset.types";
 
 // Servicio de Inicio de Sesión con Google (HU05-B)
 export {

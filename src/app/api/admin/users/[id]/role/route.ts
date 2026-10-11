@@ -55,20 +55,17 @@ export async function PATCH(
     let targetUserId: string | undefined;
     let sessionOverride: any;
 
-    if (contextOrSession && "params" in contextOrSession) {
-      const resolvedParams = await contextOrSession.params;
-      targetUserId = resolvedParams?.id;
-      if (
-        contextOrSession.user ||
-        contextOrSession.role ||
-        contextOrSession.id ||
-        contextOrSession.email
-      ) {
-        sessionOverride = contextOrSession;
+    if (contextOrSession && typeof contextOrSession === "object") {
+      if ("params" in contextOrSession) {
+        const resolvedParams = await contextOrSession.params;
+        targetUserId = resolvedParams?.id;
       }
-    } else if (contextOrSession && typeof contextOrSession === "object") {
-      sessionOverride = contextOrSession;
-      targetUserId = (sessionOverride as any)?.targetUserId;
+      if ("user" in contextOrSession || "role" in contextOrSession || "targetUserId" in contextOrSession || "id" in contextOrSession || "email" in contextOrSession) {
+        sessionOverride = contextOrSession;
+        if (!targetUserId && (sessionOverride as any)?.targetUserId) {
+          targetUserId = (sessionOverride as any)?.targetUserId;
+        }
+      }
     }
 
     if (!targetUserId) {

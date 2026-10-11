@@ -113,6 +113,56 @@ export class GoogleAuthService {
   }
 
   /**
+   * Permite inyectar o sobrescribir dependencias (útil para pruebas unitarias).
+   */
+  setDependencies(dependencies: GoogleAuthServiceDependencies): void {
+    if (dependencies.findUserByEmailFn) this.findUserByEmailFn = dependencies.findUserByEmailFn;
+    if (dependencies.findClientRoleFn) this.findClientRoleFn = dependencies.findClientRoleFn;
+    if (dependencies.createUserFn) this.createUserFn = dependencies.createUserFn;
+    if (dependencies.updateUserFn) this.updateUserFn = dependencies.updateUserFn;
+  }
+
+  /**
+   * Restablece las dependencias a su implementación predeterminada con Prisma.
+   */
+  resetDependencies(): void {
+    this.findUserByEmailFn = async (email: string) => {
+      return prisma.users.findFirst({
+        where: {
+          email: {
+            equals: email.trim(),
+            mode: "insensitive",
+          },
+        },
+        include: { roles: true },
+      });
+    };
+    this.findClientRoleFn = async () => {
+      return prisma.roles.findFirst({
+        where: {
+          name: {
+            in: ["customer", "client", "CLIENT", "CUSTOMER"],
+            mode: "insensitive",
+          },
+        },
+      });
+    };
+    this.createUserFn = async (data: any) => {
+      return prisma.users.create({
+        data,
+        include: { roles: true },
+      });
+    };
+    this.updateUserFn = async (id: string, data: any) => {
+      return prisma.users.update({
+        where: { id },
+        data,
+        include: { roles: true },
+      });
+    };
+  }
+
+  /**
    * Procesa el inicio de sesión o registro de un usuario mediante su perfil de Google OAuth.
    *
    * @param profile Perfil del usuario proveniente del proveedor de Google
