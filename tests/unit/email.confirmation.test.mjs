@@ -29,6 +29,15 @@ function createMockPrisma({ users = [] } = {}) {
               usersStore.find((u) => u.email.toLowerCase() === target) || null
             );
           }
+          if (where?.metadata?.path) {
+            const expectedToken = where.metadata.equals;
+            return (
+              usersStore.find((u) => {
+                const meta = u.metadata || {};
+                return meta.verification_token?.token === expectedToken;
+              }) || null
+            );
+          }
           return null;
         },
         findMany: async () => {

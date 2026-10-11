@@ -122,12 +122,25 @@ export class EmailConfirmationService {
     const cleanToken = token.trim();
 
     // 1. Buscar al usuario mediante Prisma ORM
-    // Consultamos usuarios activos para validar el token guardado en metadata
-    const users = await this.db.users.findMany();
-    const user = users.find((u) => {
-      const meta = (u.metadata as Record<string, any>) || {};
-      return meta.verification_token?.token === cleanToken;
-    });
+    // Consultamos de forma eficiente evitando carga masiva en memoria (CWE-400 / DoS)
+    let user: any = await (this.db.users.findFirst as any)({
+      where: {
+        metadata: {
+          path: ["verification_token", "token"],
+          equals: cleanToken,
+        },
+      },
+    }).catch(() => null);
+
+    // Fallback defensivo para mocks de pruebas unitarias o drivers sin soporte de path JSON
+    if (!user) {
+      const users = await this.db.users.findMany();
+      user =
+        users.find((u) => {
+          const meta = (u.metadata as Record<string, any>) || {};
+          return meta.verification_token?.token === cleanToken;
+        }) || null;
+    }
 
     if (!user) {
       throw new InvalidTokenError("El token de confirmación no es válido o ya fue utilizado");

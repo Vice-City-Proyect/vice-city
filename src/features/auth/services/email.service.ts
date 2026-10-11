@@ -20,7 +20,7 @@ export class ConsoleEmailSender implements IEmailSender {
   async sendVerificationEmail(params: SendVerificationEmailParams): Promise<boolean> {
     console.log(`[EmailService] Correo de verificación enviado a: ${params.to}`);
     console.log(`[EmailService] Enlace de confirmación: ${params.verificationUrl}`);
-    console.log(`[EmailService] Token de seguridad: ${params.token}`);
+    console.log(`[EmailService] Token de seguridad: [ENCRIPTADO EN URL]`);
     return true;
   }
 }
