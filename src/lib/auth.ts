@@ -13,6 +13,11 @@ import {
 } from "@/features/auth";
 import { linkAccount } from "@/features/users/linked-accounts.repository";
 
+export let activeGoogleAuthService = googleAuthService;
+export function setGoogleAuthService(service: any) {
+  activeGoogleAuthService = service;
+}
+
 /**
  * Los cuatro roles del sistema autorizados por el SRS:
  * ADMIN, CLIENT, TICKET_SELLER, QR_VALIDATOR
@@ -161,7 +166,7 @@ export const authOptions: NextAuthOptions = {
           };
 
           // Delegación estricta a la capa de lógica de negocio (HU05-B LN)
-          const result = await googleAuthService.handleGoogleAuth(googleProfile);
+          const result = await activeGoogleAuthService.handleGoogleAuth(googleProfile);
 
           // Si la tabla linked_accounts está disponible, registrar persistencia ORM (HU05-BD)
           if (result?.user?.id && account.providerAccountId) {

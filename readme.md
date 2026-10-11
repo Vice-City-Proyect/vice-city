@@ -521,5 +521,6 @@ npm run test:unit
 npm run build
 ```
 
-
-
+### Guía de Configuración de Google Cloud Console (Desarrollo y Producción)
+Para configurar las credenciales OAuth 2.0 y el callback en Google Cloud Console, consulta:
+👉 [`docs/GOOGLE_OAUTH_SETUP_GUIDE.md`](./docs/GOOGLE_OAUTH_SETUP_GUIDE.md)

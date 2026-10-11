@@ -131,3 +131,21 @@ npm run build
 - [x] Documentación OpenAPI 3.0.3 en `docs/swagger/auth-google.swagger.json`.
 - [x] Suite de pruebas automatizadas en `tests/unit/google-auth.api.test.mjs`.
 
+---
+
+## 7. Despliegue en Producción y Google Cloud Console
+
+Para activar Google OAuth en entornos de producción y pruebas reales, consulta la guía completa:
+👉 [`docs/GOOGLE_OAUTH_SETUP_GUIDE.md`](./GOOGLE_OAUTH_SETUP_GUIDE.md)
+
+### Requisitos Esenciales de Producción:
+1. **Google Cloud Console:**
+   * **Orígenes autorizados de JavaScript:** `https://tu-dominio.com`
+   * **URIs de redireccionamiento autorizados:** `https://tu-dominio.com/api/auth/callback/google`
+2. **Variables de Entorno del Servidor (`.env`):**
+   * `NEXTAUTH_URL="https://tu-dominio.com"`
+   * `NEXTAUTH_SECRET="[clave_segura_de_32_bytes]"`
+   * `GOOGLE_CLIENT_ID="[client_id].apps.googleusercontent.com"`
+   * `GOOGLE_CLIENT_SECRET="[client_secret]"`
+
+

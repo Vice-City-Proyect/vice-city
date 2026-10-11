@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST as googlePostHandler, GET as googleGetHandler } from "../../src/app/api/auth/google/route.ts";
 import { GET as sessionGetHandler } from "../../src/app/api/auth/session/route.ts";
-import { authOptions } from "../../src/lib/auth.ts";
+import { authOptions, setGoogleAuthService } from "../../src/lib/auth.ts";
 import {
   GoogleAuthService,
   GoogleEmailNotProvidedError,
@@ -75,6 +75,7 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
         return user;
       },
     });
+    setGoogleAuthService(mockService);
   });
 
   // -------------------------------------------------------------------------
