@@ -806,6 +806,7 @@ Los contratos estáticos en formato JSON OpenAPI 3.0 se encuentran organizados e
 | **Google OAuth** | [`docs/swagger/auth-google.swagger.json`](file:///docs/swagger/auth-google.swagger.json) | `POST /api/auth/google`, `GET /api/auth/google` |
 | **Cierre de Sesión** | [`docs/swagger/auth-logout.swagger.json`](file:///docs/swagger/auth-logout.swagger.json) | `POST /api/auth/logout` |
 | **Gestión de Roles** | [`docs/swagger/admin-roles.swagger.json`](file:///docs/swagger/admin-roles.swagger.json) | `GET /api/admin/users`, `PATCH /api/admin/users/{id}/role` |
+| **Gestión de Empleados (HU19)** | [`docs/swagger/employees.swagger.json`](file:///docs/swagger/employees.swagger.json) | `GET /api/employees`, `POST /api/employees`, `GET /api/employees/{id}`, `PATCH /api/employees/{id}`, `DELETE /api/employees/{id}` |
 
 ---
 

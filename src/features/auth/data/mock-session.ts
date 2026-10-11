@@ -25,3 +25,4 @@ export const MOCK_CLIENT_SESSION: MockSession = {
   email: 'laura.mendoza@correo.com',
   role: 'CLIENT',
 };
+

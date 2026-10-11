@@ -324,10 +324,25 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
       },
     },
     '/api/employees/{id}': {
+      get: {
+        tags: ['Admin - Employees'],
+        summary: 'Consultar empleado por ID',
+        description: 'Obtiene el detalle de un empleado por su identificador UUID. Exclusivo para ADMIN.',
+        operationId: 'getEmployeeById',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Detalle del empleado' },
+          '404': { description: 'Empleado no encontrado' },
+          '403': { description: 'Requiere rol ADMIN' },
+        },
+      },
       patch: {
         tags: ['Admin - Employees'],
         summary: 'Actualizar o cambiar estado de empleado',
         description: 'Permite desactivar (is_active = false) o actualizar datos de un empleado.',
+        operationId: 'updateEmployee',
         parameters: [
           { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
         ],
@@ -337,6 +352,9 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
               schema: {
                 type: 'object',
                 properties: {
+                  full_name: { type: 'string', example: 'Mariana Pajón Actualizada' },
+                  phone: { type: 'string', example: '+57 301 987 6543' },
+                  role: { type: 'string', enum: ['TICKET_SELLER', 'QR_VALIDATOR'] },
                   is_active: { type: 'boolean', example: false },
                 },
               },
@@ -344,8 +362,23 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
           },
         },
         responses: {
-          '200': { description: 'Estado actualizado' },
+          '200': { description: 'Estado o datos actualizados' },
           '400': { description: 'El administrador no puede desactivarse a sí mismo' },
+          '403': { description: 'Requiere rol ADMIN' },
+        },
+      },
+      delete: {
+        tags: ['Admin - Employees'],
+        summary: 'Desactivar empleado (baja lógica)',
+        description: 'Desactiva el empleado para impedir su inicio de sesión en taquilla o escáner.',
+        operationId: 'deactivateEmployee',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Empleado desactivado' },
+          '400': { description: 'No se puede desactivar al propio administrador' },
+          '403': { description: 'Requiere rol ADMIN' },
         },
       },
     },

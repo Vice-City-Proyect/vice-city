@@ -39,6 +39,9 @@ src/
         ├── types.ts                     # Definiciones TypeScript (CreateEmployeeInput, EmployeeRole, etc.)
         ├── employees.repository.ts     # Repositorio ORM de empleados y registro de auditoría en audit_logs
         └── index.ts                     # Exportaciones públicas de la feature
+docs/
+└── swagger/
+    └── employees.swagger.json           # Contrato OpenAPI 3.0.3 (Swagger) de gestión de empleados
 scripts/
 └── test-employees.mjs                   # Suite automatizada de pruebas de aceptación (7/7 CA)
 prisma/
