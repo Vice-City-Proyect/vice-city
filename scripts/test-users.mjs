@@ -17,7 +17,7 @@ const prisma = new PrismaClient();
 const TEST_EMAIL = `test-hu01-${Date.now()}@example.com`;
 
 async function main() {
-  // Obtener el role_id de "customer" o "client"
+  // Obtener el role_id de "customer" o "client" (SRS)
   const customerRole = await prisma.roles.findFirst({
     where: {
       name: {
