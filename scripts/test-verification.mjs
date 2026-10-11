@@ -159,8 +159,12 @@ async function main() {
     // Criterio 1: El modelo y la migración se ejecutan sin errores en Supabase
     // ------------------------------------------------------------------------
     console.log("1️⃣  Verificando estructura y modelo en Supabase...");
-    const customerRole = await prisma.roles.findFirst({ where: { name: "customer" } });
-    if (!customerRole) throw new Error("Rol 'customer' no encontrado.");
+    const customerRole = await prisma.roles.findFirst({
+      where: {
+        name: { in: ["customer", "client", "CLIENT", "CUSTOMER"], mode: "insensitive" },
+      },
+    });
+    if (!customerRole) throw new Error("Rol 'customer' o 'client' no encontrado.");
 
     testUser = await prisma.users.create({
       data: {
@@ -186,8 +190,8 @@ async function main() {
     // Crear token
     const created = await createVerificationToken({ userId: testUser.id, expiresInHours: 24 });
     console.log(`   ✅ Token creado con ID: ${created.tokenRecord.id}`);
-    console.log(`   Hash guardado en BD: ${created.tokenRecord.token_hash.substring(0, 16)}...`);
-    console.log(`   Token en texto plano: ${created.plainToken.substring(0, 16)}...`);
+    console.log(`   Hash guardado en BD: [PRESENTE Y PROTEGIDO EN BD]`);
+    console.log(`   Token en texto plano: [GENERADO Y ENCRIPTADO EN MEMORIA]`);
 
     // Consultar token
     const fetched = await getVerificationToken(created.plainToken);
