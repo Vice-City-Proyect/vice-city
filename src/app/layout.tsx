@@ -18,7 +18,11 @@ export const metadata: Metadata = {
     "Complejo deportivo en Barranquilla: piscinas semiolímpicas, canchas de fútbol y polideportivo, gimnasio y zona húmeda con sauna.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="es"
