@@ -31,6 +31,7 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
     { name: 'Admin - Employees', description: 'Gestión administrativa de cuentas de empleados' },
     { name: 'Admin - Services', description: 'Gestión de servicios deportivos y categorías' },
     { name: 'Reservations & Catalog (FT-04)', description: 'Catálogo público, disponibilidad horaria, HOLD de 10 min y descuentos' },
+    { name: 'Payments & Stripe (FT-05)', description: 'Checkout con tarjeta mediante Stripe Test y webhook de confirmación' },
   ],
   paths: {
     '/api/auth/register': {
@@ -546,6 +547,61 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
         },
       },
     },
+    '/api/payments/create-intent': {
+      post: {
+        tags: ['Payments & Stripe (FT-05)'],
+        summary: 'Crear o recuperar Payment Intent de Stripe (HU23)',
+        description: 'Genera PaymentIntent con tarifa histórica, valida HOLD de 10 min y previene doble cobro.',
+        operationId: 'createPaymentIntent',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['bookingId'],
+                properties: {
+                  bookingId: { type: 'string', format: 'uuid', example: 'd3b07384-d113-4c91-9c60-8f9f6885dfb2' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'PaymentIntent creado o recuperado exitosamente' },
+          '400': { description: 'Parámetros inválidos' },
+          '404': { description: 'Reserva no encontrada' },
+          '409': { description: 'Reserva ya pagada y confirmada' },
+          '410': { description: 'Tiempo de retención HOLD expirado' },
+          '502': { description: 'Error al comunicarse con Stripe' },
+        },
+      },
+    },
+    '/api/payments/webhook': {
+      post: {
+        tags: ['Payments & Stripe (FT-05)'],
+        summary: 'Webhook oficial de Stripe y confirmación de tickets (HU24)',
+        description: 'Valida firma criptográfica stripe-signature, confirma reserva y emite ticket digital con QR.',
+        operationId: 'handleStripeWebhook',
+        parameters: [
+          { name: 'stripe-signature', in: 'header', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Evento procesado exitosamente o ya procesado (idempotente)' },
+          '400': { description: 'Firma de webhook inválida' },
+          '404': { description: 'Reserva no encontrada' },
+          '500': { description: 'Error interno del servidor' },
+        },
+      },
+    },
   },
 };
 
@@ -630,6 +686,20 @@ export const PRESET_SPECS: PresetSpecItem[] = [
         '/api/reservations/hold': COMBINED_VICE_CITY_SPEC.paths['/api/reservations/hold'],
         '/api/reservations/{id}': COMBINED_VICE_CITY_SPEC.paths['/api/reservations/{id}'],
         '/api/pricing/calculate': COMBINED_VICE_CITY_SPEC.paths['/api/pricing/calculate'],
+      },
+    },
+  },
+  {
+    id: 'ft05-payments',
+    name: 'FT-05 — Pagos & Stripe Webhook (HU23-24)',
+    description: 'Checkout seguro con tarjeta Stripe Test (/api/payments/create-intent) y recepción de webhooks con emisión de tickets (/api/payments/webhook).',
+    badge: 'FT-05',
+    spec: {
+      openapi: '3.0.3',
+      info: { title: 'FT-05 — Pagos y Stripe Webhook', version: '1.0.0' },
+      paths: {
+        '/api/payments/create-intent': COMBINED_VICE_CITY_SPEC.paths['/api/payments/create-intent'],
+        '/api/payments/webhook': COMBINED_VICE_CITY_SPEC.paths['/api/payments/webhook'],
       },
     },
   },

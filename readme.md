@@ -811,6 +811,8 @@ Los contratos estáticos en formato JSON OpenAPI 3.0 se encuentran organizados e
 | **Catálogo y Disponibilidad (HU20)** | [`docs/swagger/hu20-availability.swagger.json`](file:///docs/swagger/hu20-availability.swagger.json) | `GET /api/catalog`, `GET /api/availability` |
 | **Reserva y HOLD 10 min (HU21)** | [`docs/swagger/hu21-reservation-hold.swagger.json`](file:///docs/swagger/hu21-reservation-hold.swagger.json) | `POST /api/reservations/hold`, `GET /api/reservations/{id}` |
 | **Descuentos y Promociones (HU22)** | [`docs/swagger/hu22-discounts.swagger.json`](file:///docs/swagger/hu22-discounts.swagger.json) | `POST /api/pricing/calculate` |
+| **Checkout con Stripe Test (HU23)** | [`docs/swagger/hu23-stripe-checkout.swagger.json`](file:///docs/swagger/hu23-stripe-checkout.swagger.json) | `POST /api/payments/create-intent` |
+| **Webhook de Stripe (HU24)** | [`docs/swagger/hu24-stripe-webhook.swagger.json`](file:///docs/swagger/hu24-stripe-webhook.swagger.json) | `POST /api/payments/webhook` |
 
 ---
 
@@ -905,4 +907,89 @@ npm test
 ### Compilación y Validación de Tipos
 ```bash
 npm run build
+```
+
+---
+
+# 💳 FT-05 / HU23: Checkout con Tarjeta (Stripe Test)
+
+Esta funcionalidad implementa la creación de Payment Intents y el checkout seguro con tarjeta de crédito o débito mediante Stripe en modo de prueba (RN-016).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/payments/services/stripe-payment.service.ts`: Motor de pago con Stripe, validación de retención de 10 min (HOLD), cobro de tarifas congeladas e idempotencia contra doble clic.
+* `src/features/payments/schemas/create-payment-intent.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/payments/errors/payment.errors.ts`: Errores de dominio (`HoldExpiredPaymentError` 410, `BookingAlreadyPaidError` 409, `BookingNotFoundError` 404, `StripePaymentError` 502).
+* `src/features/payments/types/payment.types.ts`: Tipos TypeScript para pagos y resultados de checkout.
+* `src/features/payments/components/StripeCheckoutForm.tsx`: Formulario de pago con tarjeta con guía visual de Stripe Test en Tailwind v4.
+* `src/features/payments/components/PaymentStatusAlert.tsx`: Alertas de estado de pago.
+* `src/app/api/payments/create-intent/route.ts`: Endpoint POST `/api/payments/create-intent` para iniciar el checkout.
+* `src/app/(public)/checkout/[bookingId]/page.tsx`: Integración del formulario de tarjeta con el temporizador de HOLD.
+* `docs/swagger/hu23-stripe-checkout.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/payments.stripe.test.mjs`: Pruebas unitarias de montos, HOLD vencido e idempotencia.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+---
+
+# 🎟️ FT-05 / HU24: Webhook de Stripe y Confirmación del Ticket
+
+Esta funcionalidad implementa el webhook oficial de Stripe para confirmar reservas y generar tickets con código QR tras recibir pagos verificados (RN-016, RN-018 y RN-019).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/payments/services/stripe-webhook.service.ts`: Procesamiento de eventos `payment_intent.succeeded`, validación de firma criptográfica, confirmación atómica de reservas, generación de tickets y control de HOLDs desfasados.
+* `src/features/payments/errors/webhook.errors.ts`: Errores de dominio (`InvalidWebhookSignatureError` 400, `WebhookBookingNotFoundError` 404, `WebhookProcessingError` 500).
+* `src/features/payments/types/webhook.types.ts`: Tipos TypeScript para resultados de procesamiento de webhook.
+* `src/features/tickets/components/TicketQRCodeCard.tsx`: Componente de visualización del ticket digital con código QR de acceso deportivo en Tailwind v4.
+* `src/app/api/payments/webhook/route.ts`: Endpoint POST `/api/payments/webhook` para recepción segura de eventos de Stripe.
+* `docs/swagger/hu24-stripe-webhook.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/payments.webhook.test.mjs`: Pruebas unitarias de confirmación, validación de firma, idempotencia y rescate de HOLDs vencidos.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+---
+
+## ⚙️ Configuración de Stripe Test y Pruebas Locales de Webhook
+
+Para operar el checkout y la recepción de webhooks en entorno de desarrollo local, configura en `.env.local`:
+
+```env
+# ==========================================
+# STRIPE TEST CREDENTIALS (FT-05)
+# ==========================================
+STRIPE_SECRET_KEY="sk_test_your_mock_secret_key"
+STRIPE_WEBHOOK_SECRET="whsec_your_mock_webhook_secret"
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_your_mock_publishable_key"
+```
+
+> [!NOTE]
+> En entorno de desarrollo o pruebas unitarias, el servicio utiliza mocks seguros desacoplados del SDK sin realizar llamadas HTTP externas a Stripe.
+
+### Pruebas de Webhook en Desarrollo con Stripe CLI:
+Para reenviar eventos reales desde el Dashboard de Stripe hacia tu entorno local:
+
+```bash
+# 1. Iniciar sesión en Stripe CLI:
+stripe login
+
+# 2. Reenviar eventos al endpoint local de Next.js:
+stripe listen --forward-to localhost:3000/api/payments/webhook
+
+# 3. Disparar un evento de prueba simulado:
+stripe trigger payment_intent.succeeded
 ```

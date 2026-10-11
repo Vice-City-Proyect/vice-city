@@ -1,0 +1,143 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City - Checkout con Tarjeta Stripe Test (HU23)",
+    "description": "Especificación de API para creación de Payment Intents e inicio de checkout con tarjeta en Stripe (RN-016).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/payments/create-intent": {
+      "post": {
+        "summary": "Crear o recuperar Payment Intent de Stripe para una reserva en HOLD",
+        "description": "Genera el PaymentIntent en Stripe en modo test con el monto congelado de la reserva (descuentos incluidos). Valida que el tiempo de retención (HOLD) de 10 minutos no haya expirado y previene doble cobro (idempotencia).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["bookingId"],
+                "additionalProperties": false,
+                "properties": {
+                  "bookingId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "UUID de la reserva en estado PENDING con retención activa",
+                    "example": "d3b07384-d113-4c91-9c60-8f9f6885dfb2"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PaymentIntent creado o recuperado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Intento de pago generado exitosamente en Stripe" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "paymentId": { "type": "string", "format": "uuid" },
+                        "bookingId": { "type": "string", "format": "uuid" },
+                        "clientSecret": { "type": "string", "example": "pi_3MtwBwLkdIwHu7ix28a3tqPa_secret_YrKJ..." },
+                        "amount": { "type": "number", "example": 160000 },
+                        "currency": { "type": "string", "example": "COP" },
+                        "provider": { "type": "string", "example": "stripe" },
+                        "providerReference": { "type": "string", "example": "pi_3MtwBwLkdIwHu7ix28a3tqPa" },
+                        "isReused": { "type": "boolean", "example": false },
+                        "bookingStatus": { "type": "string", "example": "pending" },
+                        "expiresAt": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros inválidos o reserva cancelada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reserva no encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string", "example": "La reserva solicitada no existe." },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Reserva ya pagada y confirmada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string", "example": "Esta reserva ya se encuentra confirmada y pagada." },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Tiempo de HOLD expirado (más de 10 minutos)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string", "example": "La reserva ha expirado y el tiempo de retención (HOLD) de 10 minutos fue liberado." },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Error al comunicarse con la pasarela Stripe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
