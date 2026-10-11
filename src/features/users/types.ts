@@ -137,3 +137,44 @@ export type ResetPasswordResult = {
   /** ID del usuario cuya contraseña fue restablecida (si fue exitoso) */
   userId?: string;
 };
+
+// ---------------------------------------------------------------------------
+// HU05-BD: Cuentas Vinculadas Externas (Google / OAuth)
+// ---------------------------------------------------------------------------
+
+/**
+ * Registro de cuenta vinculada incluyendo la relación con el usuario
+ */
+export type LinkedAccountWithUser = Prisma.linked_accountsGetPayload<{
+  include: { users: true };
+}>;
+
+/**
+ * Parámetros requeridos para vincular una cuenta externa a un usuario
+ */
+export type LinkAccountParams = {
+  /** UUID del usuario en el sistema */
+  userId: string;
+  /** Nombre del proveedor externo (ej. 'google') */
+  provider: string;
+  /** Identificador de la cuenta provisto por el servicio externo (ej. sub/id de Google) */
+  providerAccountId: string;
+};
+
+/**
+ * Resultado de la vinculación de una cuenta externa
+ */
+export type LinkAccountResult = {
+  /** Indica si la cuenta se vinculó exitosamente */
+  success: boolean;
+  /** Código detallado del resultado */
+  reason?:
+    | "SUCCESS"
+    | "ALREADY_LINKED_TO_SAME_USER"
+    | "ALREADY_LINKED_TO_OTHER_USER"
+    | "USER_NOT_FOUND"
+    | "INVALID_INPUT";
+  /** Registro de la cuenta vinculada creada o encontrada */
+  account?: Prisma.linked_accountsGetPayload<{}>;
+};
+

@@ -74,6 +74,7 @@ import {
  */
 
 interface RouteContext {
+  params?: Promise<Record<string, string>>;
   serviceOverride?: typeof passwordResetService;
 }
 

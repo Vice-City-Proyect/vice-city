@@ -39,6 +39,7 @@ import { UserNotFoundError } from "@/features/auth/errors/password-reset.errors"
  */
 
 interface RouteContext {
+  params?: Promise<Record<string, string>>;
   serviceOverride?: typeof passwordResetService;
 }
 
