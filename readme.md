@@ -497,4 +497,215 @@ npm run build
 | `P1001: Can't reach database server` | Puerto o host incorrecto, o red bloqueada. | Asegúrate de usar el Transaction Pooler en el puerto `6543` para runtime y el Session Pooler en `5432` para `DIRECT_URL`. |
 | `Middleware is missing expected function export` | `src/middleware.ts` está vacío. | Asegúrate de exportar una función `export function middleware(request: NextRequest)` válida. |
 
+---
 
+### 8. Autenticación y Sesiones JWT con NextAuth (HU02-B)
+
+Esta sección describe la configuración de sesiones y tokens JWT implementada mediante **NextAuth.js**:
+
+#### A. Variables requeridas en `.env.local`:
+```env
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="tu-clave-secreta-super-segura-aqui"
+```
+
+#### B. Roles del SRS Soportados:
+La sesión y el token JWT adjuntan obligatoriamente uno de los cuatro roles válidos del SRS:
+* `ADMIN`
+* `CLIENT`
+* `TICKET_SELLER`
+* `QR_VALIDATOR`
+
+Cualquier usuario con rol ausente o fuera de este enum es rechazado con error de negocio.
+
+#### C. Ejecución de Pruebas Unitarias de Autenticación:
+```bash
+npm test
+```
+Verifica validación de credenciales, comparación de hashes bcrypt, asignación de roles y rechazo ante campos vacíos o con espacios.
+
+---
+
+# 📧 HU03-B: Lógica de Negocio de Confirmación de Correo
+
+Esta funcionalidad gestiona el ciclo de vida y validación de tokens seguros para la verificación de correos de usuarios registrados.
+
+### Ubicación del Código
+* `src/features/auth/services/email-confirmation.service.ts`: Servicio principal de lógica de negocio (generación de tokens criptográficos, expiración, validación, invalidación atómica al reenviar).
+* `src/features/auth/services/email.service.ts`: Abstracción desacoplada de envío de correos (`IEmailSender`, `ConsoleEmailSender`, `MockEmailSender`).
+* `src/features/auth/errors/email-confirmation.errors.ts`: Errores de dominio tipados (`TokenExpiredError`, `InvalidTokenError`, `UserAlreadyVerifiedError`, `UserNotFoundError`).
+* `tests/unit/email.confirmation.test.mjs`: Pruebas unitarias de la lógica de negocio sin depender de endpoints HTTP.
+
+### Ejecución de Pruebas Unitarias
+Para ejecutar las pruebas de lógica de confirmación:
+```bash
+npm test
+# o:
+npm run test:unit
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+### Política de Usuario No Verificado (Propuesta para Product Owner)
+* **Permitido:** Iniciar sesión, ver catálogo de servicios/canchas, consultar horarios y precios, y solicitar reenvío de correo.
+* **Restringido:** Crear reservas activas, efectuar pagos y generar tickets/códigos QR de acceso.
+
+---
+
+# 🔐 Autenticación: Endpoint de Registro (HU01-B)
+
+### 📡 `POST /api/auth/register`
+
+Expone la ruta API en Next.js para recibir y procesar el registro de nuevos usuarios en el sistema, validando la entrada y delegando a la capa de lógica de negocio.
+
+* **Método:** `POST`
+* **Content-Type:** `application/json`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-register.swagger.json`](file:///docs/swagger/auth-register.swagger.json)
+
+#### Estructura de la Solicitud (Body):
+```json
+{
+  "fullName": "Jandy Peña",
+  "email": "jandy@ejemplo.com",
+  "password": "Password123!"
+}
+```
+
+#### Respuestas del Servidor:
+* **`201 Created`**: Usuario registrado exitosamente.
+  ```json
+  {
+    "success": true,
+    "message": "Usuario registrado exitosamente",
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "jandy@ejemplo.com",
+      "fullName": "Jandy Peña",
+      "role": "customer",
+      "createdAt": "2026-10-05T12:00:00.000Z"
+    }
+  }
+  ```
+* **`400 Bad Request`**: Datos inválidos, campos obligatorios faltantes, cuerpo vacío o campos extra no reconocidos (`.strict()`).
+  ```json
+  {
+    "success": false,
+    "error": "VALIDATION_ERROR",
+    "message": "Datos de registro inválidos",
+    "details": [
+      { "field": "email", "message": "El formato del correo electrónico es inválido" }
+    ]
+  }
+  ```
+* **`409 Conflict`**: Correo electrónico ya registrado en el sistema.
+  ```json
+  {
+    "success": false,
+    "error": "USER_ALREADY_EXISTS",
+    "message": "El correo electrónico ya se encuentra registrado"
+  }
+  ```
+* **`500 Internal Server Error`**: Error no controlado en el servidor.
+
+#### Ejecución de Pruebas Automatizadas:
+```bash
+npm test
+```
+Ejecuta la suite completa de pruebas unitarias tanto de la capa API (`register.route.test.mjs`) como de la capa de negocio (`register.service.test.mjs`).
+
+---
+
+# 🔐 Autenticación: Endpoints de Login y Sesión (HU02-B)
+
+### 📡 `POST /api/auth/login`
+
+Expone la ruta API en Next.js para el inicio de sesión de usuarios, validando las credenciales de entrada con esquema estricto (Zod), delegando la comprobación a la lógica de negocio (`authenticateUser`) y retornando los datos del usuario autenticado con su rol asignado según el SRS.
+
+* **Método:** `POST`
+* **Content-Type:** `application/json`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json)
+
+#### Estructura de la Solicitud (Body):
+```json
+{
+  "email": "usuario@ejemplo.com",
+  "password": "Password123!"
+}
+```
+
+#### Respuestas del Servidor:
+* **`200 OK`**: Inicio de sesión exitoso.
+  ```json
+  {
+    "success": true,
+    "message": "Inicio de sesión exitoso",
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "usuario@ejemplo.com",
+      "name": "Nombre Usuario",
+      "role": "CLIENT"
+    }
+  }
+  ```
+* **`400 Bad Request`**: Datos inválidos, campos obligatorios faltantes, cuerpo vacío o campos extra no reconocidos (`.strict()`).
+  ```json
+  {
+    "success": false,
+    "error": "VALIDATION_ERROR",
+    "message": "Datos de inicio de sesión inválidos",
+    "details": [
+      { "field": "email", "message": "El formato del correo electrónico es inválido" }
+    ]
+  }
+  ```
+* **`401 Unauthorized`**: Credenciales incorrectas o usuario no autorizado.
+  ```json
+  {
+    "success": false,
+    "error": "INVALID_CREDENTIALS",
+    "message": "Credenciales incorrectas: correo o contraseña no válidos"
+  }
+  ```
+* **`500 Internal Server Error`**: Error no controlado en el servidor.
+
+---
+
+### 📡 `GET /api/auth/session`
+
+Endpoint para consultar la sesión activa actual del usuario autenticado vía NextAuth.
+
+* **Método:** `GET`
+* **Contrato Swagger / OpenAPI:** [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json)
+
+#### Respuestas del Servidor:
+* **`200 OK` (Sin sesión activa):**
+  ```json
+  {
+    "success": true,
+    "authenticated": false,
+    "data": null
+  }
+  ```
+* **`200 OK` (Con sesión activa):**
+  ```json
+  {
+    "success": true,
+    "authenticated": true,
+    "data": {
+      "id": "e5b8...-uuid",
+      "email": "usuario@ejemplo.com",
+      "name": "Nombre Usuario",
+      "role": "CLIENT"
+    }
+  }
+  ```
+* **`500 Internal Server Error`**: Error al consultar la sesión del usuario.
+
+#### Ejecución de Pruebas Automatizadas:
+```bash
+npm test
+```
+Ejecuta la suite completa de pruebas unitarias (`tests/unit/*.test.mjs`), cubriendo los endpoints de la API (`login.route.test.mjs`, `register.route.test.mjs`) y la lógica de negocio y roles SRS (`auth.jwt.test.mjs`, `register.service.test.mjs`).

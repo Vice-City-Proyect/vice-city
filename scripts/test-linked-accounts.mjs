@@ -124,13 +124,15 @@ async function main() {
   let passed = 0;
   let failed = 0;
 
-  // Buscar rol customer para usuarios de prueba
+  // Buscar rol de cliente para usuarios de prueba
   const customerRole = await prisma.roles.findFirst({
-    where: { name: "customer" },
+    where: {
+      name: { in: ["customer", "client", "CLIENT", "CUSTOMER"], mode: "insensitive" },
+    },
   });
 
   if (!customerRole) {
-    console.error("❌ Rol 'customer' no encontrado en la base de datos.");
+    console.error("❌ Rol 'customer' o 'client' no encontrado en la base de datos.");
     process.exit(1);
   }
 
