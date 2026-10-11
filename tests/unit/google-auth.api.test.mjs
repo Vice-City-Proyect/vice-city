@@ -1,4 +1,4 @@
-import { test, describe, beforeEach } from "node:test";
+import { test, describe, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST as googlePostHandler, GET as googleGetHandler } from "../../src/app/api/auth/google/route.ts";
@@ -6,6 +6,7 @@ import { GET as sessionGetHandler } from "../../src/app/api/auth/session/route.t
 import { authOptions } from "../../src/lib/auth.ts";
 import {
   GoogleAuthService,
+  googleAuthService,
   GoogleEmailNotProvidedError,
   UserInactiveError,
   resolveGoogleAuthErrorMessage,
@@ -75,6 +76,40 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
         return user;
       },
     });
+
+    googleAuthService.setDependencies({
+      findUserByEmailFn: async (email) => {
+        return (
+          mockUsers.find(
+            (u) => u.email.toLowerCase() === email.trim().toLowerCase()
+          ) || null
+        );
+      },
+      findClientRoleFn: async () => ({ id: "role-client-123", name: "CLIENT" }),
+      createUserFn: async (data) => {
+        const created = {
+          id: `usr-google-${mockUsers.length + 1}`,
+          email: data.email,
+          full_name: data.full_name,
+          role_id: data.role_id,
+          is_active: data.is_active,
+          metadata: data.metadata,
+          roles: { name: "CLIENT" },
+        };
+        mockUsers.push(created);
+        return created;
+      },
+      updateUserFn: async (id, data) => {
+        const user = mockUsers.find((u) => u.id === id);
+        if (!user) throw new Error("Usuario no encontrado");
+        if (data.metadata) user.metadata = { ...user.metadata, ...data.metadata };
+        return user;
+      },
+    });
+  });
+
+  after(() => {
+    googleAuthService.resetDependencies();
   });
 
   // -------------------------------------------------------------------------

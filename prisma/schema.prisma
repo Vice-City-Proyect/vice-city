@@ -192,6 +192,7 @@ model users {
   email_verified      Boolean               @default(false)
   email_verified_at   DateTime?             @db.Timestamptz(6)
   access_logs         access_logs[]
+  audit_logs          audit_logs[]
   bookings            bookings[]
   linked_accounts     linked_accounts[]
   roles               roles                 @relation(fields: [role_id], references: [id], onUpdate: NoAction)
@@ -230,6 +231,22 @@ model linked_accounts {
 
   @@unique([provider, provider_account_id])
   @@index([provider])
+  @@index([user_id])
+}
+
+model audit_logs {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String?  @db.Uuid
+  action     String
+  entity     String
+  entity_id  String?
+  details    Json     @default("{}")
+  ip_address String?  @db.Inet
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users?   @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([action])
+  @@index([created_at(sort: Desc)])
   @@index([user_id])
 }
 

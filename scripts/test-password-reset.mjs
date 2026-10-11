@@ -186,7 +186,7 @@ async function main() {
     if (createdToken && createdToken.plainToken && createdToken.tokenRecord?.id) {
       console.log("✅ CA02.1 PASS — Token de recuperación creado.");
       console.log(`   ID en BD: ${createdToken.tokenRecord.id}`);
-      console.log(`   Token plano (primeros 16 chars): ${createdToken.plainToken.substring(0, 16)}...`);
+      console.log("   Token plano: [GENERADO Y ENCRIPTADO EN MEMORIA]");
       console.log(`   Expira: ${createdToken.tokenRecord.expires_at.toISOString()}`);
       console.log(`   Tipo: ${createdToken.tokenRecord.type}`);
       passed++;
@@ -282,12 +282,14 @@ async function main() {
   let tempUser = null;
 
   try {
-    // Buscar el rol 'customer' para el usuario temporal
+    // Buscar el rol de cliente para el usuario temporal
     const customerRole = await prisma.roles.findFirst({
-      where: { name: "customer" },
+      where: {
+        name: { in: ["customer", "client", "CLIENT", "CUSTOMER"], mode: "insensitive" },
+      },
     });
 
-    if (!customerRole) throw new Error("Rol 'customer' no encontrado");
+    if (!customerRole) throw new Error("Rol 'customer' o 'client' no encontrado");
 
     // Crear usuario temporal de prueba
     tempUser = await prisma.users.create({

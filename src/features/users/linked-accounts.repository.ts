@@ -119,6 +119,13 @@ export async function linkAccount(
   }
 
   const cleanUserId = params.userId.trim();
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_REGEX.test(cleanUserId)) {
+    return {
+      success: false,
+      reason: "INVALID_INPUT",
+    };
+  }
   const cleanProvider = normalizeProvider(params.provider);
   const cleanAccountId = normalizeProviderAccountId(params.providerAccountId);
 
@@ -222,7 +229,7 @@ export async function linkAccount(
 export async function getLinkedAccountsByUser(
   userId: string
 ): Promise<Prisma.linked_accountsGetPayload<{}>[]> {
-  if (!userId || typeof userId !== "string" || !userId.trim()) {
+  if (!userId || typeof userId !== "string" || !userId.trim() || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId.trim())) {
     return [];
   }
 
@@ -260,7 +267,8 @@ export async function unlinkAccount(
     !providerAccountId ||
     typeof userId !== "string" ||
     typeof provider !== "string" ||
-    typeof providerAccountId !== "string"
+    typeof providerAccountId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId.trim())
   ) {
     return false;
   }

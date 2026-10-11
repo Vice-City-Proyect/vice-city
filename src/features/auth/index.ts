@@ -1,7 +1,17 @@
 /**
  * Módulo de Autenticación (Features: Auth)
- * Vice City - Soporte para HU05-B (Google Auth) y HU06-B (Cierre de Sesión)
+ * Vice City - Soporte para HU01, HU02, HU03, HU05 (Google Auth) y HU06 (Cierre de Sesión)
  */
+
+// Exportaciones base de autenticación
+export * from "./types";
+export * from "./errors/auth.errors";
+export * from "./schemas/register.schema";
+export * from "./schemas/login.schema";
+export * from "./services/register.service";
+export * from "./services/email.service";
+export * from "./services/email-confirmation.service";
+export * from "./errors/email-confirmation.errors";
 
 // Servicio de Inicio de Sesión con Google (HU05-B)
 export {
