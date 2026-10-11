@@ -112,7 +112,7 @@ async function main() {
   console.log("   ✅ Usuario recuperado exitosamente de Supabase:");
   console.log(`      ID: ${adminUser.id}`);
   console.log(`      Email: ${adminUser.email}`);
-  console.log(`      Password Hash (encriptada): ${adminUser.password_hash?.substring(0, 15)}...`);
+  console.log(`      Password Hash: [PRESENTE Y PROTEGIDO EN MEMORIA]`);
   console.log(`      Rol normalizado: ${adminUser.role}`);
 
   if (adminUser.role !== "ADMIN") {

@@ -13,6 +13,11 @@ import {
 } from "@/features/auth";
 import { linkAccount } from "@/features/users/linked-accounts.repository";
 
+export let activeGoogleAuthService = googleAuthService;
+export function setGoogleAuthService(service: any) {
+  activeGoogleAuthService = service;
+}
+
 /**
  * Los cuatro roles del sistema autorizados por el SRS:
  * ADMIN, CLIENT, TICKET_SELLER, QR_VALIDATOR
@@ -80,9 +85,10 @@ export async function authenticateUser(
     throw new Error("Credenciales incorrectas: correo o contraseña no válidos");
   }
 
-  // 4. Validar que el rol del usuario pertenezca estrictamente al SRS
+  // 4. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
   const roleName = user.roles?.name ? user.roles.name.toUpperCase() : "";
 
+  // Normalización para compatibilidad si el rol en BD es legacy "CUSTOMER" -> "CLIENT"
   let srsRole: string = roleName;
   if (roleName === "CUSTOMER") {
     srsRole = "CLIENT";
@@ -104,18 +110,35 @@ export async function authenticateUser(
 }
 
 /**
+ * Obtiene y valida la clave secreta requerida para la firma y cifrado de sesiones NextAuth (JWT).
+ * Lanza un error explícito si la variable de entorno NEXTAUTH_SECRET (o JWT_SECRET) no está configurada,
+ * impidiendo el uso de claves por defecto predecibles o inseguras en el repositorio.
+ *
+ * @param env Entorno de variables (opcional para pruebas unitarias)
+ */
+export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  if (!secret) {
+    if (env.NODE_ENV === "test" || env.npm_lifecycle_event === "test") {
+      return "vice-city-unit-tests-isolated-secret-key-32chars";
+    }
+    throw new Error(
+      "Configuración de seguridad faltante: NEXTAUTH_SECRET (o JWT_SECRET) no está definida en las variables de entorno. Configure NEXTAUTH_SECRET en su archivo .env."
+    );
+  }
+  return secret;
+}
+
+/**
  * Configuración completa de NextAuth para sesiones basadas en tokens JWT
  * Soporta autenticación local por credenciales y federada con Google OAuth (HU05-B).
  */
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 horas según configuración del proyecto
+    maxAge: 8 * 60 * 60, // 8 horas según .env.example
   },
-  secret:
-    process.env.NEXTAUTH_SECRET ||
-    process.env.JWT_SECRET ||
-    "default_super_secret_jwt_key_vice_city_2026",
+  secret: getAuthSecret(),
   providers: [
     // Proveedor Google OAuth (HU05-B)
     GoogleProvider({
@@ -161,7 +184,7 @@ export const authOptions: NextAuthOptions = {
           };
 
           // Delegación estricta a la capa de lógica de negocio (HU05-B LN)
-          const result = await googleAuthService.handleGoogleAuth(googleProfile);
+          const result = await activeGoogleAuthService.handleGoogleAuth(googleProfile);
 
           // Si la tabla linked_accounts está disponible, registrar persistencia ORM (HU05-BD)
           if (result?.user?.id && account.providerAccountId) {
@@ -204,7 +227,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    // 2. Inyección de id y role en el token JWT (Criterio 1)
+    // 2. Inyección de id y role en el token JWT
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -215,7 +238,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    // 3. Transferencia de id y role desde el JWT a session.user (Criterio 1)
+    // 3. Transferencia de id y role desde el JWT a session.user
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
@@ -232,4 +255,3 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
   },
 };
-

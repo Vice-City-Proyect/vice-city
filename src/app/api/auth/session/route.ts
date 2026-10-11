@@ -18,7 +18,8 @@ export async function GET(request?: Request, sessionOverride?: any) {
       try {
         session = await getServerSession(authOptions);
       } catch (sessionError: any) {
-        // En entorno de tests unitarios fuera del runtime de servidor de Next.js
+        // En entorno de tests unitarios fuera del runtime de servidor de Next.js,
+        // getServerSession no tiene request store y lanza 'outside a request scope'.
         if (sessionError?.message?.includes("outside a request scope")) {
           session = null;
         } else {
@@ -63,4 +64,3 @@ export async function GET(request?: Request, sessionOverride?: any) {
     );
   }
 }
-
