@@ -1,24 +1,23 @@
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Hero } from '@/features/landing/components/Hero';
-import { FacilitiesSlider } from '@/features/landing/components/FacilitiesSlider';
-import { LocationSection } from '@/features/landing/components/LocationSection';
-import { Cart } from '@/features/landing/components/Cart/Cart';
-import { CartProvider } from '@/features/landing/components/Cart/CartContext';
+import { Pools } from '@/features/landing/components/Pools';
+import { Facilities } from '@/features/landing/components/Facilities';
+import { Location } from '@/features/landing/components/Location';
+import { CTA } from '@/features/landing/components/CTA';
 
 export default function Home() {
   return (
-    <CartProvider>
-      <div className="min-h-screen bg-club-bg text-text-main font-sans selection:bg-club-primary selection:text-btn-text">
-        <Header />
-        <main>
-          <Hero />
-          <FacilitiesSlider />
-          <LocationSection />
-        </main>
-        <Footer />
-        <Cart />
-      </div>
-    </CartProvider>
+    <div className="min-h-screen bg-club-bg text-text-main flex flex-col">
+      <Header />
+      <main className="flex-1">
+        <Hero />
+        <Pools />
+        <Facilities />
+        <Location />
+        <CTA />
+      </main>
+      <Footer />
+    </div>
   );
 }

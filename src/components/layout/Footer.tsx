@@ -1,50 +1,71 @@
-import React from 'react';
-import { MapPin } from 'lucide-react';
+import { Clock, MapPin } from 'lucide-react';
+
+const NAV_LINKS = [
+  { href: '#piscinas', label: 'Piscinas' },
+  { href: '#instalaciones', label: 'Instalaciones' },
+  { href: '#ubicacion', label: 'Ubicación y contacto' },
+];
 
 export function Footer() {
   return (
-    <footer id="about" className="bg-club-accent text-club-bg py-16 border-t-8 border-club-primary">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-3xl" role="img" aria-label="Iguana">🦎</span>
-            <span className="font-display font-black text-2xl tracking-tight uppercase">
-              Vice City Iguana
+    <footer className="border-t-4 border-club-primary bg-club-accent text-white">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-10 border-b border-white/10 pb-10 md:grid-cols-3">
+          <div>
+            <span className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-white lg:text-2xl">
+              <span aria-hidden className="text-2xl lg:text-3xl">
+                🦎
+              </span>
+              Vice City <span className="text-club-primary">Iguana</span>
             </span>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
+              Complejo deportivo en Barranquilla: piscinas semiolímpicas, canchas de fútbol y
+              polideportivo, gimnasio y zona húmeda con sauna.
+            </p>
+            <p className="mt-4 flex items-center gap-2 text-xs text-white/60">
+              <MapPin className="h-4 w-4 shrink-0 text-club-primary" />
+              Cra. 53 # 106 - 280, Barranquilla, Atlántico
+            </p>
           </div>
-          <p className="text-text-muted max-w-sm mb-6">
-            The premier destination for athletes and fitness enthusiasts demanding the absolute best.
-          </p>
-          <div className="flex items-center gap-2 text-sm text-brand-blue-light">
-            <MapPin className="w-4 h-4" />
-            <span>America/Bogota Timezone (UTC-5)</span>
+
+          <nav aria-label="Navegación del pie de página">
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-club-primary">
+              Navegación
+            </h2>
+            <ul className="space-y-2.5">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    className="text-sm text-white/70 transition-colors hover:text-club-primary"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div>
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-club-primary">
+              Horario de atención
+            </h2>
+            <p className="flex items-center gap-2 text-sm text-white/70">
+              <Clock className="h-4 w-4 shrink-0 text-club-primary" />
+              Lunes a domingo
+            </p>
+            <p className="mt-1 text-sm font-bold text-white">8:00 AM – 5:00 PM</p>
+            <p className="mt-3 text-xs leading-relaxed text-white/60">
+              Incluye días festivos. El mantenimiento se programa los lunes, o los martes cuando el
+              lunes es festivo.
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-12">
-          <div>
-            <h4 className="font-bold uppercase tracking-widest mb-4 text-brand-yellow">Operations</h4>
-            <ul className="space-y-2 text-sm text-text-muted">
-              <li>Monday - Sunday</li>
-              <li>8:00 AM - 5:00 PM</li>
-              <li>Holidays included</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest mb-4 text-brand-yellow">Policies</h4>
-            <ul className="space-y-2 text-sm text-text-muted">
-              <li><a href="#" className="hover:text-white transition-colors">Booking Rules</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Cancellation</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-8 border-t border-white/10 text-sm text-center text-text-muted">
-        © 2026 Vice City Iguana Club. All rights reserved.
+        <p className="pt-8 text-center text-xs text-white/60">
+          © 2026 Vice City Iguana Club. Todos los derechos reservados.
+        </p>
       </div>
     </footer>
   );
 }
-
-export default Footer;

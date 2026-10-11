@@ -1,36 +1,33 @@
 @import "tailwindcss";
 
-:root {
-  --background: #000000;
-  --foreground: #ffffff;
-  --accent: #c8f045;
+@theme {
+  --color-club-bg: #ecebe1;
+  --color-club-surface: #ffffff;
+  --color-club-primary: #b0bf3f;
+  --color-club-primary-hover: #9da833;
+  --color-club-accent: #172010;
+  --color-text-main: #232d16;
+  --color-text-muted: #6b7562;
+  --color-btn-text: #0e1608;
+
+  --color-brand-blue: #4a7c9f;
+  --color-brand-blue-light: #a0c3d9;
+  --color-brand-yellow: #e4be36;
+  --color-brand-green-dark: #3a4714;
+
+  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html,
-body {
-  height: 100%;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  body {
+    background-color: var(--color-club-bg);
+    color: var(--color-text-main);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
