@@ -609,3 +609,27 @@ npm test
 npm run build
 ```
 
+---
+
+# 🎟️ FT-05 / HU24: Webhook de Stripe y Confirmación del Ticket
+
+Esta funcionalidad implementa el webhook oficial de Stripe para confirmar reservas y generar tickets con código QR tras recibir pagos verificados (RN-016, RN-018 y RN-019).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/payments/services/stripe-webhook.service.ts`: Procesamiento de eventos `payment_intent.succeeded`, validación de firma criptográfica, confirmación atómica de reservas, generación de tickets y control de HOLDs desfasados.
+* `src/features/payments/errors/webhook.errors.ts`: Errores de dominio (`InvalidWebhookSignatureError` 400, `WebhookBookingNotFoundError` 404, `WebhookProcessingError` 500).
+* `src/features/payments/types/webhook.types.ts`: Tipos TypeScript para resultados de procesamiento de webhook.
+* `src/features/tickets/components/TicketQRCodeCard.tsx`: Componente de visualización del ticket digital con código QR de acceso deportivo en Tailwind v4.
+* `src/app/api/payments/webhook/route.ts`: Endpoint POST `/api/payments/webhook` para recepción segura de eventos de Stripe.
+* `docs/swagger/hu24-stripe-webhook.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/payments.webhook.test.mjs`: Pruebas unitarias de confirmación, validación de firma, idempotencia y rescate de HOLDs vencidos.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```

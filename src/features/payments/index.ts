@@ -10,6 +10,12 @@ export {
 } from "./services/stripe-payment.service";
 export type { StripePaymentServiceDependencies } from "./services/stripe-payment.service";
 
+export {
+  StripeWebhookService,
+  stripeWebhookService,
+} from "./services/stripe-webhook.service";
+export type { StripeWebhookServiceDependencies } from "./services/stripe-webhook.service";
+
 // Tipos
 export type {
   PaymentMethod,
@@ -18,6 +24,11 @@ export type {
   CreatePaymentIntentResult,
   PaymentDetails,
 } from "./types/payment.types";
+
+export type {
+  ProcessWebhookResult,
+  TicketGenerationData,
+} from "./types/webhook.types";
 
 // Esquemas Zod con .strict()
 export {
@@ -34,4 +45,10 @@ export {
   BookingCancelledError,
   StripePaymentError,
 } from "./errors/payment.errors";
+
+export {
+  InvalidWebhookSignatureError,
+  WebhookBookingNotFoundError,
+  WebhookProcessingError,
+} from "./errors/webhook.errors";
 
