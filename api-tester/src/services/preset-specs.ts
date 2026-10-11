@@ -455,7 +455,7 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
       get: {
         tags: ['Reservations & Catalog (FT-04)'],
         summary: 'Consultar disponibilidad y aforo por fecha (HU20)',
-        description: 'Calcula cupos restantes para las 9 franjas (08:00 a 17:00), validando mantenimiento y compras en curso (RN-010).',
+        description: 'Calcula cupos restantes para las 9 franjas (08:00 a 17:00), validando mantenimiento (lunes/martes festivo) y compras en curso (RN-010).',
         operationId: 'getAvailability',
         parameters: [
           { name: 'serviceId', in: 'query', required: true, schema: { type: 'string', format: 'uuid' } },
