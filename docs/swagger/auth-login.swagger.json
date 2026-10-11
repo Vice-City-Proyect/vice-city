@@ -1,0 +1,179 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Auth Module (Login & Session)",
+    "version": "1.0.0",
+    "description": "Especificación Swagger/OpenAPI para los endpoints de inicio de sesión y consulta de sesión (HU02-B)."
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "summary": "Iniciar sesión de usuario",
+        "description": "Recibe las credenciales (correo y contraseña), valida la entrada con esquema estricto, delega la autenticación a la lógica de negocio y retorna los datos de la sesión activa con id, email, name y rol SRS.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "usuario@ejemplo.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 1,
+                    "example": "Password123!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Inicio de sesión exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Inicio de sesión exitoso" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
+                        "email": { "type": "string", "format": "email", "example": "usuario@ejemplo.com" },
+                        "name": { "type": "string", "example": "Nombre Usuario" },
+                        "role": {
+                          "type": "string",
+                          "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"],
+                          "example": "CLIENT"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada inválidos, campos faltantes, campos extra o cuerpo vacío",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "VALIDATION_ERROR" },
+                    "message": { "type": "string", "example": "Datos de inicio de sesión inválidos" },
+                    "details": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": { "type": "string", "example": "email" },
+                          "message": { "type": "string", "example": "El correo electrónico es obligatorio" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas, usuario no encontrado o rol no autorizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INVALID_CREDENTIALS" },
+                    "message": { "type": "string", "example": "Credenciales incorrectas: correo o contraseña no válidos" }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+                    "message": { "type": "string", "example": "Ocurrió un error interno en el servidor" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "summary": "Consultar sesión actual",
+        "description": "Recupera la sesión activa actual del usuario autenticado vía NextAuth con su ID, correo y rol del SRS.",
+        "tags": ["Auth"],
+        "responses": {
+          "200": {
+            "description": "Respuesta con el estado de autenticación y los datos de la sesión",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "authenticated": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
+                        "email": { "type": "string", "format": "email", "example": "usuario@ejemplo.com" },
+                        "name": { "type": "string", "example": "Nombre Usuario" },
+                        "role": {
+                          "type": "string",
+                          "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"],
+                          "example": "CLIENT"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error al consultar la sesión",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+                    "message": { "type": "string", "example": "Ocurrió un error al consultar la sesión del usuario" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
