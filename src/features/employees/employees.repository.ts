@@ -8,6 +8,7 @@ import type {
   EmployeeRole,
 } from "./types";
 import { ALLOWED_EMPLOYEE_ROLES } from "./types";
+import { hashPassword as bcryptHashPassword } from "@/lib/password";
 
 /**
  * Normaliza y valida que un rol corresponda estrictamente a uno de los roles permitidos para empleados.
@@ -50,12 +51,11 @@ export async function hashPassword(plainPassword: string): Promise<string> {
       return hashResult[0].hash;
     }
   } catch (error) {
-    console.warn("⚠️ pgcrypto fallback: utilizando hash alternativo seguro");
+    console.warn("⚠️ pgcrypto fallback: utilizando bcryptjs");
   }
 
-  // Fallback seguro si pgcrypto no estuviera habilitado en el entorno
-  const crypto = await import("crypto");
-  return crypto.createHash("sha256").update(plainPassword.trim()).digest("hex");
+  // Fallback seguro con bcryptjs para garantizar compatibilidad con el sistema de autenticación
+  return bcryptHashPassword(plainPassword.trim());
 }
 
 /**
