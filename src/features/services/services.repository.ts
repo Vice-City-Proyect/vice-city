@@ -5,6 +5,8 @@ import type {
   CreateServiceInput,
   UpdateServiceInput,
   DeleteServiceResult,
+  ServicePriceUpdateResult,
+  CreateBookingInput,
 } from "./types";
 
 /**
