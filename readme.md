@@ -761,4 +761,62 @@ Endpoint para consultar la sesión activa actual del usuario autenticado vía Ne
 npm test
 ```
 Ejecuta la suite completa de pruebas unitarias (`tests/unit/*.test.mjs`), cubriendo los endpoints de la API (`login.route.test.mjs`, `register.route.test.mjs`) y la lógica de negocio y roles SRS (`auth.jwt.test.mjs`, `register.service.test.mjs`).
->>>>>>> feature/fe-1b/auth
+
+---
+
+# 📖 Documentación Swagger / OpenAPI y Uso del API Tester
+
+El proyecto cuenta con especificaciones OpenAPI 3.0 para todos los endpoints desarrollados y dos formas principales de consumirlos y explorarlos:
+
+## 1. Explorador Visual Interactivo: Vice-City API Tester (Recomendado)
+
+Se incluye un aplicativo web local que embebe la interfaz oficial de **Swagger UI** y proporciona un constructor de peticiones HTTP en tiempo real para el equipo de frontend.
+
+### Cómo iniciarlo:
+```bash
+# 1. Asegúrate de tener el backend de Vice City corriendo (en una terminal):
+npm run dev
+
+# 2. En otra terminal, inicia el API Tester:
+cd api-tester
+npm run dev
+```
+
+Abre tu navegador en: **`http://127.0.0.1:5173`**
+
+### Funcionalidades Swagger en el API Tester:
+* **Pestaña "Swagger UI":** Renderiza la interfaz oficial de Swagger (`swagger-ui-dist`) con todos los modelos, schemas de solicitud y respuestas esperadas.
+* **Selector de Presets:** Permite alternar entre la especificación unificada completa o contratos individuales (Autenticación, Recuperación de Contraseña, Roles, Empleados, Complejo Deportivo).
+* **Importación:** Puedes cargar cualquier archivo `.json` / `.yaml` personalizado o consultar URLs externas.
+* **Pestaña "Endpoints":** Permite ejecutar peticiones directamente contra `http://localhost:3000` con autenticación simulada (Mock Role `ADMIN`, `CLIENT`, `TICKET_SELLER`, `QR_VALIDATOR`), cookies o JWT.
+
+Para más detalles, consulta: [`api-tester/README.md`](file:///api-tester/README.md).
+
+---
+
+## 2. Archivos de Contratos OpenAPI (`docs/swagger/`)
+
+Los contratos estáticos en formato JSON OpenAPI 3.0 se encuentran organizados en la carpeta `docs/swagger/`:
+
+| Contrato | Archivo | Endpoints Cubiertos |
+| :--- | :--- | :--- |
+| **Registro de Usuarios** | [`docs/swagger/auth-register.swagger.json`](file:///docs/swagger/auth-register.swagger.json) | `POST /api/auth/register` |
+| **Login y Sesión** | [`docs/swagger/auth-login.swagger.json`](file:///docs/swagger/auth-login.swagger.json) | `POST /api/auth/login`, `GET /api/auth/session` |
+| **Recuperación Contraseña** | [`docs/swagger/auth-password-reset.swagger.json`](file:///docs/swagger/auth-password-reset.swagger.json) | `POST /api/auth/forgot-password`, `GET /api/auth/reset-password`, `POST /api/auth/reset-password` |
+| **Google OAuth** | [`docs/swagger/auth-google.swagger.json`](file:///docs/swagger/auth-google.swagger.json) | `POST /api/auth/google`, `GET /api/auth/google` |
+| **Cierre de Sesión** | [`docs/swagger/auth-logout.swagger.json`](file:///docs/swagger/auth-logout.swagger.json) | `POST /api/auth/logout` |
+| **Gestión de Roles** | [`docs/swagger/admin-roles.swagger.json`](file:///docs/swagger/admin-roles.swagger.json) | `GET /api/admin/users`, `PATCH /api/admin/users/{id}/role` |
+
+---
+
+## 3. Visualización Externa (Swagger Editor o VS Code)
+
+Si deseas visualizar los archivos `.swagger.json` fuera del API Tester:
+
+1. **Swagger Editor Online:**
+   * Abre [editor.swagger.io](https://editor.swagger.io/).
+   * Ve a **File** ➔ **Import File** (o pega el contenido JSON).
+2. **VS Code / Cursor (Extensión):**
+   * Instala la extensión **OpenAPI (Swagger) Editor** o **Swagger Viewer**.
+   * Abre cualquiera de los archivos en `docs/swagger/` y presiona `Shift + Alt + E` para previsualizar.
+
