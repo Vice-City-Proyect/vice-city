@@ -633,3 +633,31 @@ npm test
 ```bash
 npm run build
 ```
+
+---
+
+# 🎟️ FT-06 / HU25: Venta Presencial en el POS
+
+Esta funcionalidad implementa el módulo de taquilla presencial en `/employee/pos` para que los empleados vendedores (`TICKET_SELLER` o `ADMIN`) registren ventas en efectivo o tarjeta y emitan tickets con código QR al instante (RN-001, RN-003, RN-004, RN-010, RN-012 y RN-017).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/pos/services/pos-sale.service.ts`: Motor de venta en taquilla, autorización de rol `TICKET_SELLER` (403), consulta de disponibilidad unificada, cálculo de precio para franjas iniciadas (RN-010), transacción atómica de reserva confirmada, pago y emisión de ticket.
+* `src/features/pos/schemas/pos-sale.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/pos/errors/pos.errors.ts`: Errores de dominio (`ForbiddenPosAccessError` 403, `PosCapacityExceededError` 409, `PosMaintenanceDayError` 422, `PosOperatingHoursError` 400).
+* `src/features/pos/types/pos.types.ts`: Tipos TypeScript para parámetros de venta en taquilla y comprobante.
+* `src/features/pos/components/PosSaleForm.tsx`: Formulario de taquilla presencial con selector de servicios, franjas y métodos de pago (Efectivo / Tarjeta).
+* `src/features/pos/components/PosReceiptCard.tsx`: Comprobante de venta y visualización del ticket QR generado para el cliente.
+* `src/app/api/pos/sale/route.ts`: Endpoint POST `/api/pos/sale` para procesar ventas de taquilla.
+* `src/app/employee/pos/page.tsx`: Vista web del POS en taquilla para empleados.
+* `docs/swagger/hu25-pos-sale.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/pos.sale.test.mjs`: Pruebas unitarias de venta completa, aforo, mantenimiento, roles (403) y franja iniciada.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
