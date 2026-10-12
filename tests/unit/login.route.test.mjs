@@ -77,13 +77,41 @@ describe("HU02-B: API Endpoints de login y sesión (/api/auth/login y /api/auth/
       password: "PasswordInvalido123!",
     });
 
-    const res = await POST(req);
+    // Aislamiento de la base de datos: la lógica de autenticación se inyecta
+    // simulando el error de negocio que produce credenciales inválidas.
+    const authenticateUserOverride = async () => {
+      throw new Error(
+        "Credenciales incorrectas: correo o contraseña no válidos"
+      );
+    };
+
+    const res = await POST(req, { authenticateUserOverride });
     assert.equal(res.status, 401);
 
     const data = await res.json();
     assert.equal(data.success, false);
     assert.equal(data.error, "INVALID_CREDENTIALS");
     assert.ok(data.message.includes("Credenciales incorrectas"));
+  });
+
+  test("Criterio: Un error interno real NO se oculta como 401 (responde 500)", async () => {
+    const req = createLoginRequest({
+      email: "usuario@vicecity.com",
+      password: "Password123!",
+    });
+
+    // Simula un fallo interno (p. ej. caída de la base de datos). No debe
+    // degradarse silenciosamente a 401, ya que no es un fallo de credenciales.
+    const authenticateUserOverride = async () => {
+      throw new Error("connect ECONNREFUSED 127.0.0.1:5432");
+    };
+
+    const res = await POST(req, { authenticateUserOverride });
+    assert.equal(res.status, 500);
+
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.error, "INTERNAL_SERVER_ERROR");
   });
 
   test("Criterio: /api/auth/session responde 200 con authenticated: false cuando no hay sesión activa", async () => {

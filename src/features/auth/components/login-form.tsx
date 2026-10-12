@@ -2,22 +2,34 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { signIn, getSession } from 'next-auth/react';
 
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
+import type { SRSRole } from '@/types/next-auth';
 import {
   validateLoginForm,
   isLoginFormValid,
   type LoginValidationErrors,
 } from '../utils/login-validation';
 
+const DASHBOARD_BY_ROLE: Record<SRSRole, string> = {
+  ADMIN: '/admin',
+  CLIENT: '/cliente',
+  TICKET_SELLER: '/empleado/pos',
+  QR_VALIDATOR: '/empleado/qr',
+};
+
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<LoginValidationErrors>({});
-
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const clearFieldError = (field: keyof LoginValidationErrors) => {
     if (fieldErrors[field]) {
@@ -25,8 +37,9 @@ export function LoginForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitError(null);
 
     // ── Validación de cliente ──────────────────────────────────────────────
     const errors = validateLoginForm(email, password);
@@ -35,6 +48,36 @@ export function LoginForm() {
       return;
     }
 
+    // ── Autenticación real contra NextAuth (Proveedor de credenciales) ─────
+    setSubmitting(true);
+    try {
+      const result = await signIn('credentials', {
+        email: email.trim(),
+        password,
+        redirect: false,
+      });
+
+      if (!result || result.error) {
+        setSubmitError('Correo o contraseña incorrectos. Verifica tus datos.');
+        return;
+      }
+
+      const session = await getSession();
+      const role = session?.user?.role;
+
+      let callbackUrl: string | null = null;
+      if (typeof window !== 'undefined') {
+        callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
+      }
+
+      const destination = callbackUrl || (role ? DASHBOARD_BY_ROLE[role] : '/');
+      router.push(destination);
+      router.refresh();
+    } catch {
+      setSubmitError('No se pudo iniciar sesión. Intenta de nuevo más tarde.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
 
@@ -101,6 +144,16 @@ export function LoginForm() {
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            {/* ── Error de autenticación ────────────────────────────────── */}
+            {submitError && (
+              <div
+                role="alert"
+                className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm text-center"
+              >
+                {submitError}
+              </div>
+            )}
+
             {/* ── Campo: Correo ─────────────────────────────────────────── */}
             <FormField htmlFor="text" label="Usuario / Correo" error={fieldErrors.email}>
               <Input
@@ -153,8 +206,8 @@ export function LoginForm() {
             </div>
 
             {/* ── Botón de submit ───────────────────────────────────────── */}
-            <Button type="submit" size="sm" className="mt-2">
-              Iniciar Sesión
+            <Button type="submit" size="sm" className="mt-2" disabled={submitting}>
+              {submitting ? 'Ingresando...' : 'Iniciar Sesión'}
             </Button>
           </form>
 

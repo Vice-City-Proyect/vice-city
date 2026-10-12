@@ -12,9 +12,10 @@ interface UserFormModalProps {
   user: User;
   onClose: () => void;
   onSave: (user: User) => void;
+  saving?: boolean;
 }
 
-export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
+export function UserFormModal({ user, onClose, onSave, saving = false }: UserFormModalProps) {
   const [form, setForm] = useState({
     name: user.name,
     email: user.email,
@@ -40,11 +41,11 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
       title="Editar usuario"
       footer={
         <>
-          <Button variant="dark" size="sm" onClick={onClose}>
+          <Button variant="dark" size="sm" onClick={onClose} disabled={saving}>
             Descartar
           </Button>
-          <Button size="sm" type="submit" form="user-form">
-            Guardar cambios
+          <Button size="sm" type="submit" form="user-form" disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
           </Button>
         </>
       }

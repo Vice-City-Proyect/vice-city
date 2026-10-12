@@ -7,16 +7,34 @@ import {
 import { requireAdminRole, unauthorizedResponse } from "@/features/services/auth-guard";
 
 /**
+ * Contexto del Route Handler.
+ *
+ * En Next.js 16 el segundo argumento siempre es `{ params }`. La dependencia de
+ * prueba (`listServicesOverride`) se expone como propiedad con nombre para
+ * probar el catálogo público sin una base de datos, sin alterar el contrato
+ * real del handler ni su comportamiento de autenticación.
+ */
+export interface ServicesRouteContext {
+  params?: unknown;
+  listServicesOverride?: typeof getServices;
+}
+
+/**
  * GET /api/services
  * Lista servicios. Clientes ven activos; ADMIN puede usar ?all=true
+ * Ruta pública: no requiere sesión para leer el catálogo.
  */
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  context?: ServicesRouteContext
+) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const includeInactive = searchParams.get("all") === "true";
     const categoryId = searchParams.get("categoryId") || undefined;
 
-    const services = await getServices({ includeInactive, categoryId });
+    const listServices = context?.listServicesOverride ?? getServices;
+    const services = await listServices({ includeInactive, categoryId });
     return NextResponse.json({ success: true, data: services });
   } catch (error: any) {
     return NextResponse.json(

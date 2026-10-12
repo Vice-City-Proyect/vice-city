@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import {
   isPublicRoute,
-  isProtectedRoute,
   isRouteAllowed,
   getAllowedRolesForRoute,
   normalizeRole,
 } from "@/features/auth/permissions/route-permissions";
+import { allowsMockAuthHeaders } from "@/features/auth/mock-auth";
 
 function getMiddlewareSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
@@ -37,7 +37,7 @@ function getMiddlewareSecret(): string {
  */
 export async function middleware(
   request: NextRequest,
-  tokenOverride?: any
+  tokenOverride?: Record<string, unknown> | null
 ) {
   const { pathname } = request.nextUrl;
 
@@ -56,11 +56,15 @@ export async function middleware(
   }
 
   // 3. Obtener el token de sesión validando firma y vigencia (NextAuth JWT)
-  let token: any = tokenOverride ?? null;
+  let token: Record<string, unknown> | null = tokenOverride ?? null;
 
   if (tokenOverride === undefined) {
-    // Si viene cabecera de mock para pruebas unitarias
-    const mockRole = request.headers.get("x-mock-role");
+    // Cabecera de simulación de rol: proviene del cliente y es falsificable,
+    // por lo que solo se acepta si el flag ENABLE_MOCK_AUTH_HEADERS está
+    // explícitamente activo (pruebas y api-tester). Deshabilitado por defecto.
+    const mockRole = allowsMockAuthHeaders()
+      ? request.headers.get("x-mock-role")
+      : null;
     if (mockRole) {
       token = { role: mockRole, id: "mock-user-id" };
     } else {
