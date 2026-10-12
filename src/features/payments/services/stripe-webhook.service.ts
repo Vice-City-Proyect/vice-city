@@ -243,7 +243,7 @@ export class StripeWebhookService {
       const ticketData = {
         booking_id: booking.id,
         code: secureCode,
-        holder_name: booking.users?.name || "Titular Vice City",
+        holder_name: booking.users?.full_name || booking.users?.name || "Titular Vice City",
         status: "valid",
         valid_from: booking.start_at,
         valid_until: booking.end_at,
