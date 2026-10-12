@@ -44,9 +44,12 @@ export const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/register(?:\/.*)?$/,
   /^\/forgot-password(?:\/.*)?$/,
   /^\/reset-password(?:\/.*)?$/,
+  /^\/verify-email(?:\/.*)?$/,
   /^\/unauthorized(?:\/.*)?$/,
   /^\/403(?:\/.*)?$/,
-  /^\/api\/auth\/(?:login|register|logout|forgot-password|reset-password|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
+  /^\/api\/auth\/(?:login|register|logout|forgot-password|reset-password|confirm-email|resend-confirmation|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
+  // Webhook de Stripe: se autentica por firma (STRIPE_WEBHOOK_SECRET), no por sesión.
+  /^\/api\/payments\/webhook(?:\/.*)?$/,
   // Catálogo público de servicios y categorías: la lectura (GET) no requiere sesión.
   // Las operaciones de escritura (POST/PATCH/DELETE) siguen protegidas por
   // requireAdminRole dentro de cada Route Handler.
@@ -130,6 +133,18 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     pattern: /^\/api\/(?:client|cliente)(?:\/.*)?$/,
     allowedRoles: ["CLIENT", "ADMIN"],
     description: "Endpoints API de cliente",
+  },
+
+  // 7. Reservas web y pagos en línea (CLIENT y ADMIN)
+  {
+    pattern: /^\/api\/reservations(?:\/.*)?$/,
+    allowedRoles: ["CLIENT", "ADMIN"],
+    description: "Creación y consulta de reservas web",
+  },
+  {
+    pattern: /^\/api\/payments\/checkout(?:\/.*)?$/,
+    allowedRoles: ["CLIENT", "ADMIN"],
+    description: "Inicio de pagos en línea con Stripe",
   },
 ];
 

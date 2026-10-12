@@ -12,6 +12,8 @@ export * from "./services/register.service";
 export {
   ConsoleEmailSender,
   MockEmailSender,
+  SmtpEmailSender,
+  getEmailSender,
 } from "./services/email.service";
 export type {
   IEmailSender,

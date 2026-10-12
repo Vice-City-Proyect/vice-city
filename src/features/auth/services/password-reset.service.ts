@@ -57,7 +57,7 @@ export class PasswordResetService {
    */
   async requestPasswordReset(
     email: string,
-    clientBaseUrl = "https://vicecity.com"
+    clientBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   ): Promise<{ success: boolean; message: string; token?: string }> {
     if (!email || typeof email !== "string" || !email.trim()) {
       throw new UserNotFoundError("El correo electrónico es obligatorio.");
@@ -80,7 +80,7 @@ export class PasswordResetService {
       throw new Error("No se pudo generar el token de recuperación de contraseña.");
     }
 
-    const resetLink = `${clientBaseUrl}/auth/reset-password?token=${tokenResult.plainToken}`;
+    const resetLink = `${clientBaseUrl.replace(/\/$/, "")}/reset-password?token=${tokenResult.plainToken}`;
 
     // Despachar el correo desacoplado
     await this.emailSender.sendEmail({

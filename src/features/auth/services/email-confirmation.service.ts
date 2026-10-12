@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { prisma as defaultPrisma } from "../../../lib/prisma";
 import {
   IEmailSender,
-  ConsoleEmailSender,
+  getEmailSender,
   SendVerificationEmailParams,
 } from "./email.service";
 import {
@@ -50,7 +50,7 @@ export interface SendVerificationResult {
 export class EmailConfirmationService {
   constructor(
     private readonly db: PrismaClient = defaultPrisma,
-    private readonly emailSender: IEmailSender = new ConsoleEmailSender()
+    private readonly emailSender: IEmailSender = getEmailSender()
   ) {}
 
   /**
@@ -268,3 +268,6 @@ export class EmailConfirmationService {
     };
   }
 }
+
+/** Instancia por defecto (usa el proveedor de correo configurado en el entorno). */
+export const emailConfirmationService = new EmailConfirmationService();

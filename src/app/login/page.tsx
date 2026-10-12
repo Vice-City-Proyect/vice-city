@@ -1,4 +1,4 @@
-
+import { Suspense } from 'react';
 import { LoginForm } from '@/features/auth/components/login-form';
 
 export const metadata = {
@@ -9,7 +9,9 @@ export const metadata = {
 export default function LoginPage() {
   return (
     <main className="min-h-screen w-full bg-club-bg flex items-center justify-center p-4 sm:p-8">
-      <LoginForm />
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

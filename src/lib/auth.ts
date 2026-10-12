@@ -130,30 +130,36 @@ export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 /**
- * Configuración completa de NextAuth para sesiones basadas en tokens JWT
- * Soporta autenticación local por credenciales y federada con Google OAuth (HU05-B).
+ * Lee y valida las credenciales del proveedor Google OAuth desde el entorno.
+ * Devuelve `null` cuando no están configuradas, evitando enviar `client_id`
+ * falsos a Google (que producen errores opacos como `invalid_client`).
+ *
+ * Variables esperadas (Google Cloud Console → Credenciales OAuth 2.0):
+ * - GOOGLE_CLIENT_ID
+ * - GOOGLE_CLIENT_SECRET
+ *
+ * @param env Entorno de variables (opcional para pruebas unitarias)
  */
+export function getGoogleCredentials(env: NodeJS.ProcessEnv = process.env): {
+  clientId: string;
+  clientSecret: string;
+} | null {
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
 
-export const authOptions: NextAuthOptions = {
-  session: {
-    strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 horas según .env.example
-  },
-  secret: getAuthSecret(),
-  providers: [
-    // Proveedor Google OAuth (HU05-B)
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "google_client_id_placeholder",
-      clientSecret:
-        process.env.GOOGLE_CLIENT_SECRET || "google_client_secret_placeholder",
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-        },
-      },
-    }),
+/**
+ * Construye la lista de proveedores de NextAuth.
+ *
+ * El proveedor de Google solo se registra cuando GOOGLE_CLIENT_ID y
+ * GOOGLE_CLIENT_SECRET están configurados. Así, la ausencia de credenciales no
+ * rompe el login por credenciales ni envía un `client_id` ficticio a Google.
+ * La UI consulta /api/auth/providers para mostrar el botón solo si está activo.
+ */
+export function buildAuthProviders(): NextAuthOptions["providers"] {
+  const providers: NextAuthOptions["providers"] = [
     // Proveedor por credenciales locales (HU02-B)
     CredentialsProvider({
       id: "credentials",
@@ -166,7 +172,41 @@ export const authOptions: NextAuthOptions = {
         return authenticateUser(credentials, defaultPrisma);
       },
     }),
-  ],
+  ];
+
+  // Proveedor Google OAuth (HU05-B): solo si hay credenciales reales.
+  const googleCredentials = getGoogleCredentials();
+  if (googleCredentials) {
+    providers.unshift(
+      GoogleProvider({
+        clientId: googleCredentials.clientId,
+        clientSecret: googleCredentials.clientSecret,
+        authorization: {
+          params: {
+            prompt: "consent",
+            access_type: "offline",
+            response_type: "code",
+          },
+        },
+      })
+    );
+  }
+
+  return providers;
+}
+
+/**
+ * Configuración completa de NextAuth para sesiones basadas en tokens JWT
+ * Soporta autenticación local por credenciales y federada con Google OAuth (HU05-B).
+ */
+
+export const authOptions: NextAuthOptions = {
+  session: {
+    strategy: "jwt",
+    maxAge: 8 * 60 * 60, // 8 horas según .env.example
+  },
+  secret: getAuthSecret(),
+  providers: buildAuthProviders(),
   callbacks: {
     // 1. Delegación a la lógica de negocio al iniciar sesión (HU05-B)
     async signIn({ user, account, profile }) {
