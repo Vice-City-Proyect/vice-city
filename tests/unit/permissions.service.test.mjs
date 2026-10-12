@@ -108,6 +108,35 @@ describe("HU08-B: Lógica de Negocio - Matriz de Permisos por Rol (SRS Sección 
     assert.equal(isRouteAllowed(null, "/login"), true);
     assert.equal(isRouteAllowed(undefined, "/"), true);
     assert.equal(isRouteAllowed("INVALID_ROLE", "/register"), true);
+
+    // Endpoints públicos de negocio (HU20, HU21, HU22, HU23, HU24)
+    assert.equal(isPublicRoute("/api/catalog"), true);
+    assert.equal(isPublicRoute("/api/availability"), true);
+    assert.equal(isPublicRoute("/api/pricing/calculate"), true);
+    assert.equal(isPublicRoute("/api/reservations/hold"), true);
+    assert.equal(isPublicRoute("/api/reservations/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"), true);
+    assert.equal(isPublicRoute("/api/payments/create-intent"), true);
+    assert.equal(isPublicRoute("/api/payments/webhook"), true);
+    assert.equal(isPublicRoute("/catalog"), true);
+    assert.equal(isPublicRoute("/checkout/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"), true);
+
+    // isRouteAllowed debe autorizar estos endpoints a cualquier usuario anónimo
+    assert.equal(isRouteAllowed(null, "/api/catalog"), true);
+    assert.equal(isRouteAllowed(null, "/api/availability"), true);
+    assert.equal(isRouteAllowed(null, "/api/pricing/calculate"), true);
+    assert.equal(isRouteAllowed(null, "/api/reservations/hold"), true);
+    assert.equal(isRouteAllowed(null, "/api/payments/webhook"), true);
+  });
+
+  test("Regla de escáner QR (/api/qr): Exclusivo para QR_VALIDATOR", () => {
+    assert.equal(isRouteAllowed("QR_VALIDATOR", "/api/qr/TK-123"), true);
+    assert.equal(isRouteAllowed("QR_VALIDATOR", "/api/qr/TK-123/entry"), true);
+
+    // Otros roles no autorizados para el endpoint de escáner QR
+    assert.equal(isRouteAllowed("CLIENT", "/api/qr/TK-123"), false);
+    assert.equal(isRouteAllowed("TICKET_SELLER", "/api/qr/TK-123"), false);
+    assert.equal(isRouteAllowed("ADMIN", "/api/qr/TK-123"), false);
+    assert.equal(isRouteAllowed(null, "/api/qr/TK-123"), false);
   });
 
   test("Normalización de roles: Soporta alias legacy (CUSTOMER -> CLIENT) e insensible a mayúsculas", () => {

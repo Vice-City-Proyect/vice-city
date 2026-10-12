@@ -47,6 +47,18 @@ export const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/unauthorized(?:\/.*)?$/,
   /^\/403(?:\/.*)?$/,
   /^\/api\/auth\/(?:login|register|logout|forgot-password|reset-password|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
+  // Vistas públicas de catálogo y checkout
+  /^\/catalog(?:\/.*)?$/,
+  /^\/checkout(?:\/.*)?$/,
+  // Endpoints públicos de catálogo, disponibilidad y cotización (HU20 / HU22)
+  /^\/api\/catalog(?:\/.*)?$/,
+  /^\/api\/availability(?:\/.*)?$/,
+  /^\/api\/pricing\/calculate(?:\/.*)?$/,
+  // Endpoints públicos de reservas HOLD y consulta para checkout (HU21 / FT-04)
+  /^\/api\/reservations(?:\/.*)?$/,
+  // Endpoints públicos de pagos y webhook oficial de Stripe (HU23 / HU24 / FT-05)
+  /^\/api\/payments\/create-intent(?:\/.*)?$/,
+  /^\/api\/payments\/webhook(?:\/.*)?$/,
 ];
 
 /**
@@ -94,6 +106,12 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     pattern: /^\/api\/employee\/(?:qr-scanner|scanner|scan|validator)(?:\/.*)?$/,
     allowedRoles: ["QR_VALIDATOR", "ADMIN"],
     description: "Endpoints API de escáner y validación de accesos",
+  },
+  {
+    // HU13 (VCP-57 / FT-07): consulta e ingreso por QR. Exclusivo del rol QR_VALIDATOR.
+    pattern: /^\/api\/qr(?:\/.*)?$/,
+    allowedRoles: ["QR_VALIDATOR"],
+    description: "Consulta y registro de ingreso por código QR (solo QR_VALIDATOR)",
   },
 
   // 4. Portal y rutas generales de empleados (TICKET_SELLER, QR_VALIDATOR y ADMIN)
