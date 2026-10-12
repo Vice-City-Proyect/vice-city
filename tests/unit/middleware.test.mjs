@@ -145,5 +145,73 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
     const resRegister = await middleware(reqRegister, null);
     assert.equal(resRegister.headers.get("Location"), null);
   });
+
+  test("Rutas públicas (HU20 - HU24): Endpoints de negocio y webhook de Stripe pasan sin sesión activa (200 / sin redirección)", async () => {
+    const publicEndpoints = [
+      "http://localhost:3000/api/catalog",
+      "http://localhost:3000/api/availability?serviceId=abc&date=2026-10-15",
+      "http://localhost:3000/api/pricing/calculate",
+      "http://localhost:3000/api/reservations/hold",
+      "http://localhost:3000/api/reservations/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+      "http://localhost:3000/api/payments/create-intent",
+      "http://localhost:3000/api/payments/webhook",
+      "http://localhost:3000/catalog",
+      "http://localhost:3000/checkout/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+    ];
+
+    for (const url of publicEndpoints) {
+      const req = createMockRequest(url);
+      const res = await middleware(req, null);
+      assert.equal(
+        res.status,
+        200,
+        `El endpoint público ${url} debe responder 200 (NextResponse.next())`
+      );
+      assert.equal(
+        res.headers.get("Location"),
+        null,
+        `El endpoint público ${url} no debe redirigir a login`
+      );
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // COMPATIBILIDAD NEXT.JS: Invocación con NextFetchEvent (Hallazgo 2)
+  // -------------------------------------------------------------------------
+  test("Compatibilidad Next.js: NextFetchEvent no es interpretado como token y no produce 403 con sesión válida", async () => {
+    const mockNextFetchEvent = {
+      waitUntil: () => {},
+      sourcePage: "/employee/qr-scanner",
+    };
+
+    // Petición autenticada con rol QR_VALIDATOR vía mock header
+    const req = createMockRequest("http://localhost:3000/employee/qr-scanner", {
+      headers: { "x-mock-role": "QR_VALIDATOR" },
+    });
+
+    // Invocado como lo hace Next.js: middleware(request, event)
+    const res = await middleware(req, mockNextFetchEvent);
+
+    // Debe permitir el acceso (no 403 ni redirección)
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("Location"), null);
+  });
+
+  test("Ruta protegida sin sesión sigue respondiendo 401 UNAUTHORIZED en API", async () => {
+    const protectedApis = [
+      "http://localhost:3000/api/admin/users",
+      "http://localhost:3000/api/employee/pos",
+      "http://localhost:3000/api/client/tickets",
+    ];
+
+    for (const url of protectedApis) {
+      const req = createMockRequest(url);
+      const res = await middleware(req, null);
+      const body = await res.json();
+
+      assert.equal(res.status, 401, `Ruta ${url} debe ser 401 sin sesión`);
+      assert.equal(body.error, "UNAUTHORIZED");
+    }
+  });
 });
 

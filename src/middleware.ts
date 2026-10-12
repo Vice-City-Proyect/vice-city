@@ -39,13 +39,22 @@ export async function middleware(
   request: NextRequest,
   tokenOverride?: any
 ) {
-  // Next.js invoca middleware(request, event): el 2.º argumento es su NextFetchEvent, no un token.
-  // Sin este descarte se tomaba el evento como "token ya resuelto" (sin rol) y toda ruta
-  // protegida respondía 403 incluso con sesión válida. Solo se acepta un override inyectado (pruebas).
+  // Next.js invoca middleware(request, event): el 2.º argumento es NextFetchEvent, no un token de sesión.
+  // Sin este descarte se tomaba el evento como un token ya resuelto (sin rol) y toda ruta protegida
+  // respondía 403 FORBIDDEN incluso con sesión válida. Se descarta el evento de Next.js;
+  // solo se admite tokenOverride inyectado en contexto de pruebas unitarias aisladas.
   if (
     tokenOverride &&
     typeof tokenOverride === "object" &&
     typeof tokenOverride.waitUntil === "function"
+  ) {
+    tokenOverride = undefined;
+  }
+
+  // Por seguridad, en entorno de producción no se aceptan tokens arbitrarios como argumento
+  if (
+    process.env.NODE_ENV === "production" &&
+    tokenOverride !== undefined
   ) {
     tokenOverride = undefined;
   }

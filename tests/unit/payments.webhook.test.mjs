@@ -43,7 +43,7 @@ describe("FT-05 / HU24: Webhook de Stripe y Confirmación de Tickets", () => {
           provider_reference: mockPaymentIntentId,
         },
       ],
-      users: { name: "Daniela Zapata" },
+      users: { full_name: "Daniela Zapata" },
     };
 
     const service = new StripeWebhookService({
