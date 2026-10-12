@@ -39,6 +39,26 @@ export async function middleware(
   request: NextRequest,
   tokenOverride?: any
 ) {
+  // Next.js invoca middleware(request, event): el 2.º argumento es NextFetchEvent, no un token de sesión.
+  // Sin este descarte se tomaba el evento como un token ya resuelto (sin rol) y toda ruta protegida
+  // respondía 403 FORBIDDEN incluso con sesión válida. Se descarta el evento de Next.js;
+  // solo se admite tokenOverride inyectado en contexto de pruebas unitarias aisladas.
+  if (
+    tokenOverride &&
+    typeof tokenOverride === "object" &&
+    typeof tokenOverride.waitUntil === "function"
+  ) {
+    tokenOverride = undefined;
+  }
+
+  // Por seguridad, en entorno de producción no se aceptan tokens arbitrarios como argumento
+  if (
+    process.env.NODE_ENV === "production" &&
+    tokenOverride !== undefined
+  ) {
+    tokenOverride = undefined;
+  }
+
   const { pathname } = request.nextUrl;
 
   // 1. Ignorar assets estáticos de Next.js, imágenes y favicons
