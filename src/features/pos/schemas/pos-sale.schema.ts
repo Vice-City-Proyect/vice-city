@@ -55,7 +55,12 @@ export const posSaleSchema = z
     clientEmail: z.string().email("El correo electrónico no es válido.").optional().or(z.literal("")),
     /** Notas adicionales de taquilla */
     notes: z.string().optional(),
+    /** HU26: Aforo disponible registrado en la previsualización para detectar cambios concurrentes */
+    previewAvailableCapacity: z.number().int().nonnegative().optional(),
+    /** HU26: Clave de idempotencia para evitar venta duplicada por doble clic */
+    idempotencyKey: z.string().optional(),
   })
   .strict();
 
 export type PosSaleInput = z.infer<typeof posSaleSchema>;
+

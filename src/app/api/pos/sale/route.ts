@@ -11,6 +11,7 @@ import {
   posSaleSchema,
   ForbiddenPosAccessError,
   PosCapacityExceededError,
+  PosAvailabilityChangedError,
   PosMaintenanceDayError,
   PosServiceNotFoundError,
   PosOperatingHoursError,
@@ -56,7 +57,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Aforo insuficiente (RN-004)
+    // 2. HU26: Disponibilidad cambió entre previsualización y confirmación
+    if (error instanceof PosAvailabilityChangedError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          error: { code: error.code },
+        },
+        { status: 409 }
+      );
+    }
+
+    // 3. Aforo insuficiente (RN-004)
     if (error instanceof PosCapacityExceededError) {
       return NextResponse.json(
         {
@@ -115,3 +128,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

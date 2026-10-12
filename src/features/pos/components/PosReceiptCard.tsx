@@ -83,3 +83,4 @@ export function PosReceiptCard({ sale, onNewSale }: PosReceiptCardProps) {
     </div>
   );
 }
+

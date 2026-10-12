@@ -1,5 +1,5 @@
 /**
- * FT-06 / HU25: Servicio de Venta Presencial en POS para Empleados (RN-017)
+ * FT-06 / HU25 & HU26: Servicio de Venta Presencial y Previsualización POS
  * Vice City - Features: POS
  *
  * Implementa las Reglas de Negocio Oficiales:
@@ -8,27 +8,34 @@
  * - RN-001 y RN-003: Respeta horario operativo (8:00 AM - 5:00 PM) y bloqueo por mantenimiento semanal.
  * - RN-004: Validación estricta de aforo por servicio.
  * - RN-010: Franjas ya iniciadas cobran tarifa completa de la hora y el QR vence al finalizar la franja.
- * - Transacción atómica: Genera la reserva confirmada, el pago registrado y el ticket con QR.
+ * - RN-019 & RN-020: Ticket digital con QR seguro al portador verificable en base de datos.
+ * - HU26: Previsualización fiel 1:1, rechazo si la disponibilidad cambió e idempotencia ante doble clic.
  */
 
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import type { CreatePosSaleParams, PosSaleResult } from "../types/pos.types";
+import type {
+  CreatePosSaleParams,
+  PosSaleResult,
+  PosPreviewParams,
+  PosPreviewResult,
+} from "../types/pos.types";
 import {
   ForbiddenPosAccessError,
   PosCapacityExceededError,
+  PosAvailabilityChangedError,
   PosMaintenanceDayError,
   PosServiceNotFoundError,
   PosOperatingHoursError,
   PosPastSlotError,
 } from "../errors/pos.errors";
 import { checkMaintenanceDay } from "@/features/services/utils/colombian-holidays.util";
-import { getTodayBogotaString } from "@/features/services/utils/date-bogota.util";
 
 export interface PosSaleServiceDependencies {
   findSellerByIdFn?: (sellerId: string) => Promise<any | null>;
   findServiceByIdFn?: (serviceId: string) => Promise<any | null>;
   findActiveBookingsFn?: (serviceId: string, startAt: Date, endAt: Date) => Promise<any[]>;
+  findExistingBookingByIdempotencyFn?: (idempotencyKey: string) => Promise<any | null>;
   transactionFn?: <T>(fn: (tx: any) => Promise<T>) => Promise<T>;
   getCurrentTimeFn?: () => Date;
 }
@@ -45,28 +52,18 @@ export class PosSaleService {
   }
 
   /**
-   * Registra una venta presencial en el POS, valida rol de taquillero, disponibilidad y emite el ticket
+   * Valida permisos del vendedor, vigencia del servicio, horario y aforo común
    */
-  async processSale(params: CreatePosSaleParams): Promise<PosSaleResult> {
-    const {
-      sellerId,
-      clientName,
-      clientId,
-      serviceId,
-      startAt,
-      endAt,
-      quantity,
-      paymentMethod,
-      clientPhone,
-      clientEmail,
-      notes,
-    } = params;
+  private async validateCommonParameters(params: {
+    sellerId: string;
+    serviceId: string;
+    startDate: Date;
+    endDate: Date;
+    now: Date;
+  }) {
+    const { sellerId, serviceId, startDate, endDate, now } = params;
 
-    const now = this.getNow();
-    const startDate = new Date(startAt);
-    const endDate = new Date(endAt);
-
-    // 1. Criterio 3: Validación de Rol de Vendedor (TICKET_SELLER o ADMIN)
+    // 1. Rol de Vendedor
     let seller: any = null;
     if (this.deps?.findSellerByIdFn) {
       seller = await this.deps.findSellerByIdFn(sellerId);
@@ -90,7 +87,7 @@ export class PosSaleService {
       );
     }
 
-    // 2. Criterio 2: Validar Servicio y Estado Activo
+    // 2. Servicio activo
     let service: any = null;
     if (this.deps?.findServiceByIdFn) {
       service = await this.deps.findServiceByIdFn(serviceId);
@@ -106,13 +103,14 @@ export class PosSaleService {
       );
     }
 
-    // 3. Criterio 2: Mantenimiento semanal (Lunes, o Martes si el lunes es festivo - RN-003)
+    // 3. Mantenimiento semanal (Lunes, o Martes si el lunes es festivo - RN-003)
     const dateStr = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Bogota",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }).format(startDate);
+
     const maintenanceCheck = checkMaintenanceDay(dateStr);
     if (maintenanceCheck.isMaintenance) {
       throw new PosMaintenanceDayError(
@@ -129,7 +127,7 @@ export class PosSaleService {
       );
     }
 
-    // 5. Criterio 4 (Caso Límite): Franja ya finalizada vs Franja en curso (RN-010)
+    // 5. Franja ya finalizada vs Franja en curso (RN-010)
     if (endDate <= now) {
       throw new PosPastSlotError(
         "No es posible registrar ventas en una franja horaria que ya ha finalizado."
@@ -138,7 +136,7 @@ export class PosSaleService {
 
     const isStartedSlotPurchased = startDate <= now && now < endDate;
 
-    // 6. Criterio 2: Misma disponibilidad y aforo que la web (RN-004 y RN-012)
+    // 6. Consultar ocupación actual
     let activeBookings: any[] = [];
     if (this.deps?.findActiveBookingsFn) {
       activeBookings = await this.deps.findActiveBookingsFn(serviceId, startDate, endDate);
@@ -153,7 +151,6 @@ export class PosSaleService {
       });
     }
 
-    // Filtrar cupos ocupados (excluyendo holds vencidos)
     const occupiedCapacity = activeBookings.reduce((sum, b) => {
       if (b.status === "confirmed") {
         return sum + b.quantity;
@@ -165,13 +162,49 @@ export class PosSaleService {
     }, 0);
 
     const availableCapacity = Math.max(0, service.capacity - occupiedCapacity);
+
+    return {
+      seller,
+      service,
+      availableCapacity,
+      isStartedSlotPurchased,
+    };
+  }
+
+  /**
+   * HU26 (Criterio 1): Previsualiza la venta y el ticket sin realizar mutaciones en la base de datos
+   */
+  async previewSale(params: PosPreviewParams): Promise<PosPreviewResult> {
+    const {
+      sellerId,
+      clientName,
+      clientId,
+      serviceId,
+      startAt,
+      endAt,
+      quantity,
+      paymentMethod,
+    } = params;
+
+    const now = this.getNow();
+    const startDate = new Date(startAt);
+    const endDate = new Date(endAt);
+
+    const { seller, service, availableCapacity, isStartedSlotPurchased } =
+      await this.validateCommonParameters({
+        sellerId,
+        serviceId,
+        startDate,
+        endDate,
+        now,
+      });
+
     if (quantity > availableCapacity) {
       throw new PosCapacityExceededError(
         `Aforo insuficiente para la cantidad solicitada. Disponibles: ${availableCapacity}, solicitados: ${quantity} (RN-004).`
       );
     }
 
-    // 7. Cálculo de valor a cobrar (Tarifa completa de la hora según RN-010)
     const durationHours = Math.max(
       1,
       Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
@@ -179,9 +212,137 @@ export class PosSaleService {
     const unitPrice = Number(service.price);
     const totalAmount = unitPrice * durationHours * quantity;
 
-    // 8. Criterio 1: Transacción atómica de Venta Presencial (Reserva + Pago + Ticket)
+    // Generar un previewId seguro para control de consistencia
+    const previewId = crypto
+      .createHash("sha256")
+      .update(`${service.id}-${startDate.getTime()}-${clientId}-${quantity}-${totalAmount}`)
+      .digest("hex")
+      .slice(0, 16);
+
+    return {
+      previewId,
+      sellerId: seller.id,
+      sellerName: seller.full_name,
+      clientName,
+      clientId,
+      serviceId: service.id,
+      serviceName: service.name,
+      startAt: startDate.toISOString(),
+      endAt: endDate.toISOString(),
+      quantity,
+      unitPrice,
+      totalAmount,
+      currency: service.currency || "COP",
+      paymentMethod,
+      availableCapacity,
+      isStartedSlotPurchased,
+      expiresAtEndOfSlot: endDate.toISOString(),
+    };
+  }
+
+  /**
+   * HU25 & HU26: Registra y confirma la venta presencial en el POS, emitiendo el ticket QR
+   */
+  async processSale(params: CreatePosSaleParams): Promise<PosSaleResult> {
+    const {
+      sellerId,
+      clientName,
+      clientId,
+      serviceId,
+      startAt,
+      endAt,
+      quantity,
+      paymentMethod,
+      clientPhone,
+      clientEmail,
+      notes,
+      idempotencyKey,
+      previewAvailableCapacity,
+    } = params;
+
+    const now = this.getNow();
+    const startDate = new Date(startAt);
+    const endDate = new Date(endAt);
+
+    // 1. Criterio 4 (Caso Límite HU26): Idempotencia ante doble clic
+    if (idempotencyKey) {
+      let existingBooking: any = null;
+      if (this.deps?.findExistingBookingByIdempotencyFn) {
+        existingBooking = await this.deps.findExistingBookingByIdempotencyFn(idempotencyKey);
+      } else {
+        existingBooking = await prisma.bookings.findFirst({
+          where: {
+            metadata: { path: ["idempotency_key"], equals: idempotencyKey },
+          },
+          include: { tickets: true, payments: true, services: true },
+        });
+      }
+
+      if (existingBooking && existingBooking.tickets && existingBooking.tickets.length > 0) {
+        const ticket = existingBooking.tickets[0];
+        const payment = existingBooking.payments?.[0];
+        return {
+          bookingId: existingBooking.id,
+          ticketId: ticket.id,
+          ticketCode: ticket.code,
+          paymentId: payment?.id || "",
+          amount: Number(existingBooking.total_amount),
+          currency: existingBooking.services?.currency || "COP",
+          clientName,
+          clientId,
+          serviceName: existingBooking.services?.name || "Servicio Deportivo",
+          startAt: existingBooking.start_at.toISOString(),
+          endAt: existingBooking.end_at.toISOString(),
+          quantity: existingBooking.quantity,
+          paymentMethod,
+          status: "confirmed",
+          sellerId,
+          isStartedSlotPurchased: Boolean(existingBooking.metadata?.is_started_slot_purchased),
+          isReused: true,
+          qrPayload: {
+            ticketCode: ticket.code,
+            bookingId: existingBooking.id,
+            validFrom: existingBooking.start_at.toISOString(),
+            validUntil: existingBooking.end_at.toISOString(),
+          },
+        };
+      }
+    }
+
+    // 2. Validación común
+    const { seller, service, availableCapacity, isStartedSlotPurchased } =
+      await this.validateCommonParameters({
+        sellerId,
+        serviceId,
+        startDate,
+        endDate,
+        now,
+      });
+
+    // 3. Criterio 3 (Caso de Error HU26): La disponibilidad cambió entre previsualización y confirmación
+    if (previewAvailableCapacity !== undefined && availableCapacity < quantity) {
+      throw new PosAvailabilityChangedError(
+        `La disponibilidad del servicio cambió entre la previsualización y la confirmación. Aforo restante disponible: ${availableCapacity}, solicitado: ${quantity}.`
+      );
+    }
+
+    if (quantity > availableCapacity) {
+      throw new PosCapacityExceededError(
+        `Aforo insuficiente para la cantidad solicitada. Disponibles: ${availableCapacity}, solicitados: ${quantity} (RN-004).`
+      );
+    }
+
+    // 4. Cálculo de tarifa
+    const durationHours = Math.max(
+      1,
+      Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
+    );
+    const unitPrice = Number(service.price);
+    const totalAmount = unitPrice * durationHours * quantity;
+
+    // 5. Transacción atómica
     const executeSaleTransaction = async (tx: any) => {
-      // a. Resolver usuario cliente en taquilla
+      // a. Resolver usuario cliente
       let clientUser = await tx.users.findFirst({
         where: { document_id: clientId },
       });
@@ -203,7 +364,18 @@ export class PosSaleService {
         });
       }
 
-      // b. Crear la reserva directamente en estado 'confirmed'
+      // b. Crear reserva confirmed
+      const bookingMetadata = {
+        pos_sale: true,
+        seller_id: seller.id,
+        seller_name: seller.full_name,
+        client_doc: clientId,
+        client_name: clientName,
+        payment_method: paymentMethod,
+        is_started_slot_purchased: isStartedSlotPurchased,
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+      };
+
       const booking = await tx.bookings.create({
         data: {
           user_id: clientUser.id,
@@ -214,19 +386,11 @@ export class PosSaleService {
           total_amount: totalAmount,
           status: "confirmed",
           notes: notes || `Venta POS en taquilla por empleado ${seller.full_name}`,
-          metadata: {
-            pos_sale: true,
-            seller_id: seller.id,
-            seller_name: seller.full_name,
-            client_doc: clientId,
-            client_name: clientName,
-            payment_method: paymentMethod,
-            is_started_slot_purchased: isStartedSlotPurchased,
-          },
+          metadata: bookingMetadata,
         },
       });
 
-      // c. Registrar el pago inmediato como 'paid'
+      // c. Registrar pago
       const paymentRef = `POS-${Date.now()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
       const payment = await tx.payments.create({
         data: {
@@ -243,12 +407,12 @@ export class PosSaleService {
             client_id: clientId,
             channel: "POS_TAQUILLA",
             payment_method: paymentMethod,
+            ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
           },
         },
       });
 
-      // d. Generar el Ticket Digital con QR seguro
-      // El QR vence exactamente al final de la franja horaria (endDate) según RN-010
+      // d. Generar Ticket con QR único al portador (RN-019, RN-020)
       const secureTicketCode = crypto.randomUUID().replace(/-/g, "").toUpperCase();
       const ticket = await tx.tickets.create({
         data: {
@@ -290,6 +454,7 @@ export class PosSaleService {
         status: "confirmed" as const,
         sellerId: seller.id,
         isStartedSlotPurchased,
+        isReused: false,
         qrPayload: {
           ticketCode: ticket.code,
           bookingId: booking.id,

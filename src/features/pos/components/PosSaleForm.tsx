@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Componente UI: Formulario de Venta Presencial para Taquillero POS (HU25 / RN-017)
+ * Componente UI: Formulario de Venta Presencial y Previsualización POS (HU25 & HU26 / RN-017, RN-019)
  * Vice City - Tailwind v4
  */
 
 import React, { useState } from "react";
-import type { PosSaleResult, PosPaymentMethod } from "../types/pos.types";
+import type { PosSaleResult, PosPaymentMethod, PosPreviewResult } from "../types/pos.types";
 import { PosReceiptCard } from "./PosReceiptCard";
+import { PosTicketPreviewModal } from "./PosTicketPreviewModal";
 
 interface PosSaleFormProps {
   sellerId?: string;
@@ -33,26 +34,28 @@ export function PosSaleForm({
   const [paymentMethod, setPaymentMethod] = useState<PosPaymentMethod>("cash");
   const [notes, setNotes] = useState("");
 
-  // Estado de procesamiento
+  // Estado de procesamiento y Previsualización (HU26)
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<PosPreviewResult | null>(null);
   const [completedSale, setCompletedSale] = useState<PosSaleResult | null>(null);
 
   const calculateTotal = () => unitPrice * quantity;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Paso 1 (HU26): Previsualizar la venta antes de emitir
+  const handlePreview = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage(null);
 
     const startAt = `${date}T${startTime}:00-05:00`;
-    // Calcular fin: 1 hora después
     const [h, m] = startTime.split(":").map(Number);
     const endH = String(h + 1).padStart(2, "0");
     const endAt = `${date}T${endH}:${String(m).padStart(2, "0")}:00-05:00`;
 
     try {
-      const response = await fetch("/api/pos/sale", {
+      const response = await fetch("/api/pos/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,14 +75,57 @@ export function PosSaleForm({
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Error al procesar la venta en taquilla.");
+        throw new Error(data.message || "Error al previsualizar la venta en taquilla.");
       }
 
-      setCompletedSale(data.data);
+      setPreviewData(data.data);
     } catch (err: any) {
       setErrorMessage(err.message || "Error inesperado al conectar con el servidor.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Paso 2 (HU26): Confirmar y Emitir Ticket Digital con Idempotencia
+  const handleConfirmSale = async () => {
+    if (!previewData) return;
+
+    setIsConfirming(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/pos/sale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerId: previewData.sellerId,
+          clientName: previewData.clientName,
+          clientId: previewData.clientId,
+          serviceId: previewData.serviceId,
+          startAt: previewData.startAt,
+          endAt: previewData.endAt,
+          quantity: previewData.quantity,
+          paymentMethod: previewData.paymentMethod,
+          clientPhone: clientPhone || undefined,
+          notes: notes || undefined,
+          previewAvailableCapacity: previewData.availableCapacity,
+          idempotencyKey: previewData.previewId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Error al confirmar la venta en taquilla.");
+      }
+
+      setCompletedSale(data.data);
+      setPreviewData(null);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Error inesperado al confirmar la emisión del ticket.");
+      setPreviewData(null);
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -89,6 +135,7 @@ export function PosSaleForm({
     setClientPhone("");
     setQuantity(1);
     setNotes("");
+    setPreviewData(null);
     setCompletedSale(null);
     setErrorMessage(null);
   };
@@ -118,13 +165,13 @@ export function PosSaleForm({
         <div className="mb-5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-start gap-2.5">
           <span className="text-base">❌</span>
           <div>
-            <strong className="block font-semibold">Error al registrar venta:</strong>
+            <strong className="block font-semibold">Error en taquilla:</strong>
             {errorMessage}
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handlePreview} className="space-y-4">
         {/* Sección Datos del Cliente */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -289,7 +336,7 @@ export function PosSaleForm({
         {/* Total a Cobrar */}
         <div className="bg-slate-850 p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-slate-400 block">Total a cobrar en taquilla:</span>
+            <span className="text-[11px] text-slate-400 block">Total estimado a cobrar:</span>
             <span className="text-xs text-slate-300">{quantity} cupo(s) × ${unitPrice.toLocaleString("es-CO")} COP</span>
           </div>
           <span className="text-xl font-black text-emerald-400">
@@ -297,19 +344,29 @@ export function PosSaleForm({
           </span>
         </div>
 
-        {/* Botón de Confirmación */}
+        {/* Botón de Previsualización (HU26) */}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/30 focus:outline-none transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2 mt-2"
+          className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-indigo-600/30 focus:outline-none transition-all disabled:opacity-50 text-xs flex items-center justify-center gap-2 mt-2"
         >
           {isSubmitting ? (
-            <span>Registrando venta en POS...</span>
+            <span>Calculando y validando previsualización...</span>
           ) : (
-            <span>✅ Cobrar y Generar Ticket (${calculateTotal().toLocaleString("es-CO")})</span>
+            <span>👁️ Previsualizar Ticket Digital (${calculateTotal().toLocaleString("es-CO")})</span>
           )}
         </button>
       </form>
+
+      {/* Modal de Previsualización Oficial (HU26) */}
+      {previewData && (
+        <PosTicketPreviewModal
+          preview={previewData}
+          isConfirming={isConfirming}
+          onConfirm={handleConfirmSale}
+          onCancel={() => setPreviewData(null)}
+        />
+      )}
     </div>
   );
 }

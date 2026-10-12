@@ -661,3 +661,31 @@ npm test
 ```bash
 npm run build
 ```
+
+---
+
+# 🎟️ FT-06 / HU26: Previsualización y Emisión del Ticket Digital POS
+
+Esta funcionalidad implementa la previsualización del ticket digital antes de confirmar la venta en el POS y su emisión con código QR único al portador verificado en base de datos al confirmar (RN-017, RN-019 y RN-020).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/pos/services/pos-sale.service.ts`: Cálculo previo de tarifas sin mutaciones (`previewSale`), validación de desfase de aforo concurrente (`PosAvailabilityChangedError`), idempotencia ante doble clic (`idempotencyKey`) y emisión de tickets con QR único al portador.
+* `src/features/pos/schemas/pos-preview.schema.ts`: Esquema de validación Zod con `.strict()` para previsualización.
+* `src/features/pos/errors/pos.errors.ts`: Error `PosAvailabilityChangedError` (409 Conflict).
+* `src/features/pos/types/pos.types.ts`: Tipos `PosPreviewParams` y `PosPreviewResult`.
+* `src/features/pos/components/PosTicketPreviewModal.tsx`: Modal de confirmación previa y visualización de borrador del ticket en Tailwind v4.
+* `src/features/pos/components/PosSaleForm.tsx`: Flujo integrado de Previsualización -> Modal -> Emisión y Comprobante.
+* `src/app/api/pos/preview/route.ts`: Endpoint POST `/api/pos/preview` para obtener previsualización de ventas en taquilla.
+* `docs/swagger/hu26-pos-preview-ticket.swagger.json`: Especificación OpenAPI 3.0 / Swagger de la previsualización.
+* `tests/unit/pos.preview.test.mjs`: Pruebas unitarias de previsualización 1:1, emisión de ticket con QR único, cambio de aforo (409) e idempotencia ante doble confirmación.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+

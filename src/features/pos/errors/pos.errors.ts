@@ -1,5 +1,5 @@
 /**
- * FT-06 / HU25: Errores de Dominio para el Módulo POS de Empleado
+ * FT-06 / HU25 & HU26: Errores de Dominio para el Módulo POS de Empleado
  */
 
 export class PosError extends Error {
@@ -27,6 +27,14 @@ export class PosCapacityExceededError extends PosError {
     message: string = "Aforo insuficiente para la cantidad solicitada en la franja seleccionada."
   ) {
     super(message, "POS_CAPACITY_EXCEEDED", 409);
+  }
+}
+
+export class PosAvailabilityChangedError extends PosError {
+  constructor(
+    message: string = "La disponibilidad del servicio cambió entre la previsualización y la confirmación. El aforo actual es insuficiente."
+  ) {
+    super(message, "POS_AVAILABILITY_CHANGED", 409);
   }
 }
 
