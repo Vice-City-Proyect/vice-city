@@ -31,6 +31,7 @@
     "test:stripe": "tsx --test tests/unit/payments.stripe.test.mjs",
     "test:webhook": "tsx --test tests/unit/payments.webhook.test.mjs",
     "test:payments": "tsx --test tests/unit/payments.stripe.test.mjs tests/unit/payments.webhook.test.mjs",
+    "test:pos": "tsx --test tests/unit/pos.sale.test.mjs tests/unit/pos.preview.test.mjs",
     "test": "tsx --test tests/unit/*.test.mjs",
     "test:unit": "tsx --test tests/unit/*.test.mjs"
   },

@@ -529,7 +529,63 @@ Jira Task  ──>  Feature Branch  ──>  Desarrollo  ──>  Pull Request  
    * Frontend: `feature/<HU-ID>-F/<descripcion>/<responsable>`
 2. **Convención de Commits:** Utilizar formato convencional (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`).
 3. **Verificación Previa a PR:**
-   * Correr `npm test` y verificar que los 153 tests pasen.
+   * Correr `npm test` y verificar que los tests pasen.
    * Correr `npm run build` y asegurar compilación limpia sin errores de TypeScript.
    * Documentar nuevos endpoints en `docs/swagger/` y actualizar el catálogo en este README.
 4. **Integración:** Las ramas de features se integran hacia `backend`, y la rama consolidada `backend` se promueve periódicamente hacia `develop` mediante Pull Request con revisión técnica.
+
+---
+
+# 🎟️ FT-06 / HU25: Venta Presencial en el POS
+
+Esta funcionalidad implementa el módulo de taquilla presencial en `/employee/pos` para que los empleados vendedores (`TICKET_SELLER` o `ADMIN`) registren ventas en efectivo o tarjeta y emitan tickets con código QR al instante (RN-001, RN-003, RN-004, RN-010, RN-012 y RN-017).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/pos/services/pos-sale.service.ts`: Motor de venta en taquilla, autorización de rol `TICKET_SELLER` (403), consulta de disponibilidad unificada, cálculo de precio para franjas iniciadas (RN-010), transacción atómica de reserva confirmada, pago y emisión de ticket.
+* `src/features/pos/schemas/pos-sale.schema.ts`: Esquema de validación Zod con `.strict()`.
+* `src/features/pos/errors/pos.errors.ts`: Errores de dominio (`ForbiddenPosAccessError` 403, `PosCapacityExceededError` 409, `PosMaintenanceDayError` 422, `PosOperatingHoursError` 400).
+* `src/features/pos/types/pos.types.ts`: Tipos TypeScript para parámetros de venta en taquilla y comprobante.
+* `src/features/pos/components/PosSaleForm.tsx`: Formulario de taquilla presencial con selector de servicios, franjas y métodos de pago (Efectivo / Tarjeta).
+* `src/features/pos/components/PosReceiptCard.tsx`: Comprobante de venta y visualización del ticket QR generado para el cliente.
+* `src/app/api/pos/sale/route.ts`: Endpoint POST `/api/pos/sale` para procesar ventas de taquilla.
+* `src/app/employee/pos/page.tsx`: Vista web del POS en taquilla para empleados.
+* `docs/swagger/hu25-pos-sale.swagger.json`: Especificación OpenAPI 3.0 / Swagger.
+* `tests/unit/pos.sale.test.mjs`: Pruebas unitarias de venta completa, aforo, mantenimiento, roles (403) y franja iniciada.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
+---
+
+# 🎟️ FT-06 / HU26: Previsualización y Emisión del Ticket Digital POS
+
+Esta funcionalidad implementa la previsualización del ticket digital antes de confirmar la venta en el POS y su emisión con código QR único al portador verificado en base de datos al confirmar (RN-017, RN-019 y RN-020).
+
+### Ubicación del Código (Vertical Slice)
+* `src/features/pos/services/pos-sale.service.ts`: Cálculo previo de tarifas sin mutaciones (`previewSale`), validación de desfase de aforo concurrente (`PosAvailabilityChangedError`), idempotencia ante doble clic (`idempotencyKey`) y emisión de tickets con QR único al portador.
+* `src/features/pos/schemas/pos-preview.schema.ts`: Esquema de validación Zod con `.strict()` para previsualización.
+* `src/features/pos/errors/pos.errors.ts`: Error `PosAvailabilityChangedError` (409 Conflict).
+* `src/features/pos/types/pos.types.ts`: Tipos `PosPreviewParams` y `PosPreviewResult`.
+* `src/features/pos/components/PosTicketPreviewModal.tsx`: Modal de confirmación previa y visualización de borrador del ticket en Tailwind v4.
+* `src/features/pos/components/PosSaleForm.tsx`: Flujo integrado de Previsualización -> Modal -> Emisión y Comprobante.
+* `src/app/api/pos/preview/route.ts`: Endpoint POST `/api/pos/preview` para obtener previsualización de ventas en taquilla.
+* `docs/swagger/hu26-pos-preview-ticket.swagger.json`: Especificación OpenAPI 3.0 / Swagger de la previsualización.
+* `tests/unit/pos.preview.test.mjs`: Pruebas unitarias de previsualización 1:1, emisión de ticket con QR único, cambio de aforo (409) e idempotencia ante doble confirmación.
+
+### Ejecución de Pruebas Unitarias
+```bash
+npm test
+```
+
+### Compilación y Validación de Tipos
+```bash
+npm run build
+```
+
