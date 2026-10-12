@@ -1,0 +1,235 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - QR Scanner & Access Control Module",
+    "version": "1.1.0",
+    "description": "Control de acceso por código QR (HU13 - VCP-57, FT-07). Consulta del ticket, validación de vigencia y registro del ingreso.\n\n**Acceso:** exclusivo del rol `QR_VALIDATOR`, identificado por la sesión JWT de NextAuth (cookie). Cualquier otro rol, incluido `ADMIN`, recibe 403; sin sesión, 401. No se aceptan cabeceras como `x-user-role`.\n\n**Zona horaria:** todas las validaciones y las horas devueltas usan `America/Bogota` (UTC-5).\n\n**Estados:** la API expone el estado en mayúscula (`VALID`, `USED`, `CANCELLED`, `EXPIRED`); la base de datos los guarda en minúscula.\n\n**QR al portador:** se valida la reserva, no a quien presenta el código."
+  },
+  "servers": [{ "url": "http://localhost:3000", "description": "Desarrollo local" }],
+  "tags": [{ "name": "QR Scanner", "description": "Escáner QR y control de acceso (solo QR_VALIDATOR)" }],
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Sesión JWT de NextAuth obtenida al iniciar sesión (POST /api/auth/callback/credentials). El usuario debe tener rol QR_VALIDATOR."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "ALREADY_USED" },
+          "message": { "type": "string", "example": "El ticket ya fue utilizado previamente y no admite reingresos" }
+        }
+      },
+      "ReasonCode": {
+        "type": "string",
+        "description": "Motivo de la decisión de acceso.",
+        "enum": [
+          "ENTRY_GRANTED",
+          "LATE_ENTRY_ALLOWED",
+          "EXPIRED_TICKET",
+          "ALREADY_USED",
+          "MAINTENANCE_DAY_CLOSED",
+          "OUT_OF_SCHEDULE"
+        ]
+      },
+      "AccessValidation": {
+        "type": "object",
+        "properties": {
+          "canEnter": { "type": "boolean", "example": true },
+          "isLateEntry": {
+            "type": "boolean",
+            "description": "true si el cliente llega pasados 5 minutos del inicio pero aún dentro de su franja.",
+            "example": false
+          },
+          "reasonCode": { "$ref": "#/components/schemas/ReasonCode" },
+          "message": { "type": "string", "example": "Acceso autorizado dentro del horario programado" }
+        }
+      },
+      "TicketInfo": {
+        "type": "object",
+        "properties": {
+          "ticketId": { "type": "string", "format": "uuid" },
+          "code": { "type": "string", "example": "247AE24514584DD2BB7428F106A2834C" },
+          "status": { "type": "string", "enum": ["VALID", "USED", "CANCELLED", "EXPIRED"], "example": "VALID" },
+          "holderName": { "type": "string", "example": "Carlos Rodriguez" },
+          "customer": {
+            "type": "object",
+            "properties": {
+              "fullName": { "type": "string", "example": "Carlos Rodriguez" },
+              "email": { "type": "string", "example": "carlos@vicecity.com" },
+              "phone": { "type": "string", "nullable": true },
+              "documentId": { "type": "string", "nullable": true }
+            }
+          },
+          "service": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "name": { "type": "string", "example": "Cancha Microfútbol" },
+              "durationMinutes": { "type": "integer", "example": 60 }
+            }
+          },
+          "schedule": {
+            "type": "object",
+            "description": "Fecha y horas en hora de Bogotá; startAt/endAt en UTC.",
+            "properties": {
+              "date": { "type": "string", "example": "2026-10-14" },
+              "startTime": { "type": "string", "example": "10:00" },
+              "endTime": { "type": "string", "example": "11:00" },
+              "startAt": { "type": "string", "format": "date-time", "example": "2026-10-14T15:00:00.000Z" },
+              "endAt": { "type": "string", "format": "date-time", "example": "2026-10-14T16:00:00.000Z" }
+            }
+          },
+          "accessValidation": { "$ref": "#/components/schemas/AccessValidation" }
+        }
+      }
+    }
+  },
+  "security": [{ "sessionCookie": [] }],
+  "paths": {
+    "/api/qr/{code}": {
+      "get": {
+        "summary": "Consultar y validar código QR",
+        "description": "Devuelve nombre del cliente, fecha y hora de la reserva, servicio y estado del ticket, y evalúa si el acceso procede **ahora**: fecha, franja activa (inicio inclusivo, fin exclusivo), ingreso tardío y mantenimiento semanal (lunes, o martes si el lunes es festivo). No modifica nada.\n\nUna decisión de acceso negativa (p. ej. fuera de franja o ya usado) responde 200 con `accessValidation.canEnter = false` y el motivo; los errores HTTP quedan para QR inexistente, formato inválido y permisos.",
+        "tags": ["QR Scanner"],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "description": "Identificador seguro del ticket (8 a 128 caracteres alfanuméricos, `-` o `_`).",
+            "schema": { "type": "string", "example": "247AE24514584DD2BB7428F106A2834C" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket consultado. Revisar `data.accessValidation.canEnter`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Código QR consultado exitosamente - Acceso autorizado" },
+                    "data": { "$ref": "#/components/schemas/TicketInfo" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Código QR con formato inválido (`INVALID_QR_CODE`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "Sin sesión, o token vencido o manipulado (`UNAUTHORIZED`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "Sesión sin rol QR_VALIDATOR (`FORBIDDEN` / `FORBIDDEN_ROLE`). Incluye ADMIN, CLIENT y TICKET_SELLER.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": {
+            "description": "El código no corresponde a ningún ticket (`TICKET_NOT_FOUND`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "422": {
+            "description": "El ticket no tiene franja horaria asociada y no se puede validar (`OUT_OF_SCHEDULE`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/qr/{code}/entry": {
+      "post": {
+        "summary": "Permitir ingreso (confirmar y marcar el ticket como USED)",
+        "description": "Revalida las reglas de acceso y, si procede, marca el ticket como `USED` con un UPDATE condicional (`status = 'valid'`) dentro de una transacción, registra el evento en `audit_logs` (acción `TICKET_ENTRY_CONFIRMED`) y la traza en `access_logs`. Los intentos denegados también quedan en `access_logs`.\n\nProtegido contra escaneos simultáneos del mismo QR: solo uno recibe 200; el resto recibe 409. El validador se toma de la sesión.",
+        "tags": ["QR Scanner"],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "description": "Identificador seguro del ticket.",
+            "schema": { "type": "string", "example": "247AE24514584DD2BB7428F106A2834C" }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accessPoint": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "description": "Punto de acceso donde se escanea. Por defecto `Torniquete Principal`.",
+                    "example": "Torniquete Principal Norte"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingreso registrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Ingreso registrado y franqueado exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ticketId": { "type": "string", "format": "uuid" },
+                        "code": { "type": "string" },
+                        "status": { "type": "string", "example": "USED" },
+                        "usedAt": { "type": "string", "format": "date-time" },
+                        "accessLogId": { "type": "string", "format": "uuid" },
+                        "reasonCode": { "$ref": "#/components/schemas/ReasonCode" },
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Código QR con formato inválido (`INVALID_QR_CODE`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "Sin sesión (`UNAUTHORIZED`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "Sesión sin rol QR_VALIDATOR.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": {
+            "description": "Ticket inexistente (`TICKET_NOT_FOUND`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "409": {
+            "description": "Ticket ya utilizado, o perdió la carrera frente a otro escaneo simultáneo (`ALREADY_USED`).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "422": {
+            "description": "Ingreso rechazado: otra fecha, fuera de franja, ticket vencido o cancelado (`OUT_OF_SCHEDULE`), o día de mantenimiento (`MAINTENANCE_DAY_CLOSED`). El mensaje indica la causa.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    }
+  }
+}

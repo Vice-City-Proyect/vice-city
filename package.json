@@ -31,6 +31,8 @@
     "test:stripe": "tsx --test tests/unit/payments.stripe.test.mjs",
     "test:webhook": "tsx --test tests/unit/payments.webhook.test.mjs",
     "test:payments": "tsx --test tests/unit/payments.stripe.test.mjs tests/unit/payments.webhook.test.mjs",
+    "test:qr": "tsx --test tests/unit/qr.scanner.test.mjs",
+    "test:qr:e2e": "tsx --env-file=.env scripts/test-qr-e2e.mjs",
     "test": "tsx --test tests/unit/*.test.mjs",
     "test:unit": "tsx --test tests/unit/*.test.mjs"
   },
