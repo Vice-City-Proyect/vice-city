@@ -198,3 +198,4 @@ npm run build
 ## 6. Documentación Swagger OpenAPI 3.0
 * `docs/swagger/hu25-pos-sale.swagger.json`
 * `docs/swagger/hu26-pos-preview-ticket.swagger.json`
+

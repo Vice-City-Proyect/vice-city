@@ -78,3 +78,4 @@ npm run build
 - [x] Sin mutaciones accidentales en endpoints de previsualización.
 - [x] Integridad transaccional y control de concurrencia e idempotencia en la emisión de tickets.
 - [x] 100% de pruebas unitarias exitosas (34/34 tests en toda la aplicación).
+
