@@ -10,13 +10,14 @@
 ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0%20Swagger-85EA2D?logo=swagger)
 ![npm](https://img.shields.io/badge/npm-10+-CB3837?logo=npm)
 ![Build](https://img.shields.io/badge/Next.js%20Build-Passing-brightgreen)
-![Tests](https://img.shields.io/badge/Tests-153%2F153%20Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-166%2F166%20Passing-brightgreen)
 ![Status](https://img.shields.io/badge/Branch-backend%20(Ready%20for%20develop)-orange)
 
 ---
 
 ## 📌 Tabla de Contenidos
 
+* [🚀 Guía Rápida de Configuración Local para Desarrolladores](#-guía-rápida-de-configuración-local-para-desarrolladores)
 1. [Descripción del Proyecto](#1-descripción-del-proyecto)
 2. [Stack Tecnológico](#2-stack-tecnológico)
 3. [Arquitectura del Backend](#3-arquitectura-del-backend)
@@ -32,6 +33,78 @@
 13. [Pruebas Automatizadas y Calidad](#13-pruebas-automatizadas-y-calidad)
 14. [Guía de Solución de Problemas (Troubleshooting)](#14-guía-de-solución-de-problemas-troubleshooting)
 15. [Flujo de Trabajo y Contribución Git](#15-flujo-de-trabajo-y-contribución-git)
+
+---
+
+## 🚀 Guía Rápida de Configuración Local para Desarrolladores
+
+Si te estás incorporando al equipo de desarrollo (frontend o backend) o necesitas levantar el backend desde cero en tu máquina local, sigue esta guía rápida paso a paso:
+
+### Paso 1: Clonar el repositorio y cambiar a la rama `backend`
+```bash
+git clone https://github.com/Vice-City-Proyect/vice-city.git
+cd vice-city
+git checkout backend
+```
+
+### Paso 2: Crear los archivos de variables de entorno desde la plantilla
+El proyecto utiliza tanto `.env.local` (consumido por Next.js en runtime) como `.env` (consumido por scripts de mantenimiento con `node --env-file=.env` y por Prisma CLI):
+```bash
+# En Windows PowerShell:
+Copy-Item .env.example .env.local
+Copy-Item .env.local .env
+
+# En Linux / macOS / Bash:
+cp .env.example .env.local && cp .env.local .env
+```
+
+### Paso 3: Configurar credenciales mínimas obligatorias en `.env.local` y `.env`
+Edita `.env.local` y `.env` asignando los valores de tu entorno (ver detalle en la [sección de variables de entorno](#6-variables-de-entorno)):
+1. **Base de Datos (Supabase + Prisma):**
+   - `DATABASE_URL`: Conexión de Transaction Pooler (puerto `6543`, `pgbouncer=true`).
+   - `DIRECT_URL`: Conexión directa Session Pooler (puerto `5432`) para Prisma CLI (`db pull`, migraciones).
+2. **Cliente de Supabase:**
+   - `NEXT_PUBLIC_SUPABASE_URL`: URL pública de tu instancia (`https://[PROJECT_REF].supabase.co`).
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Clave anónima pública sujeta a políticas RLS.
+3. **Autenticación y Sesiones (NextAuth):**
+   - `NEXTAUTH_SECRET`: Secreto criptográfico maestro para firmar JWT y cookies de sesión. Genera uno seguro con:
+     ```bash
+     openssl rand -base64 32
+     ```
+   - `NEXTAUTH_URL`: `http://localhost:3000` (URL canónica en local).
+   - `NEXT_PUBLIC_APP_URL`: `http://localhost:3000` (URL base para enlaces en emails).
+4. **Pasarela de Pagos Stripe (Modo Test - FT-05):**
+   - `STRIPE_SECRET_KEY`: `sk_test_...` (Stripe Dashboard > Developers > API keys).
+   - `STRIPE_WEBHOOK_SECRET`: `whsec_...` (obtenido al ejecutar `stripe listen --forward-to localhost:3000/api/payments/webhook`).
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: `pk_test_...` (para Stripe Elements en el frontend).
+
+### Paso 4: Instalar dependencias y generar el cliente de Prisma
+```bash
+npm install
+npm run db:generate
+```
+*(Nota: `npm install` ejecuta automáticamente `prisma generate` como hook de `postinstall`).*
+
+### Paso 5: Validar conexión y siembra inicial del administrador
+```bash
+# Probar la conectividad activa contra PostgreSQL en Supabase
+npm run db:test
+
+# Crear el superadministrador inicial (admin@vicecity.com / vicecity123*)
+npm run db:seed:admin
+```
+
+### Paso 6: Iniciar el servidor de desarrollo
+```bash
+npm run dev
+```
+El servidor backend estará listo y escuchando en: **`http://localhost:3000`**
+
+### Paso 7: Ejecutar la suite de pruebas automatizadas
+```bash
+npm test
+```
+Verifica que las 166 pruebas pasen satisfactoriamente (100% de suites verdes sin dependencias de red externas).
 
 ---
 
@@ -139,6 +212,9 @@ Asegúrate de contar con las siguientes herramientas instaladas antes de ejecuta
 
 ## 5. Instalación Paso a Paso
 
+> [!TIP]
+> Si deseas una referencia rápida y directa con las credenciales mínimas obligatorias y el comando de siembra inicial, consulta la [Guía Rápida de Configuración Local para Desarrolladores](#-guía-rápida-de-configuración-local-para-desarrolladores) al principio de este documento.
+
 Sigue estos pasos para levantar el entorno de desarrollo desde un clon limpio:
 
 ### 1. Clonar el repositorio
@@ -203,6 +279,7 @@ Configura las siguientes variables en `.env.local` y `.env`:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Sí** | `sb_publishable_anon_key_here` | Clave anónima pública de Supabase para clientes web. |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | `eyJhbGciOi...` | Clave administrativa con bypass de RLS (solo para scripts o tareas cron). |
 | `NEXTAUTH_SECRET` | **Sí** | `openssl rand -base64 32` | Secreto maestro para firmar y cifrar tokens JWT y cookies de sesión. |
+| `JWT_SECRET` | No | `tu-clave-secreta-jwt-de-respaldo` | Alias secundario de respaldo para firma de tokens en el middleware. |
 | `NEXTAUTH_URL` | **Sí** | `http://localhost:3000` | URL base canónica de la aplicación para callbacks de NextAuth. |
 | `NEXT_PUBLIC_APP_URL` | No | `http://localhost:3000` | URL base para enlaces generados en correos de verificación o reset. |
 | `GOOGLE_CLIENT_ID` | No* | `your-google-client-id.apps.googleusercontent.com` | ID de cliente OAuth 2.0 (*requerido para login con Google). |
@@ -210,6 +287,9 @@ Configura las siguientes variables en `.env.local` y `.env`:
 | `STRIPE_SECRET_KEY` | **Sí** | `sk_test_your_stripe_secret_key` | Clave secreta privada para inicializar el SDK de Stripe en el servidor. |
 | `STRIPE_WEBHOOK_SECRET` | **Sí** | `whsec_your_stripe_webhook_secret` | Secreto para verificar la firma de la cabecera `stripe-signature`. |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | `pk_test_your_stripe_publishable_key` | Clave pública de Stripe para inicializar Stripe Elements en el frontend. |
+| `ADMIN_SEED_EMAIL` | No | `admin@vicecity.com` | Correo del superadministrador para `npm run db:seed:admin`. |
+| `ADMIN_SEED_NAME` | No | `Administrador Principal` | Nombre del superadministrador para `npm run db:seed:admin`. |
+| `ADMIN_SEED_PASSWORD` | No* | `vicecity123*` | Contraseña del superadministrador (*obligatoria en producción para seed). |
 
 > [!WARNING]
 > No dupliques el nombre de la variable en el valor (ej. `DATABASE_URL="DATABASE_URL=..."`). Asegúrate de que no haya espacios alrededor del signo igual `=`.
