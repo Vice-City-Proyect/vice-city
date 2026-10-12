@@ -3,7 +3,17 @@ import { ZodError } from "zod";
 import { loginSchema } from "@/features/auth/schemas/login.schema";
 import { authenticateUser } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
+/**
+ * Permite inyectar la función de autenticación en pruebas unitarias aisladas,
+ * sin depender de una base de datos real. En producción (Next.js invoca el
+ * handler con un único argumento) siempre se usa `authenticateUser`.
+ */
+export interface LoginRouteContext {
+  params?: Promise<Record<string, string>>;
+  authenticateUserOverride?: typeof authenticateUser;
+}
+
+export async function POST(request: NextRequest, context?: LoginRouteContext) {
   try {
     // 1. Validar Content-Type
     const contentType = request.headers.get("content-type");
@@ -65,7 +75,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Delegación a la capa de lógica de negocio (sin acceso directo a Prisma)
-    const user = await authenticateUser(validationResult.data);
+    const authenticate = context?.authenticateUserOverride ?? authenticateUser;
+    const user = await authenticate(validationResult.data);
 
     // 5. Respuesta exitosa (200 OK con id, email, name y role)
     return NextResponse.json(

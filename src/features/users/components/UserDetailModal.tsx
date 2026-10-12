@@ -50,12 +50,13 @@ export function UserDetailModal({ user, onClose }: UserDetailModalProps) {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Phone className="h-4 w-4 shrink-0 text-brand-blue" />
-            <span className="font-bold">{user.phone}</span>
+            <span className="font-bold">{user.phone || 'No registrado'}</span>
           </div>
         </dl>
 
         <p className="text-[11px] leading-relaxed text-text-muted">
-          La gestión real de usuarios y empleados se conectará al backend en una fase posterior.
+          El rol se actualiza mediante la API de gestión de roles. El nombre, teléfono y estado
+          solo pueden modificarse para empleados (Vendedor / Validador QR).
         </p>
       </div>
     </Modal>

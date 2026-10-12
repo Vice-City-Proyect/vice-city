@@ -12,6 +12,7 @@ interface ServiceFormModalProps {
   service: Service;
   onClose: () => void;
   onSave: (service: Service) => void;
+  saving?: boolean;
 }
 
 const CATEGORY_OPTIONS: { value: ServiceCategory; label: string }[] = [
@@ -23,7 +24,7 @@ const CATEGORY_OPTIONS: { value: ServiceCategory; label: string }[] = [
   { value: 'WET_AREA', label: 'Zona húmeda' },
 ];
 
-export function ServiceFormModal({ service, onClose, onSave }: ServiceFormModalProps) {
+export function ServiceFormModal({ service, onClose, onSave, saving = false }: ServiceFormModalProps) {
   const [form, setForm] = useState({
     name: service.name,
     category: service.category,
@@ -69,11 +70,11 @@ export function ServiceFormModal({ service, onClose, onSave }: ServiceFormModalP
       title={service.id === 'srv-new' ? 'Nuevo servicio' : 'Editar servicio'}
       footer={
         <>
-          <Button variant="dark" size="sm" onClick={onClose}>
+          <Button variant="dark" size="sm" onClick={onClose} disabled={saving}>
             Descartar
           </Button>
-          <Button size="sm" type="submit" form="service-form">
-            Guardar cambios
+          <Button size="sm" type="submit" form="service-form" disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
           </Button>
         </>
       }

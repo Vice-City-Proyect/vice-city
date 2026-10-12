@@ -47,6 +47,11 @@ export const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/unauthorized(?:\/.*)?$/,
   /^\/403(?:\/.*)?$/,
   /^\/api\/auth\/(?:login|register|logout|forgot-password|reset-password|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
+  // Catálogo público de servicios y categorías: la lectura (GET) no requiere sesión.
+  // Las operaciones de escritura (POST/PATCH/DELETE) siguen protegidas por
+  // requireAdminRole dentro de cada Route Handler.
+  /^\/api\/services(?:\/.*)?$/,
+  /^\/api\/categories(?:\/.*)?$/,
 ];
 
 /**
@@ -72,9 +77,16 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     description: "Endpoints API administrativos",
   },
 
-  // 2. Taquilla / POS (TICKET_SELLER y ADMIN)
+  // 2. Gestión de empleados (solo ADMIN)
   {
-    pattern: /^\/employee\/pos(?:\/.*)?$/,
+    pattern: /^\/api\/employees(?:\/.*)?$/,
+    allowedRoles: ["ADMIN"],
+    description: "Endpoints API de gestión de empleados",
+  },
+
+  // 3. Taquilla / POS (TICKET_SELLER y ADMIN)
+  {
+    pattern: /^\/(?:employee|empleado)\/pos(?:\/.*)?$/,
     allowedRoles: ["TICKET_SELLER", "ADMIN"],
     description: "Punto de venta y taquilla presencial",
   },
@@ -84,9 +96,9 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     description: "Endpoints API de punto de venta",
   },
 
-  // 3. Escáner y Validación QR (QR_VALIDATOR y ADMIN)
+  // 4. Escáner y Validación QR (QR_VALIDATOR y ADMIN)
   {
-    pattern: /^\/employee\/(?:qr-scanner|scanner|scan|validator)(?:\/.*)?$/,
+    pattern: /^\/(?:employee|empleado)\/(?:qr|qr-scanner|scanner|scan|validator)(?:\/.*)?$/,
     allowedRoles: ["QR_VALIDATOR", "ADMIN"],
     description: "Validación de tickets y escáner QR en torniquetes",
   },
@@ -96,9 +108,9 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     description: "Endpoints API de escáner y validación de accesos",
   },
 
-  // 4. Portal y rutas generales de empleados (TICKET_SELLER, QR_VALIDATOR y ADMIN)
+  // 5. Portal y rutas generales de empleados (TICKET_SELLER, QR_VALIDATOR y ADMIN)
   {
-    pattern: /^\/employee(?:\/.*)?$/,
+    pattern: /^\/(?:employee|empleado)(?:\/.*)?$/,
     allowedRoles: ["TICKET_SELLER", "QR_VALIDATOR", "ADMIN"],
     description: "Portal general de empleados",
   },
@@ -108,14 +120,14 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     description: "Endpoints API para empleados",
   },
 
-  // 5. Portal y servicios de clientes (CLIENT y ADMIN)
+  // 6. Portal y servicios de clientes (CLIENT y ADMIN)
   {
-    pattern: /^\/client(?:\/.*)?$/,
+    pattern: /^\/(?:client|cliente)(?:\/.*)?$/,
     allowedRoles: ["CLIENT", "ADMIN"],
     description: "Dashboard de cliente, historial de reservas y tickets",
   },
   {
-    pattern: /^\/api\/client(?:\/.*)?$/,
+    pattern: /^\/api\/(?:client|cliente)(?:\/.*)?$/,
     allowedRoles: ["CLIENT", "ADMIN"],
     description: "Endpoints API de cliente",
   },

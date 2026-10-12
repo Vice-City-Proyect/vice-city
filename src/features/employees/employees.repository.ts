@@ -34,6 +34,20 @@ export function normalizeAndValidateEmployeeRole(role: string): EmployeeRole {
 }
 
 /**
+ * Indica si el nombre de un rol corresponde a un empleado gestionable
+ * (TICKET_SELLER o QR_VALIDATOR).
+ *
+ * Se usa como frontera de autorización: los endpoints de empleados solo deben
+ * poder modificar cuentas que sean empleados, nunca ADMIN u otros roles (esto
+ * evita degradar a un administrador eludiendo la protección del último ADMIN).
+ */
+export function isEmployeeRoleName(roleName?: string | null): boolean {
+  if (!roleName || typeof roleName !== "string") return false;
+  const clean = roleName.trim().toUpperCase();
+  return clean === "TICKET_SELLER" || clean === "QR_VALIDATOR";
+}
+
+/**
  * Genera hash bcrypt seguro para contraseñas utilizando pgcrypto de PostgreSQL.
  */
 export async function hashPassword(plainPassword: string): Promise<string> {
@@ -65,7 +79,7 @@ export async function createAuditLog(
   actorId: string | null | undefined,
   action: string,
   entityId: string | null | undefined,
-  details: Record<string, any> = {}
+  details: Record<string, unknown> = {}
 ) {
   try {
     return await prisma.audit_logs.create({
@@ -179,7 +193,7 @@ export async function createEmployee(
 }
 
 /**
- * Lista los empleados del complejo (TICKET_SELLER, QR_VALIDATOR, STAFF).
+ * Lista los empleados del complejo (TICKET_SELLER, QR_VALIDATOR).
  */
 export async function getEmployees(
   options: EmployeeFilterOptions = {}
@@ -191,17 +205,18 @@ export async function getEmployees(
     where.is_active = true;
   }
 
-  // Filtro de roles de empleados (TICKET_SELLER, QR_VALIDATOR, staff)
+  // Filtro de roles de empleados gestionables (TICKET_SELLER, QR_VALIDATOR)
   if (options.role) {
     const validated = normalizeAndValidateEmployeeRole(options.role);
     where.roles = {
       name: { equals: validated, mode: "insensitive" },
     };
   } else {
-    // Por defecto lista usuarios que sean de roles de empleados
+    // Por defecto lista usuarios que sean de roles de empleados gestionables;
+    // otros roles (ADMIN, CLIENT, staff) no pueden editarse por /api/employees.
     where.roles = {
       name: {
-        in: ["ticket_seller", "qr_validator", "TICKET_SELLER", "QR_VALIDATOR", "staff", "vendedor", "validador_qr"],
+        in: [...ALLOWED_EMPLOYEE_ROLES],
         mode: "insensitive",
       },
     };
@@ -273,6 +288,13 @@ export async function setEmployeeStatus(
     throw new Error("Empleado no encontrado");
   }
 
+  // Frontera de autorización: solo se gestionan cuentas con rol de empleado.
+  if (!isEmployeeRoleName(existing.roles?.name)) {
+    throw new Error(
+      "Solo se pueden gestionar usuarios con rol de empleado (TICKET_SELLER o QR_VALIDATOR)"
+    );
+  }
+
   // Verificar si intenta desactivarse a sí mismo por correo (ej. admin principal)
   if (existing.email.toLowerCase() === "admin@vicecity.com" && !isActive) {
     throw new Error("El administrador no puede desactivarse a sí mismo");
@@ -319,6 +341,23 @@ export async function updateEmployee(
   // Caso límite: desactivación de uno mismo
   if (input.is_active === false && actorId && cleanId === actorId.trim()) {
     throw new Error("El administrador no puede desactivarse a sí mismo");
+  }
+
+  // Frontera de autorización: el endpoint de empleados solo puede modificar
+  // cuentas de empleados. Impide degradar a un ADMIN o modificar a un CLIENT.
+  const existing = await prisma.users.findUnique({
+    where: { id: cleanId },
+    include: { roles: true },
+  });
+
+  if (!existing) {
+    throw new Error("Empleado no encontrado");
+  }
+
+  if (!isEmployeeRoleName(existing.roles?.name)) {
+    throw new Error(
+      "Solo se pueden gestionar usuarios con rol de empleado (TICKET_SELLER o QR_VALIDATOR)"
+    );
   }
 
   const data: Prisma.usersUpdateInput = {
