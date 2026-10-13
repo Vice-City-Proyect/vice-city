@@ -301,6 +301,10 @@ export const authOptions: NextAuthOptions = {
     // 1. Delegación a la lógica de negocio al iniciar sesión (HU05-B)
     async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
+        // VCP-84: un correo que Google no marca como verificado no se puede vincular ni crear.
+        if ((profile as any)?.email_verified === false) {
+          return false;
+        }
         try {
           const googleProfile: GoogleProfile = {
             id:

@@ -219,6 +219,35 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
     assert.equal(redirectTarget, "/login?error=UserInactive");
   });
 
+  // VCP-84: seguridad del flujo Google
+  test("VCP-84: NextAuth signIn rechaza una cuenta de Google con correo no verificado", async () => {
+    const signInCallback = authOptions.callbacks.signIn;
+    const usersBefore = mockUsers.length;
+
+    const result = await signInCallback({
+      user: {},
+      account: { provider: "google", providerAccountId: "sub-no-verificado" },
+      profile: { sub: "sub-no-verificado", email: "nuevo@example.com", email_verified: false },
+    });
+
+    assert.equal(result, false);
+    assert.equal(mockUsers.length, usersBefore);
+  });
+
+  test("VCP-84: POST /api/auth/google sin servicio inyectado responde 410 y no ejecuta lógica", async () => {
+    const request = createMockRequest("http://localhost:3000/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "x", email: "victima@example.com", name: "X" }),
+    });
+
+    const response = await googlePostHandler(request, { params: Promise.resolve({}) });
+    const body = await response.json();
+
+    assert.equal(response.status, 410);
+    assert.equal(body.error, "ENDPOINT_RETIRED");
+  });
+
   // -------------------------------------------------------------------------
   // CRITERIO 3: Caso límite - cuenta de Google con correo ya registrado se vincula sin duplicarse
   // -------------------------------------------------------------------------

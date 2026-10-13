@@ -97,8 +97,24 @@ export async function POST(
       );
     }
 
-    // 5. Delegación a la lógica de negocio (HU05-B LN)
-    const authService = serviceOverride ?? googleAuthService;
+    // 5. VCP-84: este endpoint público confiaba en el perfil enviado por el cliente (sin
+    // verificar ningún token de Google), lo que permitía crear cuentas, vincular proveedores y
+    // enumerar roles. El inicio de sesión con Google se hace solo por NextAuth
+    // (/api/auth/signin/google). Solo se ejecuta la lógica con un servicio inyectado (pruebas).
+    if (!serviceOverride || typeof serviceOverride.handleGoogleAuth !== "function") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "ENDPOINT_RETIRED",
+          message:
+            "Este endpoint fue retirado. Inicia sesión con Google desde la pantalla de login.",
+        },
+        { status: 410 }
+      );
+    }
+
+    // 6. Delegación a la lógica de negocio (HU05-B LN)
+    const authService = serviceOverride;
     const authResult = await authService.handleGoogleAuth(result.data);
 
     // Si hay persistencia en linked_accounts, registrar la vinculación ORM (HU05-BD)
