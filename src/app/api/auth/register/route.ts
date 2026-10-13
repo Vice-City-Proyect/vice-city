@@ -18,6 +18,7 @@ const strictRegisterSchema = registerSchema.strict();
 export interface RegisterRouteContext {
   params?: unknown;
   emailServiceOverride?: EmailConfirmationService;
+  registerServiceOverride?: typeof registerUser;
 }
 
 export async function POST(request: NextRequest, context?: RegisterRouteContext) {
@@ -82,7 +83,8 @@ export async function POST(request: NextRequest, context?: RegisterRouteContext)
     }
 
     // 4. Delegación a la capa de lógica de negocio (sin acceso directo a la BD)
-    const newUser = await registerUser(validationResult.data);
+    const registerFn = context?.registerServiceOverride ?? registerUser;
+    const newUser = await registerFn(validationResult.data);
 
     // 4.b Despacho del correo de verificación (HU03-B). Un fallo de correo no
     //     debe impedir el registro: se registra y el usuario puede reenviar luego.

@@ -83,5 +83,43 @@ describe("HU01-B: API Endpoint de registro (/api/auth/register)", () => {
     assert.ok(content.paths["/api/auth/register"].post.responses["400"]);
     assert.ok(content.paths["/api/auth/register"].post.responses["409"]);
   });
+
+  test("Criterio: El registro es exitoso (201) incluso si el envío de correo de verificación falla", async () => {
+    const mockUser = {
+      id: "usr-mock-123",
+      email: "nuevo@example.com",
+      fullName: "Nuevo Usuario",
+      role: "customer",
+    };
+
+    let emailAttempted = false;
+    const failingEmailService = {
+      sendVerificationEmail: async () => {
+        emailAttempted = true;
+        throw new Error(
+          "Configuración de remitente inválida para Resend: el remitente debe seguir el formato 'email@example.com' o 'Nombre <email@example.com>'."
+        );
+      },
+    };
+
+    const req = createRequest({
+      fullName: "Nuevo Usuario",
+      email: "nuevo@example.com",
+      password: "Password123!",
+    });
+
+    const res = await POST(req, {
+      registerServiceOverride: async () => mockUser,
+      emailServiceOverride: failingEmailService,
+    });
+
+    assert.equal(res.status, 201);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.equal(data.data.id, "usr-mock-123");
+    assert.equal(data.data.email, "nuevo@example.com");
+    assert.equal(emailAttempted, true);
+  });
 });
+
 
