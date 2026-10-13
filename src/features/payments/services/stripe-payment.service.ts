@@ -156,7 +156,9 @@ export class StripePaymentService {
         {
           amount: amountInCents,
           currency,
-          payment_method_types: ["card"], // Acepta tarjetas de crédito y débito
+          automatic_payment_methods: {
+            enabled: true,
+          },
           metadata: {
             bookingId: booking.id,
             serviceId: booking.service_id,

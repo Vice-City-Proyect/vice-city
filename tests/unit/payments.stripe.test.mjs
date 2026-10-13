@@ -91,7 +91,7 @@ describe("FT-05 / HU23: Checkout con Tarjeta (Stripe Test)", () => {
     assert.ok(stripeCreatedParams);
     assert.equal(stripeCreatedParams.params.amount, discountedTotalAmount * 100);
     assert.equal(stripeCreatedParams.params.currency, "cop");
-    assert.deepEqual(stripeCreatedParams.params.payment_method_types, ["card"]);
+    assert.deepEqual(stripeCreatedParams.params.automatic_payment_methods, { enabled: true });
     assert.equal(stripeCreatedParams.params.metadata.bookingId, mockBookingId);
 
     // 3. Verifica registro en la base de datos
