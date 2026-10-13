@@ -73,7 +73,7 @@ describe("FT-08 / HU27: Métricas de Ventas y Ocupación (Criterios de Aceptaci�
         amount: 140000,
         currency: "COP",
         method: "card",
-        status: "paid",
+        status: "approved",
         provider: "stripe",
         paid_at: new Date("2026-10-10T15:00:00.000Z"), // 10:00 AM Bogotá (UTC-5)
         created_at: new Date("2026-10-10T15:00:00.000Z"),
@@ -93,7 +93,7 @@ describe("FT-08 / HU27: Métricas de Ventas y Ocupación (Criterios de Aceptaci�
         amount: 20000,
         currency: "COP",
         method: "cash",
-        status: "paid",
+        status: "approved",
         provider: "pos_terminal",
         paid_at: new Date("2026-10-10T19:00:00.000Z"), // 14:00 Bogotá
         created_at: new Date("2026-10-10T19:00:00.000Z"),
@@ -113,7 +113,7 @@ describe("FT-08 / HU27: Métricas de Ventas y Ocupación (Criterios de Aceptaci�
         amount: 6000,
         currency: "COP",
         method: "card",
-        status: "paid",
+        status: "approved",
         provider: "pos_terminal",
         paid_at: new Date("2026-10-12T14:00:00.000Z"), // 09:00 Bogotá
         created_at: new Date("2026-10-12T14:00:00.000Z"),

@@ -83,6 +83,13 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     allowedRoles: ["ADMIN"],
     description: "Endpoints API administrativos",
   },
+  {
+    // HU27 (VCP-73 / FT-08): métricas de ventas y ocupación. Sin esta regla el middleware
+    // niega la ruta a todos los roles, incluido ADMIN, por no estar registrada.
+    pattern: /^\/api\/reports(?:\/.*)?$/,
+    allowedRoles: ["ADMIN"],
+    description: "Reportes y métricas administrativas (solo ADMIN)",
+  },
 
   // 2. Taquilla / POS (TICKET_SELLER y ADMIN)
   {

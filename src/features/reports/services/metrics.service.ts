@@ -164,14 +164,16 @@ export class MetricsService {
       });
     }
 
-    // 3. Consultar pagos registrados en el período con estado 'paid'
+    // 3. Consultar pagos registrados en el período con estado 'approved'.
+    // El CHECK payments_status_valid de la base solo admite: pending, processing, approved,
+    // rejected, failed, cancelled y refunded. 'paid' no es un valor válido y nunca devolvería filas.
     let paymentsList: any[] = [];
     if (this.deps?.findPaymentsFn) {
       paymentsList = await this.deps.findPaymentsFn(startDate, endDate);
     } else {
       paymentsList = await prisma.payments.findMany({
         where: {
-          status: "paid",
+          status: "approved",
           paid_at: {
             gte: startDate,
             lte: endDate,
@@ -190,14 +192,16 @@ export class MetricsService {
       });
     }
 
-    // 4. Consultar reservas confirmadas o pagadas en el período
+    // 4. Consultar reservas confirmadas o completadas en el período.
+    // El CHECK bookings_status_valid admite: pending, confirmed, cancelled, completed, expired y
+    // no_show ('paid' no existe como estado de reserva).
     let bookingsList: any[] = [];
     if (this.deps?.findBookingsFn) {
       bookingsList = await this.deps.findBookingsFn(startDate, endDate);
     } else {
       bookingsList = await prisma.bookings.findMany({
         where: {
-          status: { in: ["confirmed", "paid"] },
+          status: { in: ["confirmed", "completed"] },
           created_at: {
             gte: startDate,
             lte: endDate,
