@@ -3,6 +3,7 @@ import { prisma as defaultPrisma } from "../../../lib/prisma";
 import {
   IEmailSender,
   getEmailSender,
+  SendVerificationEmailParams,
 } from "./email.service";
 import {
   TokenExpiredError,
@@ -392,6 +393,7 @@ export class EmailConfirmationService {
   }
 }
 
+/** Instancia por defecto (usa el proveedor de correo configurado en el entorno). */
 export const emailConfirmationService = new EmailConfirmationService();
 
 /**
@@ -399,6 +401,7 @@ export const emailConfirmationService = new EmailConfirmationService();
  */
 export async function confirmUserEmail(
   input: { token: string },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   serviceOverride?: any
 ): Promise<{ email: string; emailVerified: boolean; message: string }> {
   const service =
@@ -418,6 +421,7 @@ export async function confirmUserEmail(
  */
 export async function resendConfirmationEmail(
   input: { email: string },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   serviceOverride?: any
 ): Promise<{ success: boolean; message: string; email: string }> {
   const service =

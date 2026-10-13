@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { resendConfirmationSchema } from "@/features/auth/schemas/resend-confirmation.schema";
-import { resendConfirmationEmail } from "@/features/auth/services/email-confirmation.service";
+import {
+  emailConfirmationService,
+  EmailConfirmationService,
+  resendConfirmationEmail,
+} from "@/features/auth/services/email-confirmation.service";
 import {
   UserNotFoundError,
   EmailAlreadyConfirmedError,
   UserAlreadyVerifiedError,
+  InvalidTokenError,
 } from "@/features/auth/errors/email-confirmation.errors";
 
-interface RouteContext {
-  params?: Promise<Record<string, string | string[]>>;
-  serviceOverride?: (input: { email: string }) => Promise<{ success: boolean; message: string; email?: string }>;
+export interface ResendConfirmationRouteContext {
+  params?: unknown;
+  serviceOverride?:
+    | EmailConfirmationService
+    | { resendVerificationEmail: (email: string) => Promise<unknown> }
+    | ((input: { email: string }) => Promise<{ success?: boolean; message?: string; email?: string; [key: string]: unknown }>);
 }
 
-export async function POST(request: NextRequest, context?: RouteContext) {
+/**
+ * Endpoint POST /api/auth/resend-confirmation
+ * Reenvía el correo de confirmación. Invalida el token anterior (HU03-B).
+ */
+export async function POST(
+  request: NextRequest,
+  context?: ResendConfirmationRouteContext
+) {
   try {
     // 1. Validar Content-Type
     const contentType = request.headers.get("content-type");
@@ -74,17 +89,32 @@ export async function POST(request: NextRequest, context?: RouteContext) {
       );
     }
 
-    // 4. Delegación a la capa de lógica de negocio (sin acceso directo a la BD)
-    const service = context?.serviceOverride || resendConfirmationEmail;
-    const result = await service(validationResult.data);
+    // 4. Delegación a la capa de lógica de negocio (soporte dual para serviceOverride)
+    let result: Record<string, unknown> = {};
+    const serviceOverride = context?.serviceOverride;
+    if (typeof serviceOverride === "function") {
+      result = (await serviceOverride(validationResult.data)) as Record<string, unknown>;
+    } else if (
+      serviceOverride &&
+      typeof (serviceOverride as { resendVerificationEmail?: unknown }).resendVerificationEmail === "function"
+    ) {
+      result = (await (serviceOverride as { resendVerificationEmail: (email: string) => Promise<unknown> }).resendVerificationEmail(
+        validationResult.data.email
+      )) as Record<string, unknown>;
+    } else if (typeof resendConfirmationEmail === "function") {
+      result = (await resendConfirmationEmail(validationResult.data)) as Record<string, unknown>;
+    } else {
+      result = (await emailConfirmationService.resendVerificationEmail(validationResult.data.email)) as unknown as Record<string, unknown>;
+    }
 
     // 5. Respuesta exitosa (200 OK)
     return NextResponse.json(
       {
         success: true,
-        message: result.message || "Correo de confirmación reenviado exitosamente",
+        message: (result?.message as string) || "Correo de confirmación reenviado exitosamente",
         data: {
-          email: result.email || validationResult.data.email,
+          ...result,
+          email: (result?.email as string) || validationResult.data.email,
         },
       },
       { status: 200 }
@@ -95,13 +125,28 @@ export async function POST(request: NextRequest, context?: RouteContext) {
         ? (error as { code: unknown }).code
         : undefined;
 
-    // Caso de error: Correo ya confirmado previamente (400 Bad Request)
+    // Caso de error: Correo ya confirmado previamente (409 Conflict si viene de UserAlreadyVerifiedError)
+    if (
+      error instanceof UserAlreadyVerifiedError ||
+      (error instanceof Error && errorCode === "USER_ALREADY_VERIFIED")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "USER_ALREADY_VERIFIED",
+          message:
+            (error as Error).message ||
+            "El correo electrónico ya ha sido verificado previamente.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Caso de error: Correo ya confirmado previamente alternativo (400 Bad Request)
     if (
       error instanceof EmailAlreadyConfirmedError ||
-      error instanceof UserAlreadyVerifiedError ||
       (error instanceof Error &&
         (errorCode === "EMAIL_ALREADY_CONFIRMED" ||
-          errorCode === "USER_ALREADY_VERIFIED" ||
           error.message.toLowerCase().includes("ya ha sido verificado") ||
           error.message.toLowerCase().includes("ya ha sido confirmado")))
     ) {
@@ -136,6 +181,21 @@ export async function POST(request: NextRequest, context?: RouteContext) {
       );
     }
 
+    // Token inválido (400 Bad Request)
+    if (
+      error instanceof InvalidTokenError ||
+      (error instanceof Error && errorCode === "INVALID_TOKEN")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_TOKEN",
+          message: (error as Error).message || "El token es inválido",
+        },
+        { status: 400 }
+      );
+    }
+
     // Errores de validación de Zod (400 Bad Request)
     if (error instanceof ZodError) {
       return NextResponse.json(
@@ -154,7 +214,7 @@ export async function POST(request: NextRequest, context?: RouteContext) {
       {
         success: false,
         error: "INTERNAL_SERVER_ERROR",
-        message: "Ocurrió un error interno en el servidor",
+        message: "Ocurrió un error interno en el servidor al reenviar la confirmación",
       },
       { status: 500 }
     );

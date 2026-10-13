@@ -13,6 +13,7 @@ export {
   ConsoleEmailSender,
   MockEmailSender,
   ResendEmailSender,
+  SmtpEmailSender,
   getEmailSender,
 } from "./services/email.service";
 export type {

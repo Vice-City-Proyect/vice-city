@@ -1,0 +1,112 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Pagos (Stripe)",
+    "description": "Especificación OpenAPI 3.0.3 para el checkout con Stripe (test mode) y el webhook de confirmación de pagos. El monto se toma siempre de la reserva en el servidor.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    { "name": "Payments", "description": "Pagos en línea con Stripe (test mode)" }
+  ],
+  "paths": {
+    "/api/payments/checkout": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Crear una Checkout Session de Stripe para una reserva pendiente",
+        "description": "Valida que la reserva pertenezca al usuario (o que sea ADMIN) y que esté en estado pending con el HOLD vigente. El monto se calcula en el servidor a partir de booking.total_amount y se persiste la referencia de la sesión.",
+        "operationId": "createCheckoutSession",
+        "security": [{ "nextAuthSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CheckoutRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión de pago creada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CheckoutSuccessResponse" }
+              }
+            }
+          },
+          "400": { "description": "Content-Type inválido, JSON malformado, campos extra (.strict()) o bookingId ausente" },
+          "401": { "description": "No hay sesión activa" },
+          "403": { "description": "El rol no puede pagar o la reserva pertenece a otro usuario" },
+          "404": { "description": "La reserva no existe" },
+          "409": { "description": "La reserva no está pendiente o el HOLD de 10 minutos venció" },
+          "503": { "description": "Stripe no está configurado (falta STRIPE_SECRET_KEY)" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    },
+    "/api/payments/webhook": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Webhook de Stripe (verificación por firma)",
+        "description": "Recibe eventos de Stripe y verifica la firma con STRIPE_WEBHOOK_SECRET. En checkout.session.completed confirma la reserva, registra el pago como SUCCEEDED, emite el ticket digital y envía el correo con QR (idempotente). Si el HOLD venció, marca el pago como REFUNDED, solicita el reembolso y no confirma la reserva. Endpoint público: se autentica por firma, no por sesión.",
+        "operationId": "stripeWebhook",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "description": "Evento crudo de Stripe (Stripe.Event)" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Evento recibido y procesado (o ignorado de forma segura)" },
+          "400": { "description": "Falta el encabezado stripe-signature, cuerpo vacío o firma inválida" },
+          "503": { "description": "Stripe no está configurado (falta STRIPE_WEBHOOK_SECRET)" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "nextAuthSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Cookie de sesión JWT emitida por NextAuth"
+      }
+    },
+    "schemas": {
+      "CheckoutRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bookingId"],
+        "properties": {
+          "bookingId": { "type": "string", "example": "bk_123" }
+        }
+      },
+      "CheckoutSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Sesión de pago creada" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "bookingId": { "type": "string" },
+              "sessionId": { "type": "string", "example": "cs_test_a1b2c3" },
+              "checkoutUrl": { "type": "string", "example": "https://checkout.stripe.com/c/pay/cs_test_a1b2c3" },
+              "amount": { "type": "number", "example": 4000 },
+              "currency": { "type": "string", "example": "COP" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

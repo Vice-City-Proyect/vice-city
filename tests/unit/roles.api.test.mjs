@@ -92,7 +92,10 @@ describe("HU07-B: API Endpoints - Gestión de Roles", () => {
     };
 
     const request = createMockRequest("http://localhost:3000/api/admin/users");
-    const response = await listUsersGetHandler(request, adminSession, mockService);
+    const response = await listUsersGetHandler(request, {
+      sessionOverride: adminSession,
+      serviceOverride: mockService,
+    });
     const body = await response.json();
 
     assert.equal(response.status, 200);
@@ -134,12 +137,81 @@ describe("HU07-B: API Endpoints - Gestión de Roles", () => {
   // -------------------------------------------------------------------------
   test("Criterio 2: Petición sin sesión activa devuelve 401 UNAUTHORIZED", async () => {
     const request = createMockRequest("http://localhost:3000/api/admin/users");
-    const response = await listUsersGetHandler(request, null, mockService);
+    const response = await listUsersGetHandler(request, {
+      sessionOverride: null,
+      serviceOverride: mockService,
+    });
     const body = await response.json();
 
     assert.equal(response.status, 401);
     assert.equal(body.success, false);
     assert.equal(body.error, "UNAUTHORIZED");
+  });
+
+  test("Criterio 2: la sesión real (getServerSession) no se sustituye al invocar sin override (401)", async () => {
+    const request = createMockRequest("http://localhost:3000/api/admin/users");
+    const response = await listUsersGetHandler(request, {
+      serviceOverride: mockService,
+    });
+    const body = await response.json();
+
+    // Sin cookie de sesión en el entorno de test, getServerSession devuelve null.
+    assert.equal(response.status, 401);
+    assert.equal(body.success, false);
+  });
+
+  test("Regresión ALTO-1: el contexto de Next.js { params } NO se interpreta como sesión (401)", async () => {
+    // Next.js 16 invoca SIEMPRE `handler(request, { params })`; un objeto con
+    // `params` no es una sesión y debe resolverse como no autenticado.
+    for (const realContext of [
+      { params: undefined },
+      { params: {} },
+      { params: Promise.resolve({}) },
+    ]) {
+      const request = createMockRequest("http://localhost:3000/api/admin/users");
+      const response = await listUsersGetHandler(request, realContext, mockService);
+      const body = await response.json();
+
+      assert.equal(response.status, 401, `contexto: ${JSON.stringify(realContext)}`);
+      assert.equal(body.success, false);
+      assert.equal(body.error, "UNAUTHORIZED");
+    }
+  });
+
+  test("Regresión ALTO-1: nombre de usuario no-ADMIN inyectado de forma explícita recibe 403", async () => {
+    const clientSession = {
+      user: { id: "usr-client-02", email: "cliente@example.com", role: "CLIENT" },
+    };
+
+    const request = createMockRequest("http://localhost:3000/api/admin/users");
+    const response = await listUsersGetHandler(request, {
+      params: undefined,
+      sessionOverride: clientSession,
+      serviceOverride: mockService,
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(body.error, "FORBIDDEN");
+  });
+
+  test("Regresión ALTO-1: sesión ADMIN explícita lista usuarios con el contrato real (200)", async () => {
+    const adminSession = {
+      user: { id: "usr-admin-01", email: "admin@vicecity.com", role: "ADMIN" },
+    };
+
+    const request = createMockRequest("http://localhost:3000/api/admin/users");
+    const response = await listUsersGetHandler(request, {
+      params: undefined,
+      sessionOverride: adminSession,
+      serviceOverride: mockService,
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.success, true);
+    assert.ok(body.data.users.length >= 2);
   });
 
   test("Criterio 2: Usuario con rol no administrativo (CLIENT) recibe 403 FORBIDDEN al listar", async () => {
@@ -148,7 +220,10 @@ describe("HU07-B: API Endpoints - Gestión de Roles", () => {
     };
 
     const request = createMockRequest("http://localhost:3000/api/admin/users");
-    const response = await listUsersGetHandler(request, clientSession, mockService);
+    const response = await listUsersGetHandler(request, {
+      sessionOverride: clientSession,
+      serviceOverride: mockService,
+    });
     const body = await response.json();
 
     assert.equal(response.status, 403);

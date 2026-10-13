@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Eye, Pencil, Power } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, Eye, Pencil, Power, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormField } from '@/components/ui/FormField';
@@ -11,9 +11,20 @@ import { Select } from '@/components/ui/Select';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Table } from '@/components/ui/Table';
 import { Avatar } from '@/components/ui/Avatar';
+import { getErrorMessage } from '@/lib/api-client';
 import { formatDate } from '@/lib/format';
 import type { User } from '@/types/user';
-import { MOCK_USERS, ROLE_LABELS } from '@/features/users/data/mock-users';
+import { ROLE_LABELS } from '@/features/users/data/mock-users';
+import {
+  isEmployeeRole,
+  mapBackendUserToUi,
+} from '@/features/users/api/user-mappers';
+import {
+  changeUserRole,
+  fetchAllAdminUsers,
+  updateEmployeeRecord,
+} from '@/features/users/api/users.api';
+import { applyUserUpdate } from '@/features/users/api/user-update-plan';
 import { UserDetailModal } from '@/features/users/components/UserDetailModal';
 import { UserFormModal } from '@/features/users/components/UserFormModal';
 
@@ -26,10 +37,34 @@ interface UserFilters {
 const EMPTY_USER_FILTERS: UserFilters = { role: '', status: '', registeredFrom: '' };
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [filters, setFilters] = useState<UserFilters>(EMPTY_USER_FILTERS);
   const [selected, setSelected] = useState<User | null>(null);
   const [editing, setEditing] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      const records = await fetchAllAdminUsers({ page: 1, limit: 100 });
+      setUsers(records.map(mapBackendUserToUi));
+      setError(null);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadData);
+  }, [loadData]);
+
+  function retry() {
+    setLoading(true);
+    void loadData();
+  }
 
   const filtered = users.filter((user) => {
     if (filters.role && user.role !== filters.role) return false;
@@ -44,20 +79,45 @@ export default function AdminUsersPage() {
     setFilters((current) => ({ ...current, ...patch }));
   }
 
-  function handleToggle(user: User) {
-    setUsers((current) =>
-      current.map((item) =>
-        item.id === user.id
-          ? { ...item, status: item.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
-          : item,
-      ),
-    );
+  async function handleToggle(user: User) {
+    setError(null);
+    if (!isEmployeeRole(user.role)) {
+      setError(
+        'Solo los empleados (Vendedor de tiquetes / Validador QR) pueden activarse o desactivarse con los endpoints actuales.'
+      );
+      return;
+    }
+    try {
+      await updateEmployeeRecord(user.id, { is_active: user.status !== 'ACTIVE' });
+      await loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   }
 
-  function handleSave(updated: User) {
-    setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-    setEditing(null);
-    setSelected((current) => (current && current.id === updated.id ? updated : current));
+  async function handleSave(updated: User) {
+    const original = users.find((item) => item.id === updated.id);
+    setSaving(true);
+    setError(null);
+    try {
+      const plan = await applyUserUpdate(updated, original, {
+        changeRole: changeUserRole,
+        updateEmployee: updateEmployeeRecord,
+      });
+
+      setEditing(null);
+      await loadData();
+      if (plan.notice) {
+        setError(plan.notice);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+      // La operación pudo aplicarse de forma parcial (p. ej. rol persistido pero
+      // edición de datos fallida): recargar refleja el estado real en la interfaz.
+      await loadData();
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -68,6 +128,23 @@ export default function AdminUsersPage() {
         highlightedTitle="empleados"
         description="Consulta y gestiona clientes, administradores y empleados del complejo."
       />
+
+      {error && (
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <span className="font-bold">{error}</span>
+            <button
+              type="button"
+              onClick={retry}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-400/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:bg-red-500/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reintentar
+            </button>
+          </div>
+        </div>
+      )}
 
       <Card className="p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -121,11 +198,16 @@ export default function AdminUsersPage() {
 
         <div className="mt-5 border-t border-text-main/10 pt-5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-            {filtered.length} usuario(s)
+            {loading ? 'Cargando usuarios...' : `${filtered.length} usuario(s)`}
           </span>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="mt-6 flex items-center gap-3 text-text-muted">
+            <RefreshCw className="h-5 w-5 animate-spin text-club-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider">Cargando...</span>
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState
             className="mt-4"
             title="Sin resultados"
@@ -151,7 +233,7 @@ export default function AdminUsersPage() {
                     </div>
                   ),
                 },
-                { key: 'phone', header: 'Teléfono', render: (row) => row.phone },
+                { key: 'phone', header: 'Teléfono', render: (row) => row.phone || '—' },
                 { key: 'role', header: 'Rol', render: (row) => ROLE_LABELS[row.role] },
                 {
                   key: 'status',
@@ -161,7 +243,7 @@ export default function AdminUsersPage() {
                 {
                   key: 'registered',
                   header: 'Registro',
-                  render: (row) => formatDate(row.registeredAt),
+                  render: (row) => (row.registeredAt ? formatDate(row.registeredAt) : '—'),
                 },
                 {
                   key: 'actions',
@@ -198,7 +280,8 @@ export default function AdminUsersPage() {
                     <StatusBadge status={row.status} />
                   </div>
                   <p className="text-xs text-text-muted">
-                    {ROLE_LABELS[row.role]} · {row.phone} · {formatDate(row.registeredAt)}
+                    {ROLE_LABELS[row.role]} · {row.phone || '—'} ·{' '}
+                    {row.registeredAt ? formatDate(row.registeredAt) : '—'}
                   </p>
                   <div className="flex items-center justify-end gap-2">
                     <RowAction label="Ver usuario" onClick={() => setSelected(row)}>
@@ -224,7 +307,12 @@ export default function AdminUsersPage() {
       <UserDetailModal user={selected} onClose={() => setSelected(null)} />
 
       {editing && (
-        <UserFormModal user={editing} onClose={() => setEditing(null)} onSave={handleSave} />
+        <UserFormModal
+          user={editing}
+          saving={saving}
+          onClose={() => setEditing(null)}
+          onSave={handleSave}
+        />
       )}
     </>
   );

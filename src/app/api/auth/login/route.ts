@@ -8,9 +8,19 @@ import {
   isSecureAuthContext,
 } from "@/lib/auth";
 
+/**
+ * Permite inyectar la función de autenticación en pruebas unitarias aisladas,
+ * sin depender de una base de datos real. En producción (Next.js invoca el
+ * handler con request y context de ruta) siempre se usa `authenticateUser`.
+ */
+export interface LoginRouteContext {
+  params?: Promise<Record<string, string>>;
+  authenticateUserOverride?: typeof authenticateUser;
+}
+
 export async function POST(
   request: NextRequest,
-  authenticateOverride?: any
+  contextOrOverride?: LoginRouteContext | typeof authenticateUser | unknown
 ) {
   try {
     // 1. Validar Content-Type
@@ -73,17 +83,24 @@ export async function POST(
     }
 
     // 4. Delegación a la capa de lógica de negocio (sin acceso directo a Prisma)
-    const authFn =
-      typeof authenticateOverride === "function"
-        ? authenticateOverride
-        : typeof authenticateOverride?.authenticateUser === "function"
-        ? authenticateOverride.authenticateUser
+    const authFn: typeof authenticateUser =
+      typeof contextOrOverride === "function"
+        ? (contextOrOverride as typeof authenticateUser)
+        : typeof (contextOrOverride as LoginRouteContext)?.authenticateUserOverride === "function"
+        ? (contextOrOverride as LoginRouteContext).authenticateUserOverride!
+        : typeof (contextOrOverride as { authenticateUser?: unknown })?.authenticateUser === "function"
+        ? ((contextOrOverride as { authenticateUser: typeof authenticateUser }).authenticateUser)
         : authenticateUser;
 
     const user = await authFn(validationResult.data);
 
     // 5. Generar token de sesión NextAuth (JWE) y configuración de cookie
-    const sessionToken = await createSessionToken(user);
+    const sessionToken = await createSessionToken({
+      id: user.id,
+      email: user.email ?? validationResult.data.email,
+      name: user.name ?? undefined,
+      role: (user as { role?: string }).role || "CLIENT",
+    });
     const isSecure = isSecureAuthContext(request);
     const cookieConfig = getSessionCookieConfig({ isSecure });
 
@@ -154,7 +171,7 @@ export async function POST(
       }
     }
 
-    // 6. Error no controlado (500 Internal Server Error)
+    // Error no controlado (500 Internal Server Error)
     console.error("[API_AUTH_LOGIN_ERROR]", error);
     return NextResponse.json(
       {
@@ -166,4 +183,3 @@ export async function POST(
     );
   }
 }
-

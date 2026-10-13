@@ -11,19 +11,57 @@ import {
   UnauthorizedRoleManagerError,
 } from "@/features/users/errors/role-management.errors";
 
+export interface AdminUserSession {
+  id: string;
+  role: string;
+  email?: string;
+}
+
+/**
+ * Contexto del Route Handler.
+ *
+ * En Next.js 16 el segundo argumento SIEMPRE es `{ params }` (aunque la ruta no
+ * tenga segmentos dinámicos). Por ese motivo las dependencias de prueba se
+ * exponen en propiedades con nombre (`sessionOverride` / `serviceOverride`) y
+ * NUNCA se interpreta el objeto de contexto completo como una sesión.
+ */
+export interface AdminUsersRouteContext {
+  params?: unknown;
+  sessionOverride?: { user?: AdminUserSession } | AdminUserSession | null;
+  serviceOverride?: RoleManagementService;
+}
+
+function readSessionOverride(
+  override: AdminUsersRouteContext["sessionOverride"]
+): AdminUserSession | null {
+  if (!override) return null;
+  const wrapped = override as AdminUserSession | { user?: AdminUserSession };
+  const session =
+    "user" in wrapped && wrapped.user ? wrapped.user : wrapped;
+  if (
+    session &&
+    typeof session === "object" &&
+    "id" in session &&
+    "role" in session
+  ) {
+    return session as AdminUserSession;
+  }
+  return null;
+}
+
 /**
  * Helper para verificar la autenticación y permisos de ADMIN
  */
 async function resolveAdminSession(
   request: NextRequest,
-  sessionOverride?: any
-): Promise<{ id: string; role: string; email?: string } | null> {
-  if (sessionOverride?.user) return sessionOverride.user;
-  if (sessionOverride) return sessionOverride;
+  context?: AdminUsersRouteContext
+): Promise<AdminUserSession | null> {
+  const override = readSessionOverride(context?.sessionOverride);
+  if (override) return override;
 
   try {
     const session = await getServerSession(authOptions);
-    return (session?.user as any) ?? null;
+    return (session?.user as AdminUserSession) ?? null;
   } catch {
     return null;
   }
@@ -39,12 +77,11 @@ async function resolveAdminSession(
  */
 export async function GET(
   request: NextRequest,
-  sessionOverride?: any,
-  serviceOverride?: RoleManagementService
+  context?: AdminUsersRouteContext
 ) {
   try {
     // 1. Verificación de sesión activa
-    const user = await resolveAdminSession(request, sessionOverride);
+    const user = await resolveAdminSession(request, context);
     if (!user) {
       return NextResponse.json(
         {
@@ -82,7 +119,7 @@ export async function GET(
       : { page: 1, limit: 10 };
 
     // 4. Delegar en la lógica de negocio (HU07-B LN)
-    const service = serviceOverride ?? roleManagementService;
+    const service = context?.serviceOverride ?? roleManagementService;
     const data = await service.listUsers(queryParams, {
       id: user.id,
       role: user.role,

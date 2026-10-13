@@ -9,6 +9,7 @@
  */
 
 process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "test-secret-key-vice-city-auth-123456";
+process.env.ENABLE_MOCK_AUTH_HEADERS = "true";
 
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";

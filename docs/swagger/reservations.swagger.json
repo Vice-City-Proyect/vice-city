@@ -1,0 +1,110 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Reservas Web",
+    "description": "Especificación OpenAPI 3.0.3 para la creación de reservas web con HOLD de 10 minutos. El precio y el aforo se calculan exclusivamente en el servidor.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reservations",
+      "description": "Reservas web de servicios del complejo"
+    }
+  ],
+  "paths": {
+    "/api/reservations": {
+      "post": {
+        "tags": ["Reservations"],
+        "summary": "Crear una reserva web (estado PENDING con HOLD de 10 minutos)",
+        "description": "Crea una reserva en estado pending. El precio y la disponibilidad se validan en el servidor aplicando las reglas de negocio (horario 8:00–17:00, ventana de anticipación, duración 1–9 horas, aforo por modalidad y descuentos de miércoles/piscina completa). Requiere sesión activa con rol CLIENT o ADMIN.",
+        "operationId": "createReservation",
+        "security": [{ "nextAuthSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateReservationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reserva creada (pendiente de pago)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReservationSuccessResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Content-Type inválido, JSON malformado, campos extra (.strict()) o reglas de negocio de ventana/duración incumplidas"
+          },
+          "401": { "description": "No hay sesión activa" },
+          "403": { "description": "El rol del usuario no puede crear reservas" },
+          "404": { "description": "El servicio solicitado no existe" },
+          "409": {
+            "description": "Servicio inactivo, fuera del horario permitido, día de mantenimiento, aforo excedido o franja no disponible"
+          },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "nextAuthSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Cookie de sesión JWT emitida por NextAuth"
+      }
+    },
+    "schemas": {
+      "CreateReservationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["serviceId", "startAt", "endAt", "quantity"],
+        "properties": {
+          "serviceId": { "type": "string", "example": "srv_piscina_adultos_1" },
+          "startAt": { "type": "string", "format": "date-time", "example": "2099-06-02T15:00:00.000Z" },
+          "endAt": { "type": "string", "format": "date-time", "example": "2099-06-02T16:00:00.000Z" },
+          "quantity": { "type": "integer", "minimum": 1, "example": 2 },
+          "scheduleId": { "type": "string", "nullable": true },
+          "notes": { "type": "string", "nullable": true }
+        }
+      },
+      "ReservationSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Reserva creada. Tienes 10 minutos para completar el pago." },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "example": "bk_123" },
+              "status": { "type": "string", "example": "pending" },
+              "totalAmount": { "type": "number", "example": 4000 },
+              "discountPercent": { "type": "integer", "example": 0 },
+              "expiresAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "VALIDATION_ERROR" },
+          "message": { "type": "string" },
+          "details": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    }
+  }
+}

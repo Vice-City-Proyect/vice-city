@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import {
   isPublicRoute,
-  isProtectedRoute,
   isRouteAllowed,
   getAllowedRolesForRoute,
   normalizeRole,
 } from "@/features/auth/permissions/route-permissions";
+import { allowsMockAuthHeaders } from "@/features/auth/mock-auth";
 
 function getMiddlewareSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
@@ -37,26 +37,27 @@ function getMiddlewareSecret(): string {
  */
 export async function middleware(
   request: NextRequest,
-  tokenOverride?: any
+  tokenOverride?: Record<string, unknown> | null
 ) {
-  // Next.js invoca middleware(request, event): el 2.º argumento es NextFetchEvent, no un token de sesión.
-  // Sin este descarte se tomaba el evento como un token ya resuelto (sin rol) y toda ruta protegida
-  // respondía 403 FORBIDDEN incluso con sesión válida. Se descarta el evento de Next.js;
-  // solo se admite tokenOverride inyectado en contexto de pruebas unitarias aisladas.
+  // Next.js invoca middleware(request, event): el 2.º argumento es su NextFetchEvent, no un token.
+  // Sin este descarte se tomaba el evento como "token ya resuelto" (sin rol) y toda ruta
+  // protegida respondía 403 incluso con sesión válida. Solo se acepta un override inyectado (pruebas).
+  let resolvedOverride: Record<string, unknown> | null | undefined = tokenOverride;
   if (
     tokenOverride &&
     typeof tokenOverride === "object" &&
-    typeof tokenOverride.waitUntil === "function"
+    "waitUntil" in tokenOverride &&
+    typeof (tokenOverride as { waitUntil?: unknown }).waitUntil === "function"
   ) {
-    tokenOverride = undefined;
+    resolvedOverride = undefined;
   }
 
   // Por seguridad, en entorno de producción no se aceptan tokens arbitrarios como argumento
   if (
     process.env.NODE_ENV === "production" &&
-    tokenOverride !== undefined
+    resolvedOverride !== undefined
   ) {
-    tokenOverride = undefined;
+    resolvedOverride = undefined;
   }
 
   const { pathname } = request.nextUrl;
@@ -76,11 +77,15 @@ export async function middleware(
   }
 
   // 3. Obtener el token de sesión validando firma y vigencia (NextAuth JWT)
-  let token: any = tokenOverride ?? null;
+  let token: Record<string, unknown> | null = resolvedOverride ?? null;
 
-  if (tokenOverride === undefined) {
-    // Si viene cabecera de mock para pruebas unitarias
-    const mockRole = request.headers.get("x-mock-role");
+  if (resolvedOverride === undefined) {
+    // Cabecera de simulación de rol: proviene del cliente y es falsificable,
+    // por lo que solo se acepta si el flag ENABLE_MOCK_AUTH_HEADERS está
+    // explícitamente activo (pruebas y api-tester). Deshabilitado por defecto.
+    const mockRole = allowsMockAuthHeaders()
+      ? request.headers.get("x-mock-role")
+      : null;
     if (mockRole) {
       token = { role: mockRole, id: "mock-user-id" };
     } else {

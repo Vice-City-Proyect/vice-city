@@ -5,6 +5,8 @@ import { requireQrValidator } from "../../src/features/qr/auth/qr-validator.guar
 import {
   TicketNotFoundError,
   TicketAlreadyUsedError,
+  TicketCancelledError,
+  MaintenanceDayError,
   OutOfScheduleError,
   UnauthorizedValidatorError,
 } from "../../src/features/qr/errors/qr.errors.ts";
@@ -21,8 +23,8 @@ const VALID_ACCESS_RESULT = ["granted", "denied"];
  * Mock en memoria de PrismaClient para probar todas las reglas de negocio
  * del Escáner QR de forma aislada, sin tocar la base de datos real de Supabase.
  */
-function createMockPrisma({ tickets = [] } = {}) {
-  const ticketsStore = [...tickets];
+function createMockPrisma({ tickets = [], failAuditLog = false } = {}) {
+  const ticketsStore = tickets.map((t) => ({ ...t, bookings: { ...t.bookings } }));
   const accessLogsStore = [];
   const auditLogsStore = [];
 
@@ -58,12 +60,32 @@ function createMockPrisma({ tickets = [] } = {}) {
     },
     audit_logs: {
       create: async ({ data }) => {
+        if (failAuditLog) {
+          throw new Error("Simulated database failure during audit log insertion");
+        }
         const entry = { id: `audit-uuid-${auditLogsStore.length + 1}`, ...data };
         auditLogsStore.push(entry);
         return entry;
       },
     },
-    $transaction: async (callback) => callback(client),
+    $transaction: async (callback) => {
+      // Guarda un snapshot para rollback ante fallo dentro de la transacción
+      const snapshotTickets = ticketsStore.map((t) => ({ ...t }));
+      const snapshotAccessLogs = [...accessLogsStore];
+      const snapshotAuditLogs = [...auditLogsStore];
+      try {
+        return await callback(client);
+      } catch (err) {
+        // Rollback
+        ticketsStore.length = 0;
+        ticketsStore.push(...snapshotTickets);
+        accessLogsStore.length = 0;
+        accessLogsStore.push(...snapshotAccessLogs);
+        auditLogsStore.length = 0;
+        auditLogsStore.push(...snapshotAuditLogs);
+        throw err;
+      }
+    },
   };
 
   return client;
@@ -78,7 +100,7 @@ function bogota(dateStr, time) {
   return new Date(`${dateStr}T${t}-05:00`);
 }
 
-// Ticket de prueba: franja por defecto 10:00 a 11:00 hora de Bogotá, tal como lo emite el webhook de Stripe
+// Ticket de prueba: franja por defecto 10:00 a 11:00 hora de Bogotá
 function createSampleTicket({
   code = "A1B2C3D4E5F60718293A4B5C6D7E8F90",
   status = "valid",
@@ -120,9 +142,9 @@ function createSampleTicket({
   };
 }
 
-function setup(ticketOptions) {
+function setup(ticketOptions, { failAuditLog = false } = {}) {
   const ticket = createSampleTicket(ticketOptions);
-  const db = createMockPrisma({ tickets: [ticket] });
+  const db = createMockPrisma({ tickets: [ticket], failAuditLog });
   return { ticket, db, service: new QRScannerService(db) };
 }
 
@@ -201,14 +223,15 @@ describe("HU13: Escáner QR - Validación y Control de Acceso Backend (VCP-57)",
     );
   });
 
-  it("Criterio 4b: Caso de error - QR de otra fecha es rechazado", async () => {
-    const { ticket, service } = setup(); // reserva del 14
-    // Escaneo el viernes 9 (día hábil) de una reserva del miércoles 14: todavía no es su fecha
-    const futuro = await service.validateQRCode(ticket.code, "QR_VALIDATOR", bogota("2026-10-09", "10:30"));
+  it("Criterio 4b: Caso de error - fecha incorrecta (futura o pasada) es rechazada", async () => {
+    // 2026-10-15 (jueves) y 2026-10-16 (viernes) son días ordinarios sin mantenimiento
+    const { ticket, service } = setup({ dateStr: "2026-10-16", start: "10:00", end: "11:00" });
+
+    const futuro = await service.validateQRCode(ticket.code, "QR_VALIDATOR", bogota("2026-10-15", "10:30"));
     assert.equal(futuro.accessValidation.canEnter, false);
     assert.equal(futuro.accessValidation.reasonCode, "OUT_OF_SCHEDULE");
 
-    const pasado = await service.validateQRCode(ticket.code, "QR_VALIDATOR", bogota("2026-10-15", "10:30"));
+    const pasado = await service.validateQRCode(ticket.code, "QR_VALIDATOR", bogota("2026-10-17", "10:30"));
     assert.equal(pasado.accessValidation.canEnter, false);
     assert.equal(pasado.accessValidation.reasonCode, "EXPIRED_TICKET");
   });
@@ -233,7 +256,7 @@ describe("HU13: Escáner QR - Validación y Control de Acceso Backend (VCP-57)",
   });
 
   it("Criterio 4e: Caso de error - lunes festivo el mantenimiento pasa al martes", async () => {
-    // 2026-10-12 (lunes festivo) abre; 2026-10-13 (martes) cierra
+    // 2026-10-12 (lunes festivo Día de la Raza) abre; 2026-10-13 (martes) cierra
     const lunes = setup({ dateStr: "2026-10-12" });
     const abierto = await lunes.service.validateQRCode(lunes.ticket.code, "QR_VALIDATOR", bogota("2026-10-12", "10:30"));
     assert.equal(abierto.accessValidation.canEnter, true);
@@ -242,6 +265,14 @@ describe("HU13: Escáner QR - Validación y Control de Acceso Backend (VCP-57)",
     const cerrado = await martes.service.validateQRCode(martes.ticket.code, "QR_VALIDATOR", bogota("2026-10-13", "10:30"));
     assert.equal(cerrado.accessValidation.canEnter, false);
     assert.equal(cerrado.accessValidation.reasonCode, "MAINTENANCE_DAY_CLOSED");
+  });
+
+  it("Criterio 4f: Confirmar ingreso en día de mantenimiento lanza MaintenanceDayError (422)", async () => {
+    const { ticket, service } = setup({ dateStr: "2026-10-19", start: "14:00", end: "15:00" });
+    await assert.rejects(
+      () => service.confirmEntry(ticket.code, "val-1", "QR_VALIDATOR", "Torniquete", null, bogota("2026-10-19", "14:00")),
+      (err) => err instanceof MaintenanceDayError && err.statusCode === 422
+    );
   });
 
   it("Criterio 5: Caso de error - un QR ya usado es rechazado y el intento queda registrado", async () => {
@@ -259,6 +290,21 @@ describe("HU13: Escáner QR - Validación y Control de Acceso Backend (VCP-57)",
     // El intento denegado se guarda con un valor que la base acepta
     assert.equal(db.accessLogsStore.length, 1);
     assert.equal(db.accessLogsStore[0].result, "denied");
+  });
+
+  it("Criterio 5b: Caso de error - ticket cancelado o vencido no permite ingreso", async () => {
+    const cancelado = setup({ status: "cancelled" });
+    const resCancel = await cancelado.service.validateQRCode(cancelado.ticket.code, "QR_VALIDATOR", bogota("2026-10-14", "10:10"));
+    assert.equal(resCancel.accessValidation.canEnter, false);
+
+    await assert.rejects(
+      () => cancelado.service.confirmEntry(cancelado.ticket.code, "val-id", "QR_VALIDATOR", "Torniquete 1", null, bogota("2026-10-14", "10:10")),
+      (err) => err instanceof TicketCancelledError || err instanceof OutOfScheduleError
+    );
+
+    const vencido = setup({ status: "expired" });
+    const resVencido = await vencido.service.validateQRCode(vencido.ticket.code, "QR_VALIDATOR", bogota("2026-10-14", "10:10"));
+    assert.equal(resVencido.accessValidation.canEnter, false);
   });
 
   it("Criterio 6: Caso de error - un rol distinto de QR_VALIDATOR recibe 403 (incluido ADMIN)", async () => {
@@ -335,6 +381,34 @@ describe("HU13: Escáner QR - Validación y Control de Acceso Backend (VCP-57)",
     await assert.rejects(
       () => service.validateQRCode(ticket.code, "QR_VALIDATOR"),
       (err) => err instanceof OutOfScheduleError
+    );
+  });
+
+  it("Criterio 11: Rollback - si la persistencia de auditoría falla, el ticket no queda marcado como used", async () => {
+    const { ticket, db, service } = setup({}, { failAuditLog: true });
+    const now = bogota("2026-10-14", "10:10");
+
+    await assert.rejects(
+      () => service.confirmEntry(ticket.code, "val-1", "QR_VALIDATOR", "Torniquete 1", null, now),
+      /Simulated database failure/
+    );
+
+    // Rollback verificado: el ticket sigue siendo 'valid'
+    const storedTicket = db.ticketsStore.find((t) => t.code === ticket.code);
+    assert.equal(storedTicket.status, "valid");
+    assert.equal(storedTicket.used_at, null);
+  });
+
+  it("Criterio 12: Respeta CHECK constraints - rechaza estados inválidos en la base", async () => {
+    const { db } = setup();
+    // Intento de persistir status no soportado lanza error en el mock que replica la BD
+    await assert.rejects(
+      () => db.tickets.updateMany({ where: { code: "any", status: "valid" }, data: { status: "INVALID_STATUS" } }),
+      /tickets_status_valid/
+    );
+    await assert.rejects(
+      () => db.access_logs.create({ data: { ticket_id: "id", result: "INVALID_RESULT" } }),
+      /access_logs_result_valid/
     );
   });
 });

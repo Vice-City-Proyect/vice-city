@@ -9,6 +9,7 @@ import { checkMaintenanceDay } from "@/features/services/utils/colombian-holiday
 import {
   TicketNotFoundError,
   TicketAlreadyUsedError,
+  TicketCancelledError,
   MaintenanceDayError,
   OutOfScheduleError,
   UnauthorizedValidatorError,
@@ -184,6 +185,9 @@ export class QRScannerService {
       }
       if (reason === "MAINTENANCE_DAY_CLOSED") {
         throw new MaintenanceDayError(validationResult.accessValidation.message);
+      }
+      if (validationResult.status === "CANCELLED") {
+        throw new TicketCancelledError(validationResult.accessValidation.message);
       }
       throw new OutOfScheduleError(validationResult.accessValidation.message);
     }

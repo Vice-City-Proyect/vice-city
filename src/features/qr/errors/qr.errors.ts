@@ -33,6 +33,12 @@ export class TicketCancelledError extends QRError {
   }
 }
 
+export class TicketExpiredError extends QRError {
+  constructor(message: string = "El ticket se encuentra vencido o fuera de vigencia") {
+    super(message, "EXPIRED_TICKET", 422);
+  }
+}
+
 export class MaintenanceDayError extends QRError {
   constructor(message: string = "El complejo deportivo se encuentra cerrado por mantenimiento programado") {
     super(message, "MAINTENANCE_DAY_CLOSED", 422);

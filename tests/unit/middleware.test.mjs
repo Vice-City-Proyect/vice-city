@@ -179,22 +179,27 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
   // COMPATIBILIDAD NEXT.JS: Invocación con NextFetchEvent (Hallazgo 2)
   // -------------------------------------------------------------------------
   test("Compatibilidad Next.js: NextFetchEvent no es interpretado como token y no produce 403 con sesión válida", async () => {
-    const mockNextFetchEvent = {
-      waitUntil: () => {},
-      sourcePage: "/employee/qr-scanner",
-    };
+    process.env.ENABLE_MOCK_AUTH_HEADERS = "true";
+    try {
+      const mockNextFetchEvent = {
+        waitUntil: () => {},
+        sourcePage: "/employee/qr-scanner",
+      };
 
-    // Petición autenticada con rol QR_VALIDATOR vía mock header
-    const req = createMockRequest("http://localhost:3000/employee/qr-scanner", {
-      headers: { "x-mock-role": "QR_VALIDATOR" },
-    });
+      // Petición autenticada con rol QR_VALIDATOR vía mock header
+      const req = createMockRequest("http://localhost:3000/employee/qr-scanner", {
+        headers: { "x-mock-role": "QR_VALIDATOR" },
+      });
 
-    // Invocado como lo hace Next.js: middleware(request, event)
-    const res = await middleware(req, mockNextFetchEvent);
+      // Invocado como lo hace Next.js: middleware(request, event)
+      const res = await middleware(req, mockNextFetchEvent);
 
-    // Debe permitir el acceso (no 403 ni redirección)
-    assert.equal(res.status, 200);
-    assert.equal(res.headers.get("Location"), null);
+      // Debe permitir el acceso (no 403 ni redirección)
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("Location"), null);
+    } finally {
+      delete process.env.ENABLE_MOCK_AUTH_HEADERS;
+    }
   });
 
   test("Ruta protegida sin sesión sigue respondiendo 401 UNAUTHORIZED en API", async () => {

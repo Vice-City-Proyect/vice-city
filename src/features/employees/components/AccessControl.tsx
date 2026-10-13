@@ -104,7 +104,7 @@ export function AccessControl() {
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <Link
-                href="/empleado/qr"
+                href={result?.code ? `/empleado/qr?code=${encodeURIComponent(result.code)}` : '/empleado/qr'}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-club-primary px-5 py-3 text-xs font-bold uppercase tracking-wider text-btn-text shadow-sm transition-colors hover:bg-club-primary-hover"
               >
                 <QrCode className="h-4 w-4" />

@@ -1,23 +1,109 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn, getSession, getProviders } from 'next-auth/react';
 
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
+import type { SRSRole } from '@/types/next-auth';
 import {
   validateLoginForm,
   isLoginFormValid,
   type LoginValidationErrors,
 } from '../utils/login-validation';
 
+const DASHBOARD_BY_ROLE: Record<SRSRole, string> = {
+  ADMIN: '/admin',
+  CLIENT: '/cliente',
+  TICKET_SELLER: '/empleado/pos',
+  QR_VALIDATOR: '/empleado/qr',
+};
+
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  GoogleEmailNotProvided:
+    'Tu cuenta de Google no compartió un correo electrónico. Usa otro método de acceso.',
+  UserInactive:
+    'Tu cuenta está desactivada. Contacta al administrador del complejo.',
+  GoogleAuthFailed:
+    'No se pudo completar el inicio de sesión con Google. Intenta nuevamente.',
+  OAuthAccountNotLinked:
+    'Ese correo ya está registrado con contraseña. Inicia sesión con tu correo y contraseña.',
+  OAuthSignin: 'No se pudo iniciar el flujo de Google. Intenta nuevamente.',
+  OAuthCallback: 'Google devolvió una respuesta inválida. Intenta nuevamente.',
+  AccessDenied: 'Se canceló o denegó el acceso con Google.',
+  Configuration: 'El inicio de sesión con Google no está configurado en el servidor.',
+};
+
 export function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<LoginValidationErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  // null = consultando; true/false = proveedor Google disponible según el servidor.
+  const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    getProviders()
+      .then((providers) => {
+        if (active) setGoogleAvailable(Boolean(providers && 'google' in providers));
+      })
+      .catch(() => {
+        if (active) setGoogleAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const readCallbackUrl = () => searchParams.get('callbackUrl');
+
+  const errorCode = searchParams.get('error');
+  const oauthError = errorCode
+    ? OAUTH_ERROR_MESSAGES[errorCode] ||
+      'No se pudo completar el inicio de sesión. Intenta nuevamente.'
+    : null;
+
+  const urlNotice =
+    searchParams.get('registered') === '1'
+      ? 'Cuenta creada. Revisa tu correo electrónico para confirmar tu cuenta antes de iniciar sesión.'
+      : searchParams.get('verified') === '1'
+        ? 'Tu correo fue confirmado. Ya puedes iniciar sesión.'
+        : null;
+
+  const displayError = submitError || oauthError;
+
+  const handleGoogleSignIn = async () => {
+    setSubmitError(null);
+    if (googleAvailable === false) {
+      setSubmitError(OAUTH_ERROR_MESSAGES.Configuration);
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      const callbackUrl = readCallbackUrl() || '/cliente';
+      const result = await signIn('google', { callbackUrl, redirect: false });
+      if (result?.error) {
+        setSubmitError('No se pudo iniciar sesión con Google. Intenta nuevamente.');
+        return;
+      }
+      if (result?.url) {
+        window.location.href = result.url;
+      }
+    } catch {
+      setSubmitError('No se pudo iniciar sesión con Google. Intenta nuevamente.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const clearFieldError = (field: keyof LoginValidationErrors) => {
     if (fieldErrors[field]) {
@@ -25,8 +111,9 @@ export function LoginForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitError(null);
 
     // ── Validación de cliente ──────────────────────────────────────────────
     const errors = validateLoginForm(email, password);
@@ -35,6 +122,32 @@ export function LoginForm() {
       return;
     }
 
+    // ── Autenticación real contra NextAuth (Proveedor de credenciales) ─────
+    setSubmitting(true);
+    try {
+      const result = await signIn('credentials', {
+        email: email.trim(),
+        password,
+        redirect: false,
+      });
+
+      if (!result || result.error) {
+        setSubmitError('Correo o contraseña incorrectos. Verifica tus datos.');
+        return;
+      }
+
+      const session = await getSession();
+      const role = session?.user?.role;
+
+      const callbackUrl = readCallbackUrl();
+      const destination = callbackUrl || (role ? DASHBOARD_BY_ROLE[role] : '/');
+      router.push(destination);
+      router.refresh();
+    } catch {
+      setSubmitError('No se pudo iniciar sesión. Intenta de nuevo más tarde.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
 
@@ -101,6 +214,26 @@ export function LoginForm() {
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            {/* ── Aviso informativo (registro/verificación) ─────────────── */}
+            {urlNotice && (
+              <div
+                role="status"
+                className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm text-center"
+              >
+                {urlNotice}
+              </div>
+            )}
+
+            {/* ── Error de autenticación ────────────────────────────────── */}
+            {displayError && (
+              <div
+                role="alert"
+                className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm text-center"
+              >
+                {displayError}
+              </div>
+            )}
+
             {/* ── Campo: Correo ─────────────────────────────────────────── */}
             <FormField htmlFor="text" label="Usuario / Correo" error={fieldErrors.email}>
               <Input
@@ -152,13 +285,23 @@ export function LoginForm() {
               </label>
             </div>
 
+            {/* ── Enlace: contraseña olvidada ───────────────────────────── */}
+            <div className="flex justify-end -mt-2">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-text-muted hover:text-club-accent transition-colors underline underline-offset-2"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+
             {/* ── Botón de submit ───────────────────────────────────────── */}
-            <Button type="submit" size="sm" className="mt-2">
-              Iniciar Sesión
+            <Button type="submit" size="sm" className="mt-2" disabled={submitting}>
+              {submitting ? 'Ingresando...' : 'Iniciar Sesión'}
             </Button>
           </form>
 
-          {/* ── Divisor ─────────────────────────────────────────────────── */}
+          {/* ── Divisor + Social Login ── */}
           <div className="mt-6 flex items-center justify-center relative">
             <div className="border-t border-club-primary/30 w-full" />
             <span className="absolute px-3 bg-club-surface text-[10px] text-text-muted uppercase tracking-widest font-bold">
@@ -166,12 +309,12 @@ export function LoginForm() {
             </span>
           </div>
 
-          {/* ── Social Login ────────────────────────────────────────────── */}
           <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-club-primary/30 bg-club-surface hover:bg-club-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-club-primary focus:ring-offset-2"
-              onClick={() => console.log('Continue with Google')}
+              disabled={googleLoading || submitting || googleAvailable === false}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-club-primary/30 bg-club-surface hover:bg-club-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-club-primary focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              onClick={handleGoogleSignIn}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -179,8 +322,15 @@ export function LoginForm() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
-              <span className="text-xs font-bold text-club-accent tracking-wide">Continue with Google</span>
+              <span className="text-xs font-bold text-club-accent tracking-wide">
+                {googleLoading ? 'Conectando...' : 'Continue with Google'}
+              </span>
             </button>
+            {googleAvailable === false && (
+              <p role="status" className="text-[11px] text-text-muted text-center">
+                El inicio de sesión con Google no está disponible (no configurado en el servidor).
+              </p>
+            )}
           </div>
 
           {/* ── Enlace a registro ─────────────────────────────────────────── */}

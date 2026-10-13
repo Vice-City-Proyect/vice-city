@@ -1,0 +1,108 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Confirmación de Correo",
+    "description": "Especificación OpenAPI 3.0.3 para la confirmación de correo electrónico (HU03-B): consumo del token y reenvío del correo de verificación.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    { "name": "Auth - Email", "description": "Confirmación de correo electrónico" }
+  ],
+  "paths": {
+    "/api/auth/confirm-email": {
+      "post": {
+        "tags": ["Auth - Email"],
+        "summary": "Confirmar el correo electrónico con el token recibido",
+        "description": "Marca al usuario como verificado y consume el token (un solo uso). El token es válido por 24 horas.",
+        "operationId": "confirmEmail",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmEmailRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Correo confirmado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessEnvelope" }
+              }
+            }
+          },
+          "400": { "description": "Content-Type inválido, JSON malformado, token ausente o token inválido/usado" },
+          "404": { "description": "No se encontró el usuario asociado al token" },
+          "409": { "description": "El correo ya estaba confirmado" },
+          "410": { "description": "El token de confirmación expiró (24 horas)" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    },
+    "/api/auth/resend-confirmation": {
+      "post": {
+        "tags": ["Auth - Email"],
+        "summary": "Reenviar el correo de confirmación",
+        "description": "Genera un nuevo token e invalida el anterior (revocándolo). Requiere que el usuario exista y no esté verificado.",
+        "operationId": "resendConfirmationEmail",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResendConfirmationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Correo reenviado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessEnvelope" }
+              }
+            }
+          },
+          "400": { "description": "Content-Type inválido, JSON malformado, correo inválido o campos extra (.strict())" },
+          "404": { "description": "No existe un usuario con ese correo" },
+          "409": { "description": "El correo ya estaba confirmado" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConfirmEmailRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["token"],
+        "properties": {
+          "token": { "type": "string", "minLength": 1, "example": "3f9a...c1" }
+        }
+      },
+      "ResendConfirmationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "usuario@vicecity.club" }
+        }
+      },
+      "SuccessEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      }
+    }
+  }
+}
