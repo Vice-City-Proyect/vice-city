@@ -103,6 +103,13 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     allowedRoles: ["TICKET_SELLER", "ADMIN"],
     description: "Endpoints API de punto de venta",
   },
+  {
+    // HU25 / HU26 (FT-06): /api/pos/preview y /api/pos/sale. Sin esta regla el middleware niega
+    // la ruta a todos los roles, incluido TICKET_SELLER, por no estar registrada.
+    pattern: /^\/api\/pos(?:\/.*)?$/,
+    allowedRoles: ["TICKET_SELLER", "ADMIN"],
+    description: "Endpoints API de venta presencial y previsualización de ticket POS",
+  },
 
   // 3. Escáner y Validación QR (QR_VALIDATOR y ADMIN)
   {

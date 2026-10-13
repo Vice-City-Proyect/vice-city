@@ -108,9 +108,9 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
     assert.equal(bookingCreated.status, "confirmed");
     assert.equal(bookingCreated.total_amount, 4000);
 
-    // 3. Pago registrado como paid
+    // 3. Pago registrado como approved (estado válido en la base)
     assert.ok(paymentCreated);
-    assert.equal(paymentCreated.status, "paid");
+    assert.equal(paymentCreated.status, "approved");
     assert.equal(paymentCreated.method, "cash");
     assert.equal(paymentCreated.amount, 4000);
 

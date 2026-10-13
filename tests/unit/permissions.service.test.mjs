@@ -128,6 +128,19 @@ describe("HU08-B: Lógica de Negocio - Matriz de Permisos por Rol (SRS Sección 
     assert.equal(isRouteAllowed(null, "/api/payments/webhook"), true);
   });
 
+  test("Regla de POS (/api/pos): TICKET_SELLER y ADMIN acceden; el resto no", () => {
+    // Sin una regla registrada el middleware niega la ruta a todos, incluido TICKET_SELLER
+    assert.deepEqual(getAllowedRolesForRoute("/api/pos/preview"), ["TICKET_SELLER", "ADMIN"]);
+    for (const path of ["/api/pos/preview", "/api/pos/sale"]) {
+      assert.equal(isRouteAllowed("TICKET_SELLER", path), true);
+      assert.equal(isRouteAllowed("ADMIN", path), true);
+      assert.equal(isRouteAllowed("CLIENT", path), false);
+      assert.equal(isRouteAllowed("QR_VALIDATOR", path), false);
+      assert.equal(isRouteAllowed(null, path), false);
+    }
+    assert.equal(isPublicRoute("/api/pos/sale"), false);
+  });
+
   test("Regla de escáner QR (/api/qr): Exclusivo para QR_VALIDATOR", () => {
     assert.equal(isRouteAllowed("QR_VALIDATOR", "/api/qr/TK-123"), true);
     assert.equal(isRouteAllowed("QR_VALIDATOR", "/api/qr/TK-123/entry"), true);

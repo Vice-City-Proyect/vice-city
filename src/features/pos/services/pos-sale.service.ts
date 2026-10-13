@@ -398,7 +398,8 @@ export class PosSaleService {
           amount: totalAmount,
           currency: service.currency || "COP",
           method: paymentMethod,
-          status: "paid",
+          // 'approved': estado de pago exitoso que admite el CHECK payments_status_valid ('paid' no existe)
+          status: "approved",
           provider: "pos_terminal",
           provider_reference: paymentRef,
           paid_at: now,
