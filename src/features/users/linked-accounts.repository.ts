@@ -253,7 +253,9 @@ export async function linkAccount(
  */
 export async function getLinkedAccountsByUser(
   userId: string
-): Promise<Prisma.linked_accountsGetPayload<{}>[]> {
+): Promise<
+  Prisma.linked_accountsGetPayload<Prisma.linked_accountsDefaultArgs>[]
+> {
   if (!userId || typeof userId !== "string" || !userId.trim() || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId.trim())) {
     return [];
   }
@@ -313,4 +315,3 @@ export async function unlinkAccount(
     return false;
   }
 }
-
