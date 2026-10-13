@@ -4,7 +4,15 @@
 
 export type PaymentMethod = "card";
 
-export type PaymentStatus = "pending" | "paid" | "failed" | "cancelled";
+/** Estados válidos de payments.status según el CHECK payments_status_valid de la base de datos. */
+export type PaymentStatus =
+  | "pending"
+  | "processing"
+  | "approved"
+  | "rejected"
+  | "failed"
+  | "cancelled"
+  | "refunded";
 
 export interface CreatePaymentIntentParams {
   bookingId: string;

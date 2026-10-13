@@ -197,7 +197,9 @@ export class StripeWebhookService {
       );
 
       const paymentUpdateData = {
-        status: "paid",
+        // 'approved' es el estado de pago exitoso que admite el CHECK payments_status_valid
+        // de la base ('paid' no es un valor válido y la base rechazaba el registro).
+        status: "approved",
         paid_at: now,
         provider: "stripe",
         provider_reference: paymentIntentId,
