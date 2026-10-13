@@ -110,6 +110,12 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     allowedRoles: ["QR_VALIDATOR", "ADMIN"],
     description: "Endpoints API de escáner y validación de accesos",
   },
+  {
+    // HU13: consulta e ingreso por QR. Exclusivo del rol QR_VALIDATOR.
+    pattern: /^\/api\/qr(?:\/.*)?$/,
+    allowedRoles: ["QR_VALIDATOR"],
+    description: "Consulta y registro de ingreso por código QR (solo QR_VALIDATOR)",
+  },
 
   // 5. Portal y rutas generales de empleados (TICKET_SELLER, QR_VALIDATOR y ADMIN)
   {

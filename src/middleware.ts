@@ -39,6 +39,19 @@ export async function middleware(
   request: NextRequest,
   tokenOverride?: Record<string, unknown> | null
 ) {
+  // Next.js invoca middleware(request, event): el 2.º argumento es su NextFetchEvent, no un token.
+  // Sin este descarte se tomaba el evento como "token ya resuelto" (sin rol) y toda ruta
+  // protegida respondía 403 incluso con sesión válida. Solo se acepta un override inyectado (pruebas).
+  let resolvedOverride: Record<string, unknown> | null | undefined = tokenOverride;
+  if (
+    tokenOverride &&
+    typeof tokenOverride === "object" &&
+    "waitUntil" in tokenOverride &&
+    typeof (tokenOverride as { waitUntil?: unknown }).waitUntil === "function"
+  ) {
+    resolvedOverride = undefined;
+  }
+
   const { pathname } = request.nextUrl;
 
   // 1. Ignorar assets estáticos de Next.js, imágenes y favicons
@@ -56,9 +69,9 @@ export async function middleware(
   }
 
   // 3. Obtener el token de sesión validando firma y vigencia (NextAuth JWT)
-  let token: Record<string, unknown> | null = tokenOverride ?? null;
+  let token: Record<string, unknown> | null = resolvedOverride ?? null;
 
-  if (tokenOverride === undefined) {
+  if (resolvedOverride === undefined) {
     // Cabecera de simulación de rol: proviene del cliente y es falsificable,
     // por lo que solo se acepta si el flag ENABLE_MOCK_AUTH_HEADERS está
     // explícitamente activo (pruebas y api-tester). Deshabilitado por defecto.
