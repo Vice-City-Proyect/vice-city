@@ -62,7 +62,7 @@ export type CreateVerificationTokenParams = {
  */
 export type CreateVerificationTokenResult = {
   /** Registro del token persistido en la base de datos (con token_hash) */
-  tokenRecord: Prisma.verification_tokensGetPayload<{}>;
+  tokenRecord: Prisma.verification_tokensGetPayload<Prisma.verification_tokensDefaultArgs>;
   /** Token en texto plano para despachar por correo electrónico al usuario */
   plainToken: string;
 };
@@ -114,7 +114,7 @@ export type CreatePasswordResetTokenParams = {
  */
 export type CreatePasswordResetTokenResult = {
   /** Registro del token persistido en la base de datos */
-  tokenRecord: Prisma.verification_tokensGetPayload<{}>;
+  tokenRecord: Prisma.verification_tokensGetPayload<Prisma.verification_tokensDefaultArgs>;
   /** Token en texto plano para incluir en el enlace de restablecimiento enviado por email */
   plainToken: string;
 };
@@ -175,6 +175,5 @@ export type LinkAccountResult = {
     | "USER_NOT_FOUND"
     | "INVALID_INPUT";
   /** Registro de la cuenta vinculada creada o encontrada */
-  account?: Prisma.linked_accountsGetPayload<{}>;
+  account?: Prisma.linked_accountsGetPayload<Prisma.linked_accountsDefaultArgs>;
 };
-
