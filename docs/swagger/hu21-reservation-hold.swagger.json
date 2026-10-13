@@ -1,0 +1,141 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City - Motor de Reservas y Retención HOLD de 10 Minutos (HU21)",
+    "description": "Especificación de API para creación atómica de reservas con retención temporal (HOLD) de 10 minutos (RN-006, RN-009, RN-011, RN-012).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/reservations/hold": {
+      "post": {
+        "summary": "Crear reserva con retención temporal (HOLD) de 10 minutos",
+        "description": "Crea una reserva en estado 'pending' con un tiempo de expiración de 10 minutos exactos (RN-011), bloqueando atómicamente el aforo solicitado y congelando el precio histórico.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "serviceId", "startAt", "endAt"],
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  },
+                  "serviceId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "d290f1ee-6c54-4b01-90e6-d701748f0851"
+                  },
+                  "startAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-15T09:00:00-05:00"
+                  },
+                  "endAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-15T10:00:00-05:00"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "default": 1,
+                    "example": 2
+                  },
+                  "notes": {
+                    "type": "string",
+                    "example": "Reserva para entrenamiento"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reserva creada y cupo retenido exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Cupo retenido exitosamente por 10 minutos para realizar el pago" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": { "type": "string", "format": "uuid" },
+                        "serviceName": { "type": "string", "example": "Cancha Fútbol Grande" },
+                        "totalAmount": { "type": "number", "example": 280000 },
+                        "status": { "type": "string", "example": "pending" },
+                        "expiresAt": { "type": "string", "format": "date-time" },
+                        "remainingSeconds": { "type": "integer", "example": 600 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Duración inválida, horario no operativo o fecha fuera de anticipación"
+          },
+          "404": {
+            "description": "Servicio no encontrado"
+          },
+          "409": {
+            "description": "Conflicto: cupo lleno o aforo insuficiente (SLOT_FULL_CONFLICT)"
+          }
+        }
+      }
+    },
+    "/api/reservations/{id}": {
+      "get": {
+        "summary": "Consultar detalles y tiempo restante de HOLD de una reserva",
+        "description": "Devuelve la información de la reserva, el precio histórico y calcula si el HOLD ya expiró.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID de la reserva",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalles de la reserva obtenidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "serviceName": { "type": "string", "example": "Cancha Fútbol Grande" },
+                        "status": { "type": "string", "example": "pending" },
+                        "isHoldExpired": { "type": "boolean", "example": false },
+                        "remainingSeconds": { "type": "integer", "example": 450 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,99 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City - Motor de Precios, Descuentos y Promociones (HU22)",
+    "description": "Especificación de API para cálculo automático de tarifas y aplicación de promociones del SRS (RN-013, RN-014, RN-015).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/pricing/calculate": {
+      "post": {
+        "summary": "Calcular tarifa de reserva con descuentos automáticos",
+        "description": "Aplica el 20% de descuento en miércoles (RN-013) o en reserva completa de piscina (RN-014), validando días restringidos y aplicando la regla de no acumulación (RN-015).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["serviceId", "date", "startAt", "endAt"],
+                "properties": {
+                  "serviceId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-10-14"
+                  },
+                  "startAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-14T09:00:00-05:00"
+                  },
+                  "endAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-14T10:00:00-05:00"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "default": 1,
+                    "example": 1
+                  },
+                  "isFullPool": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tarifa y descuentos calculados exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Tarifa y descuentos calculados exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "originalAmount": { "type": "number", "example": 80000 },
+                        "discountPercent": { "type": "number", "example": 20 },
+                        "discountAmount": { "type": "number", "example": 16000 },
+                        "finalAmount": { "type": "number", "example": 64000 },
+                        "appliedDiscount": {
+                          "type": "string",
+                          "enum": ["WEDNESDAY_DISCOUNT", "FULL_POOL_DISCOUNT", "NONE"],
+                          "example": "WEDNESDAY_DISCOUNT"
+                        },
+                        "discountDescription": { "type": "string", "example": "20% de descuento por Miércoles de Promoción (RN-013)" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros de cotización inválidos"
+          },
+          "404": {
+            "description": "Servicio no encontrado"
+          },
+          "422": {
+            "description": "Reserva completa de piscina en día restringido (viernes, sábado, domingo o festivo)"
+          }
+        }
+      }
+    }
+  }
+}
+
