@@ -23,11 +23,11 @@ function nextWednesday(hour = 10) {
   throw new Error("No se encontró un miércoles");
 }
 
-/** Día futuro que no sea lunes (día de mantenimiento). */
+/** Día futuro que no sea lunes (mantenimiento) ni miércoles (descuento 20%). */
 function nonHoliday(hour = 10) {
   for (let i = 1; ; i++) {
     const d = addDays(i, hour);
-    if (d.getDay() !== 1) return d;
+    if (d.getDay() !== 1 && d.getDay() !== 3) return d;
   }
 }
 

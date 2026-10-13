@@ -29,3 +29,19 @@ export class UserNotFoundError extends Error {
     this.name = "UserNotFoundError";
   }
 }
+
+export class TokenAlreadyUsedError extends Error {
+  public readonly code = "TOKEN_ALREADY_USED";
+  constructor(message: string = "El token de confirmación ya ha sido utilizado anteriormente.") {
+    super(message);
+    this.name = "TokenAlreadyUsedError";
+  }
+}
+
+export class EmailAlreadyConfirmedError extends Error {
+  public readonly code = "EMAIL_ALREADY_CONFIRMED";
+  constructor(message: string = "El correo electrónico ya ha sido confirmado previamente.") {
+    super(message);
+    this.name = "EmailAlreadyConfirmedError";
+  }
+}

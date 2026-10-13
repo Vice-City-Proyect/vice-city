@@ -30,6 +30,8 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
     { name: 'Admin - Roles', description: 'Gestión administrativa de roles de usuarios y auditoría' },
     { name: 'Admin - Employees', description: 'Gestión administrativa de cuentas de empleados' },
     { name: 'Admin - Services', description: 'Gestión de servicios deportivos y categorías' },
+    { name: 'Reservations & Catalog (FT-04)', description: 'Catálogo público, disponibilidad horaria, HOLD de 10 min y descuentos' },
+    { name: 'Payments & Stripe (FT-05)', description: 'Checkout con tarjeta mediante Stripe Test y webhook de confirmación' },
   ],
   paths: {
     '/api/auth/register': {
@@ -324,10 +326,25 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
       },
     },
     '/api/employees/{id}': {
+      get: {
+        tags: ['Admin - Employees'],
+        summary: 'Consultar empleado por ID',
+        description: 'Obtiene el detalle de un empleado por su identificador UUID. Exclusivo para ADMIN.',
+        operationId: 'getEmployeeById',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Detalle del empleado' },
+          '404': { description: 'Empleado no encontrado' },
+          '403': { description: 'Requiere rol ADMIN' },
+        },
+      },
       patch: {
         tags: ['Admin - Employees'],
         summary: 'Actualizar o cambiar estado de empleado',
         description: 'Permite desactivar (is_active = false) o actualizar datos de un empleado.',
+        operationId: 'updateEmployee',
         parameters: [
           { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
         ],
@@ -337,6 +354,9 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
               schema: {
                 type: 'object',
                 properties: {
+                  full_name: { type: 'string', example: 'Mariana Pajón Actualizada' },
+                  phone: { type: 'string', example: '+57 301 987 6543' },
+                  role: { type: 'string', enum: ['TICKET_SELLER', 'QR_VALIDATOR'] },
                   is_active: { type: 'boolean', example: false },
                 },
               },
@@ -344,8 +364,23 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
           },
         },
         responses: {
-          '200': { description: 'Estado actualizado' },
+          '200': { description: 'Estado o datos actualizados' },
           '400': { description: 'El administrador no puede desactivarse a sí mismo' },
+          '403': { description: 'Requiere rol ADMIN' },
+        },
+      },
+      delete: {
+        tags: ['Admin - Employees'],
+        summary: 'Desactivar empleado (baja lógica)',
+        description: 'Desactiva el empleado para impedir su inicio de sesión en taquilla o escáner.',
+        operationId: 'deactivateEmployee',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Empleado desactivado' },
+          '400': { description: 'No se puede desactivar al propio administrador' },
+          '403': { description: 'Requiere rol ADMIN' },
         },
       },
     },
@@ -397,6 +432,173 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
           '200': { description: 'Tarifa actualizada exitosamente' },
           '400': { description: 'Precio inválido o negativo' },
           '403': { description: 'Requiere rol ADMIN' },
+        },
+      },
+    },
+    '/api/catalog': {
+      get: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Obtener catálogo público de servicios y categorías (HU20)',
+        description: 'Retorna las categorías activas y sus servicios con precios y aforos.',
+        operationId: 'getCatalog',
+        parameters: [
+          { name: 'categoryId', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+          { name: 'includeInactive', in: 'query', required: false, schema: { type: 'boolean', default: false } },
+        ],
+        responses: {
+          '200': { description: 'Catálogo obtenido exitosamente' },
+          '400': { description: 'Parámetros inválidos' },
+        },
+      },
+    },
+    '/api/availability': {
+      get: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Consultar disponibilidad y aforo por fecha (HU20)',
+        description: 'Calcula cupos restantes para las 9 franjas (08:00 a 17:00), validando mantenimiento (lunes/martes festivo) y compras en curso (RN-010).',
+        operationId: 'getAvailability',
+        parameters: [
+          { name: 'serviceId', in: 'query', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'date', in: 'query', required: true, schema: { type: 'string', format: 'date' }, example: '2026-10-15' },
+        ],
+        responses: {
+          '200': { description: 'Disponibilidad calculada exitosamente' },
+          '400': { description: 'Fecha fuera de rango o en el pasado' },
+          '404': { description: 'Servicio no encontrado' },
+        },
+      },
+    },
+    '/api/reservations/hold': {
+      post: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Crear reserva con retención temporal (HOLD) de 10 min (HU21)',
+        description: 'Crea reserva en pending bloqueando aforo y congelando tarifa histórica por 10 min.',
+        operationId: 'createHoldReservation',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['userId', 'serviceId', 'startAt', 'endAt'],
+                properties: {
+                  userId: { type: 'string', format: 'uuid', example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
+                  serviceId: { type: 'string', format: 'uuid', example: 'd290f1ee-6c54-4b01-90e6-d701748f0851' },
+                  startAt: { type: 'string', format: 'date-time', example: '2026-10-15T09:00:00-05:00' },
+                  endAt: { type: 'string', format: 'date-time', example: '2026-10-15T10:00:00-05:00' },
+                  quantity: { type: 'integer', default: 1, example: 2 },
+                  notes: { type: 'string', example: 'Reserva para entrenamiento' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Reserva creada y HOLD retenido' },
+          '400': { description: 'Horario o duración inválida' },
+          '409': { description: 'Aforo insuficiente / Cupo lleno' },
+        },
+      },
+    },
+    '/api/reservations/{id}': {
+      get: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Consultar detalles y tiempo restante de HOLD (HU21)',
+        description: 'Consulta estado de la reserva y segundos restantes antes de que expire el HOLD.',
+        operationId: 'getReservationHoldStatus',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Detalle de reserva obtenido' },
+          '404': { description: 'Reserva no encontrada' },
+        },
+      },
+    },
+    '/api/pricing/calculate': {
+      post: {
+        tags: ['Reservations & Catalog (FT-04)'],
+        summary: 'Calcular tarifa de reserva con descuentos automáticos (HU22)',
+        description: 'Calcula descuentos del 20% los miércoles (RN-013) o piscina completa (RN-014) y regla de no acumulación (RN-015).',
+        operationId: 'calculatePricing',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['serviceId', 'date', 'startAt', 'endAt'],
+                properties: {
+                  serviceId: { type: 'string', format: 'uuid', example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
+                  date: { type: 'string', format: 'date', example: '2026-10-14' },
+                  startAt: { type: 'string', format: 'date-time', example: '2026-10-14T09:00:00-05:00' },
+                  endAt: { type: 'string', format: 'date-time', example: '2026-10-14T10:00:00-05:00' },
+                  quantity: { type: 'integer', default: 1, example: 1 },
+                  isFullPool: { type: 'boolean', default: false },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Tarifa calculada con descuentos exitosamente' },
+          '400': { description: 'Parámetros inválidos' },
+          '422': { description: 'Piscina completa restringida en fin de semana o festivo' },
+        },
+      },
+    },
+    '/api/payments/create-intent': {
+      post: {
+        tags: ['Payments & Stripe (FT-05)'],
+        summary: 'Crear o recuperar Payment Intent de Stripe (HU23)',
+        description: 'Genera PaymentIntent con tarifa histórica, valida HOLD de 10 min y previene doble cobro.',
+        operationId: 'createPaymentIntent',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['bookingId'],
+                properties: {
+                  bookingId: { type: 'string', format: 'uuid', example: 'd3b07384-d113-4c91-9c60-8f9f6885dfb2' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'PaymentIntent creado o recuperado exitosamente' },
+          '400': { description: 'Parámetros inválidos' },
+          '404': { description: 'Reserva no encontrada' },
+          '409': { description: 'Reserva ya pagada y confirmada' },
+          '410': { description: 'Tiempo de retención HOLD expirado' },
+          '502': { description: 'Error al comunicarse con Stripe' },
+        },
+      },
+    },
+    '/api/payments/webhook': {
+      post: {
+        tags: ['Payments & Stripe (FT-05)'],
+        summary: 'Webhook oficial de Stripe y confirmación de tickets (HU24)',
+        description: 'Valida firma criptográfica stripe-signature, confirma reserva y emite ticket digital con QR.',
+        operationId: 'handleStripeWebhook',
+        parameters: [
+          { name: 'stripe-signature', in: 'header', required: true, schema: { type: 'string' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Evento procesado exitosamente o ya procesado (idempotente)' },
+          '400': { description: 'Firma de webhook inválida' },
+          '404': { description: 'Reserva no encontrada' },
+          '500': { description: 'Error interno del servidor' },
         },
       },
     },
@@ -467,6 +669,37 @@ export const PRESET_SPECS: PresetSpecItem[] = [
         '/api/categories': COMBINED_VICE_CITY_SPEC.paths['/api/categories'],
         '/api/services': COMBINED_VICE_CITY_SPEC.paths['/api/services'],
         '/api/services/{id}': COMBINED_VICE_CITY_SPEC.paths['/api/services/{id}'],
+      },
+    },
+  },
+  {
+    id: 'ft04-reservations',
+    name: 'FT-04 — Motor de Reservas & HOLD (HU20-22)',
+    description: 'Catálogo público (/api/catalog), disponibilidad horaria (/api/availability), retención HOLD 10 min (/api/reservations/hold) y descuentos (/api/pricing/calculate).',
+    badge: 'FT-04',
+    spec: {
+      openapi: '3.0.3',
+      info: { title: 'FT-04 — Motor de Reservas & HOLD', version: '1.0.0' },
+      paths: {
+        '/api/catalog': COMBINED_VICE_CITY_SPEC.paths['/api/catalog'],
+        '/api/availability': COMBINED_VICE_CITY_SPEC.paths['/api/availability'],
+        '/api/reservations/hold': COMBINED_VICE_CITY_SPEC.paths['/api/reservations/hold'],
+        '/api/reservations/{id}': COMBINED_VICE_CITY_SPEC.paths['/api/reservations/{id}'],
+        '/api/pricing/calculate': COMBINED_VICE_CITY_SPEC.paths['/api/pricing/calculate'],
+      },
+    },
+  },
+  {
+    id: 'ft05-payments',
+    name: 'FT-05 — Pagos & Stripe Webhook (HU23-24)',
+    description: 'Checkout seguro con tarjeta Stripe Test (/api/payments/create-intent) y recepción de webhooks con emisión de tickets (/api/payments/webhook).',
+    badge: 'FT-05',
+    spec: {
+      openapi: '3.0.3',
+      info: { title: 'FT-05 — Pagos y Stripe Webhook', version: '1.0.0' },
+      paths: {
+        '/api/payments/create-intent': COMBINED_VICE_CITY_SPEC.paths['/api/payments/create-intent'],
+        '/api/payments/webhook': COMBINED_VICE_CITY_SPEC.paths['/api/payments/webhook'],
       },
     },
   },

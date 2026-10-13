@@ -9,6 +9,7 @@ export const BOGOTA_TIMEZONE = "America/Bogota";
  * Obtiene la fecha y hora actual en la zona horaria America/Bogota.
  */
 export function getNowInBogota(): Date {
+  // Obtener representación ISO en Bogotá
   const now = new Date();
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: BOGOTA_TIMEZONE,
@@ -27,6 +28,7 @@ export function getNowInBogota(): Date {
     partMap[part.type] = part.value;
   }
 
+  // YYYY-MM-DDTHH:mm:ss
   const isoStr = `${partMap.year}-${partMap.month}-${partMap.day}T${partMap.hour}:${partMap.minute}:${partMap.second}`;
   return new Date(isoStr);
 }
@@ -86,6 +88,7 @@ export function getDaysDifference(targetDateStr: string, baseDateStr?: string): 
  */
 export function getDayOfWeekBogota(dateStr: string): number {
   const [year, month, day] = dateStr.split("-").map(Number);
+  // Usar mediodía UTC para evitar desplazamientos por huso horario local
   const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   return date.getUTCDay();
 }
@@ -115,6 +118,7 @@ export function isTimeSlotCurrent(
   const startTotalMins = sH * 60 + sM;
   const endTotalMins = eH * 60 + eM;
 
+  // Está en curso si la hora actual es >= inicio y < fin
   return currentTotalMins >= startTotalMins && currentTotalMins < endTotalMins;
 }
 
@@ -142,3 +146,4 @@ export function isTimeSlotPast(
 
   return currentTotalMins >= endTotalMins;
 }
+

@@ -4,6 +4,8 @@ Aplicación web para la gestión de reservas de un complejo deportivo.
 
 El proyecto utiliza **Next.js**, por lo que frontend y backend estarán dentro del mismo repositorio.
 
+> 📖 **Documentación Técnica del Backend:** Para la arquitectura técnica detallada, catálogo de endpoints REST, Swagger / OpenAPI, variables de entorno y guía rápida de configuración local para desarrolladores, consulta [`docs/BACKEND.md`](./docs/BACKEND.md).
+
 ---
 
 # 📁 Arquitectura
@@ -761,4 +763,3 @@ Endpoint para consultar la sesión activa actual del usuario autenticado vía Ne
 npm test
 ```
 Ejecuta la suite completa de pruebas unitarias (`tests/unit/*.test.mjs`), cubriendo los endpoints de la API (`login.route.test.mjs`, `register.route.test.mjs`) y la lógica de negocio y roles SRS (`auth.jwt.test.mjs`, `register.service.test.mjs`).
->>>>>>> feature/fe-1b/auth

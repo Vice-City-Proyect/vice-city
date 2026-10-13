@@ -7,11 +7,18 @@ import {
   AuthValidationError,
 } from "../errors/auth.errors";
 import type { RegisterInput, RegisteredUser } from "../types";
+import { EmailConfirmationService } from "./email-confirmation.service";
+import { getEmailSender } from "./email.service";
+
+export interface IEmailConfirmationService {
+  sendVerificationEmail(userId: string, email: string): Promise<unknown>;
+}
 
 export async function registerUser(
   input: RegisterInput,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any = prisma
+  db: any = prisma,
+  confirmationService?: IEmailConfirmationService
 ): Promise<RegisteredUser> {
   const parseResult = registerSchema.safeParse(input);
   if (!parseResult.success) {
@@ -60,11 +67,27 @@ export async function registerUser(
       full_name: fullName,
       password_hash: passwordHash,
       role_id: clientRole.id,
+      email_verified: false,
     },
     include: {
       roles: true,
     },
   });
+
+  // 5. Generar token y enviar correo de confirmación de forma controlada
+  const service =
+    confirmationService ||
+    (typeof db?.users?.findUnique === "function" && typeof db?.users?.update === "function"
+      ? new EmailConfirmationService(db, getEmailSender())
+      : null);
+
+  if (service) {
+    try {
+      await service.sendVerificationEmail(newUser.id, newUser.email);
+    } catch (emailError) {
+      console.warn("[REGISTER_VERIFICATION_EMAIL_WARNING]", emailError);
+    }
+  }
 
   return {
     id: newUser.id,

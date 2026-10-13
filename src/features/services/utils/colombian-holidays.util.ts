@@ -172,3 +172,4 @@ export function checkMaintenanceDay(dateStr: string): {
   // Miércoles a Domingo nunca son días de mantenimiento
   return { isMaintenance: false };
 }
+

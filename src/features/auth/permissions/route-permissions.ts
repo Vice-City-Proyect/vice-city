@@ -42,19 +42,27 @@ export const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/$/, // Página de inicio
   /^\/login(?:\/.*)?$/,
   /^\/register(?:\/.*)?$/,
+  /^\/verify-email(?:\/.*)?$/,
   /^\/forgot-password(?:\/.*)?$/,
   /^\/reset-password(?:\/.*)?$/,
-  /^\/verify-email(?:\/.*)?$/,
   /^\/unauthorized(?:\/.*)?$/,
   /^\/403(?:\/.*)?$/,
-  /^\/api\/auth\/(?:login|register|logout|forgot-password|reset-password|confirm-email|resend-confirmation|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
-  // Webhook de Stripe: se autentica por firma (STRIPE_WEBHOOK_SECRET), no por sesión.
-  /^\/api\/payments\/webhook(?:\/.*)?$/,
-  // Catálogo público de servicios y categorías: la lectura (GET) no requiere sesión.
-  // Las operaciones de escritura (POST/PATCH/DELETE) siguen protegidas por
-  // requireAdminRole dentro de cada Route Handler.
+  /^\/api\/auth\/(?:login|register|logout|confirm-email|resend-confirmation|forgot-password|reset-password|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
+  // Vistas públicas de catálogo y checkout
+  /^\/catalog(?:\/.*)?$/,
+  /^\/checkout(?:\/.*)?$/,
+  // Endpoints públicos de catálogo, disponibilidad y cotización (HU20 / HU22)
+  /^\/api\/catalog(?:\/.*)?$/,
+  /^\/api\/availability(?:\/.*)?$/,
+  /^\/api\/pricing\/calculate(?:\/.*)?$/,
+  // Catálogo público de servicios y categorías (GET no requiere sesión)
   /^\/api\/services(?:\/.*)?$/,
   /^\/api\/categories(?:\/.*)?$/,
+  // Endpoints públicos de reservas HOLD temporal y consulta por UUID para checkout (HU21 / FT-04)
+  /^\/api\/reservations\/(?:hold|[0-9a-fA-F-]{36})(?:\/.*)?$/,
+  // Endpoints públicos de pagos y webhook oficial de Stripe (HU23 / HU24 / FT-05)
+  /^\/api\/payments\/create-intent(?:\/.*)?$/,
+  /^\/api\/payments\/webhook(?:\/.*)?$/,
 ];
 
 /**
@@ -79,6 +87,13 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     allowedRoles: ["ADMIN"],
     description: "Endpoints API administrativos",
   },
+  {
+    // HU27 (VCP-73 / FT-08): métricas de ventas y ocupación. Sin esta regla el middleware
+    // niega la ruta a todos los roles, incluido ADMIN, por no estar registrada.
+    pattern: /^\/api\/reports(?:\/.*)?$/,
+    allowedRoles: ["ADMIN"],
+    description: "Reportes y métricas administrativas (solo ADMIN)",
+  },
 
   // 2. Gestión de empleados (solo ADMIN)
   {
@@ -98,6 +113,13 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     allowedRoles: ["TICKET_SELLER", "ADMIN"],
     description: "Endpoints API de punto de venta",
   },
+  {
+    // HU25 / HU26 (FT-06): /api/pos/preview y /api/pos/sale. Sin esta regla el middleware niega
+    // la ruta a todos los roles, incluido TICKET_SELLER, por no estar registrada.
+    pattern: /^\/api\/pos(?:\/.*)?$/,
+    allowedRoles: ["TICKET_SELLER", "ADMIN"],
+    description: "Endpoints API de venta presencial y previsualización de ticket POS",
+  },
 
   // 4. Escáner y Validación QR (QR_VALIDATOR y ADMIN)
   {
@@ -111,7 +133,7 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     description: "Endpoints API de escáner y validación de accesos",
   },
   {
-    // HU13: consulta e ingreso por QR. Exclusivo del rol QR_VALIDATOR.
+    // HU13 (VCP-57 / FT-07): consulta e ingreso por QR. Exclusivo del rol QR_VALIDATOR.
     pattern: /^\/api\/qr(?:\/.*)?$/,
     allowedRoles: ["QR_VALIDATOR"],
     description: "Consulta y registro de ingreso por código QR (solo QR_VALIDATOR)",

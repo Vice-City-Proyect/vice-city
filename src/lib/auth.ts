@@ -1,4 +1,5 @@
 import type { NextAuthOptions, User as NextAuthUser } from "next-auth";
+import { encode } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import type { PrismaClient } from "@prisma/client";
@@ -127,6 +128,95 @@ export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
     );
   }
   return secret;
+}
+
+export interface SessionCookieConfig {
+  name: string;
+  options: {
+    httpOnly: boolean;
+    sameSite: "lax" | "strict" | "none";
+    path: string;
+    secure: boolean;
+    maxAge: number;
+  };
+}
+
+/**
+ * Determina si el contexto actual exige cookies seguras (HTTPS).
+ * Coincide con la resolución nativa de cookies de NextAuth v4.
+ */
+export function isSecureAuthContext(request?: Request): boolean {
+  if (process.env.NEXTAUTH_URL?.startsWith("https://")) {
+    return true;
+  }
+  if (process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL)) {
+    return true;
+  }
+  if (request) {
+    const url = request.url || "";
+    if (url.startsWith("https://")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Obtiene la configuración y nombre estándar de la cookie de sesión de NextAuth
+ * según el entorno (HTTP vs HTTPS) y el tiempo de expiración configurado.
+ */
+export function getSessionCookieConfig(options?: {
+  isSecure?: boolean;
+  maxAge?: number;
+}): SessionCookieConfig {
+  const isSecure = options?.isSecure ?? isSecureAuthContext();
+  const maxAge = options?.maxAge ?? (authOptions.session?.maxAge || 8 * 60 * 60);
+
+  return {
+    name: isSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+    options: {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: Boolean(isSecure),
+      maxAge,
+    },
+  };
+}
+
+/**
+ * Emite un token de sesión NextAuth (JWE) firmado y cifrado para un usuario autenticado.
+ * Utiliza encode de next-auth/jwt y getAuthSecret() garantizando total compatibilidad
+ * con getToken(), getServerSession() y el middleware perimetral.
+ *
+ * @param user Datos del usuario autenticado (id, email, name, role)
+ * @param customSecret Clave secreta opcional para pruebas
+ * @param customMaxAge Tiempo de vida opcional en segundos
+ */
+export async function createSessionToken(
+  user: {
+    id: string;
+    email: string;
+    name?: string | null;
+    role: SRSRole | string;
+  },
+  customSecret?: string,
+  customMaxAge?: number
+): Promise<string> {
+  const secret = customSecret || getAuthSecret();
+  const maxAge = customMaxAge ?? (authOptions.session?.maxAge || 8 * 60 * 60);
+
+  return await encode({
+    token: {
+      sub: user.id,
+      id: user.id,
+      email: user.email,
+      name: user.name ?? undefined,
+      role: user.role as SRSRole,
+    },
+    secret,
+    maxAge,
+  });
 }
 
 /**

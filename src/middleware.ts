@@ -52,6 +52,14 @@ export async function middleware(
     resolvedOverride = undefined;
   }
 
+  // Por seguridad, en entorno de producción no se aceptan tokens arbitrarios como argumento
+  if (
+    process.env.NODE_ENV === "production" &&
+    resolvedOverride !== undefined
+  ) {
+    resolvedOverride = undefined;
+  }
+
   const { pathname } = request.nextUrl;
 
   // 1. Ignorar assets estáticos de Next.js, imágenes y favicons

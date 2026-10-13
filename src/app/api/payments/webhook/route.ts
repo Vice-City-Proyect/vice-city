@@ -7,10 +7,15 @@ import {
   InvalidStripeSignatureError,
   StripeNotConfiguredError,
 } from "@/features/payments/errors/payments.errors";
+import {
+  InvalidWebhookSignatureError,
+  WebhookBookingNotFoundError,
+} from "@/features/payments/errors/webhook.errors";
 
 export interface WebhookRouteContext {
   params?: unknown;
-  serviceOverride?: StripeWebhookService;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serviceOverride?: StripeWebhookService | any;
 }
 
 /**
@@ -52,12 +57,35 @@ export async function POST(
   const service = context?.serviceOverride ?? stripeWebhookService;
 
   try {
-    const result = await service.handleRaw(rawBody, signature);
-    return NextResponse.json({ success: true, ...result }, { status: 200 });
-  } catch (error: unknown) {
-    if (error instanceof InvalidStripeSignatureError) {
+    // Si el servicio tiene handleRaw (desarrollado en develop)
+    if (typeof service.handleRaw === "function") {
+      const result = await service.handleRaw(rawBody, signature);
+      return NextResponse.json({ success: true, ...result }, { status: 200 });
+    }
+
+    // Si el servicio usa la interfaz de stripe-webhook.service (backend)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const event = typeof (service as any).verifyWebhookSignature === "function"
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (service as any).verifyWebhookSignature(rawBody, signature)
+      : JSON.parse(rawBody);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (service as any).handleWebhookEvent(event);
+    return NextResponse.json(
+      {
+        success: true,
+        message: result.isAlreadyProcessed
+          ? "Evento de webhook ya procesado previamente (idempotente)"
+          : "Evento de pago procesado exitosamente y ticket generado",
+        data: result,
+      },
+      { status: 200 }
+    );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    if (error instanceof InvalidStripeSignatureError || error instanceof InvalidWebhookSignatureError) {
       return NextResponse.json(
-        { success: false, error: error.code, message: error.message },
+        { success: false, error: error.code || "INVALID_SIGNATURE", message: error.message },
         { status: 400 }
       );
     }
@@ -65,6 +93,12 @@ export async function POST(
       return NextResponse.json(
         { success: false, error: error.code, message: error.message },
         { status: 503 }
+      );
+    }
+    if (error instanceof WebhookBookingNotFoundError) {
+      return NextResponse.json(
+        { success: false, error: error.code || "BOOKING_NOT_FOUND", message: error.message },
+        { status: 404 }
       );
     }
 
