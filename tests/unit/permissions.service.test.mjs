@@ -139,6 +139,18 @@ describe("HU08-B: Lógica de Negocio - Matriz de Permisos por Rol (SRS Sección 
     assert.equal(isRouteAllowed(null, "/api/qr/TK-123"), false);
   });
 
+  test("Regla de reportes (/api/reports): ADMIN accede; ningún otro rol ni visitante", () => {
+    // Sin una regla registrada el middleware niega la ruta a todos, incluido ADMIN
+    assert.deepEqual(getAllowedRolesForRoute("/api/reports/metrics"), ["ADMIN"]);
+    assert.equal(isRouteAllowed("ADMIN", "/api/reports/metrics"), true);
+    assert.equal(isRouteAllowed("ADMIN", "/api/reports/metrics?period=week"), true);
+
+    for (const role of ["CLIENT", "TICKET_SELLER", "QR_VALIDATOR", null]) {
+      assert.equal(isRouteAllowed(role, "/api/reports/metrics"), false);
+    }
+    assert.equal(isPublicRoute("/api/reports/metrics"), false);
+  });
+
   test("Normalización de roles: Soporta alias legacy (CUSTOMER -> CLIENT) e insensible a mayúsculas", () => {
     assert.equal(normalizeRole("customer"), "CLIENT");
     assert.equal(normalizeRole("CUSTOMER"), "CLIENT");
