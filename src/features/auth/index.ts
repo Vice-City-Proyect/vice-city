@@ -12,17 +12,23 @@ export * from "./services/register.service";
 export {
   ConsoleEmailSender,
   MockEmailSender,
+  ResendEmailSender,
+  getEmailSender,
 } from "./services/email.service";
 export type {
   IEmailSender,
   SendEmailOptions,
   SendVerificationEmailParams,
 } from "./services/email.service";
+export * from "./schemas/confirm-email.schema";
+export * from "./schemas/resend-confirmation.schema";
 export * from "./services/email-confirmation.service";
 export {
   TokenExpiredError,
   InvalidTokenError,
   UserAlreadyVerifiedError,
+  TokenAlreadyUsedError,
+  EmailAlreadyConfirmedError,
 } from "./errors/email-confirmation.errors";
 
 // Servicios de Recuperación de Contraseña (HU04-B)

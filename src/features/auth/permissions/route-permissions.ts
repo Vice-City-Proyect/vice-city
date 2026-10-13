@@ -42,11 +42,12 @@ export const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/$/, // Página de inicio
   /^\/login(?:\/.*)?$/,
   /^\/register(?:\/.*)?$/,
+  /^\/verify-email(?:\/.*)?$/,
   /^\/forgot-password(?:\/.*)?$/,
   /^\/reset-password(?:\/.*)?$/,
   /^\/unauthorized(?:\/.*)?$/,
   /^\/403(?:\/.*)?$/,
-  /^\/api\/auth\/(?:login|register|logout|forgot-password|reset-password|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
+  /^\/api\/auth\/(?:login|register|logout|confirm-email|resend-confirmation|forgot-password|reset-password|google|session|csrf|providers|signin|callback|signout)(?:\/.*)?$/,
   // Vistas públicas de catálogo y checkout
   /^\/catalog(?:\/.*)?$/,
   /^\/checkout(?:\/.*)?$/,
