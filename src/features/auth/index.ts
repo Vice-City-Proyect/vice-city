@@ -77,6 +77,8 @@ export {
   GoogleAuthError,
   GoogleEmailNotProvidedError,
   UserInactiveError,
+  GoogleEmailNotVerifiedError,
+  GoogleAuthConfigError,
 } from "./errors/google-auth.errors";
 
 // Esquemas de Validación Zod (HU05-B API)

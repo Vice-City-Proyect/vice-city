@@ -45,3 +45,31 @@ export class UserInactiveError extends GoogleAuthError {
   }
 }
 
+/**
+ * Error lanzado cuando el correo provisto por Google no está verificado en el proveedor.
+ * Previene vulnerabilidades de Pre-Account Takeover.
+ */
+export class GoogleEmailNotVerifiedError extends GoogleAuthError {
+  constructor(
+    message = "El correo electrónico no ha sido verificado por Google. Por favor, verifica tu cuenta en Google antes de continuar."
+  ) {
+    super(message, "GOOGLE_EMAIL_NOT_VERIFIED");
+    this.name = "GoogleEmailNotVerifiedError";
+    Object.setPrototypeOf(this, GoogleEmailNotVerifiedError.prototype);
+  }
+}
+
+/**
+ * Error lanzado cuando faltan credenciales requeridas de Google OAuth o contienen placeholders.
+ */
+export class GoogleAuthConfigError extends GoogleAuthError {
+  constructor(
+    message = "Configuración de Google OAuth no disponible o incompleta en las variables de entorno."
+  ) {
+    super(message, "GOOGLE_AUTH_CONFIG_ERROR");
+    this.name = "GoogleAuthConfigError";
+    Object.setPrototypeOf(this, GoogleAuthConfigError.prototype);
+  }
+}
+
+

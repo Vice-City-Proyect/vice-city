@@ -3,14 +3,20 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST as googlePostHandler, GET as googleGetHandler } from "../../src/app/api/auth/google/route.ts";
 import { GET as sessionGetHandler } from "../../src/app/api/auth/session/route.ts";
-import { authOptions, setGoogleAuthService } from "../../src/lib/auth.ts";
+import {
+  authOptions,
+  setGoogleAuthService,
+  validateGoogleAuthConfig,
+  isGoogleOAuthConfigured,
+} from "../../src/lib/auth.ts";
 import {
   GoogleAuthService,
   googleAuthService,
-  GoogleEmailNotProvidedError,
-  UserInactiveError,
+  GoogleEmailNotVerifiedError,
+  GoogleAuthConfigError,
   resolveGoogleAuthErrorMessage,
 } from "../../src/features/auth/index.ts";
+import { middleware } from "../../src/middleware.ts";
 
 function createMockRequest(url, { method = "GET", headers = {}, body = null } = {}) {
   const reqInit = {
@@ -331,6 +337,290 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
 
     assert.equal(response.status, 403);
     assert.equal(body.error, "USER_INACTIVE");
+  });
+
+  // -------------------------------------------------------------------------
+  // FASE 4.1: CONFIGURACIÓN DEL PROVEEDOR (validateGoogleAuthConfig, isGoogleOAuthConfigured)
+  // -------------------------------------------------------------------------
+  test("Fase 4.1: validateGoogleAuthConfig lanza GoogleAuthConfigError si faltan variables", () => {
+    assert.throws(
+      () => validateGoogleAuthConfig({}),
+      (err) => {
+        assert.equal(err instanceof GoogleAuthConfigError, true);
+        assert.equal(err.code, "GOOGLE_AUTH_CONFIG_ERROR");
+        assert.ok(err.message.includes("GOOGLE_CLIENT_ID"));
+        return true;
+      }
+    );
+  });
+
+  test("Fase 4.1: validateGoogleAuthConfig rechaza placeholders y nunca filtra secretos", () => {
+    assert.throws(
+      () =>
+        validateGoogleAuthConfig({
+          GOOGLE_CLIENT_ID: "google_client_id_placeholder",
+          GOOGLE_CLIENT_SECRET: "google_client_secret_placeholder",
+        }),
+      (err) => {
+        assert.equal(err instanceof GoogleAuthConfigError, true);
+        assert.ok(err.message.includes("placeholder"));
+        // Comprobar que no se exponen valores sensibles en el mensaje
+        assert.equal(err.message.includes("google_client_secret_placeholder"), false);
+        return true;
+      }
+    );
+  });
+
+  test("Fase 4.1: isGoogleOAuthConfigured detecta correctamente presencia o ausencia de credenciales reales", () => {
+    assert.equal(isGoogleOAuthConfigured({}), false);
+    assert.equal(
+      isGoogleOAuthConfigured({
+        GOOGLE_CLIENT_ID: "google_client_id_placeholder",
+        GOOGLE_CLIENT_SECRET: "google_client_secret_placeholder",
+      }),
+      false
+    );
+    assert.equal(
+      isGoogleOAuthConfigured({
+        GOOGLE_CLIENT_ID: "123456789-abc.apps.googleusercontent.com",
+        GOOGLE_CLIENT_SECRET: "GOCSPX-real-secret-123",
+      }),
+      true
+    );
+  });
+
+  test("Fase 4.1: GET /api/auth/google responde 503 cuando el proveedor no está configurado", async () => {
+    const origId = process.env.GOOGLE_CLIENT_ID;
+    const origSecret = process.env.GOOGLE_CLIENT_SECRET;
+    try {
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+
+      const request = createMockRequest("http://localhost:3000/api/auth/google");
+      const response = await googleGetHandler(request);
+      const body = await response.json();
+
+      assert.equal(response.status, 503);
+      assert.equal(body.success, false);
+      assert.equal(body.error, "GOOGLE_OAUTH_NOT_CONFIGURED");
+      assert.ok(body.message.includes("no está configurado"));
+    } finally {
+      if (origId) process.env.GOOGLE_CLIENT_ID = origId;
+      if (origSecret) process.env.GOOGLE_CLIENT_SECRET = origSecret;
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // FASE 4.7: COMPATIBILIDAD DE SESIÓN CON MIDDLEWARE
+  // -------------------------------------------------------------------------
+  test("Fase 4.7: POST /api/auth/google emite cookie de sesión válida y compatible con middleware.ts", async () => {
+    const payload = {
+      id: "google-session-test-sub",
+      email: "sesion.middleware@example.com",
+      name: "Usuario Sesión Middleware",
+      picture: "https://lh3.googleusercontent.com/photo.jpg",
+      email_verified: true,
+    };
+
+    const request = createMockRequest("http://localhost:3000/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
+
+    const response = await googlePostHandler(request, mockService);
+    assert.equal(response.status, 200);
+
+    // 1. Verificar encabezado Set-Cookie
+    const setCookie = response.headers.get("set-cookie");
+    assert.ok(setCookie, "Debe emitir la cabecera Set-Cookie");
+    assert.ok(setCookie.includes("next-auth.session-token="));
+    assert.ok(setCookie.includes("HttpOnly"));
+    assert.ok(setCookie.includes("Path=/"));
+
+    // 2. Extraer el valor del token de sesión de la cookie
+    const match = setCookie.match(/next-auth\.session-token=([^;]+)/);
+    assert.ok(match && match[1], "El token de sesión debe estar presente en la cookie");
+    const sessionTokenValue = match[1];
+
+    // 3. Simular petición a ruta protegida (/client/reservas) con la cookie emitida
+    const protectedRequest = createMockRequest("http://localhost:3000/client/reservas", {
+      headers: {
+        cookie: `next-auth.session-token=${sessionTokenValue}`,
+      },
+    });
+
+    const middlewareResponse = await middleware(protectedRequest);
+    // El middleware debe validar el token y no redirigir al login
+    assert.equal(middlewareResponse.headers.get("Location"), null);
+    assert.equal(middlewareResponse.status, 200);
+
+    // 4. Verificar que sin la cookie, la misma ruta es redirigida al login
+    const unauthRequest = createMockRequest("http://localhost:3000/client/reservas");
+    const unauthResponse = await middleware(unauthRequest);
+    assert.ok(unauthResponse.status === 307 || unauthResponse.status === 302);
+    assert.ok(unauthResponse.headers.get("Location")?.includes("/login"));
+  });
+
+  // -------------------------------------------------------------------------
+  // FASE 4.5: EMAIL NO VERIFICADO POR GOOGLE (email_verified: false)
+  // -------------------------------------------------------------------------
+  test("Fase 4.5: Rechaza autenticación si el perfil de Google tiene email_verified: false", async () => {
+    // a) En POST /api/auth/google
+    const payload = {
+      id: "google-sub-unverified",
+      email: "unverified@example.com",
+      name: "No Verificado",
+      email_verified: false,
+    };
+
+    const request = createMockRequest("http://localhost:3000/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
+
+    const response = await googlePostHandler(request, mockService);
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.success, false);
+    assert.equal(body.error, "GOOGLE_EMAIL_NOT_VERIFIED");
+    assert.ok(body.message.includes("verificado por Google"));
+
+    // b) En NextAuth signIn callback
+    const signInCallback = authOptions.callbacks.signIn;
+    const account = { provider: "google", providerAccountId: "sub-unverified" };
+    const profile = { sub: "sub-unverified", email: "unverified@example.com", email_verified: false };
+
+    const redirectTarget = await signInCallback({
+      user: {},
+      account,
+      profile,
+    });
+
+    assert.equal(redirectTarget, "/login?error=GoogleEmailNotVerified");
+
+    // c) En GoogleAuthService directo
+    await assert.rejects(
+      async () => mockService.handleGoogleAuth(payload),
+      (err) => {
+        assert.equal(err instanceof GoogleEmailNotVerifiedError, true);
+        assert.equal(err.code, "GOOGLE_EMAIL_NOT_VERIFIED");
+        return true;
+      }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // FASE 4.4: VINCULACIÓN CON CUENTA YA ASOCIADA A OTRO USUARIO
+  // -------------------------------------------------------------------------
+  test("Fase 4.4: Falla con conflicto 409 si la cuenta de Google ya está vinculada a otro usuario", async () => {
+    mockService.linkAccountFn = async () => ({
+      success: false,
+      reason: "ALREADY_LINKED_TO_OTHER_USER",
+      error: "Esta cuenta ya está vinculada a otro usuario",
+    });
+
+    const payload = {
+      id: "google-sub-conflict",
+      email: "carlos.perez@example.com",
+      name: "Carlos Pérez",
+      email_verified: true,
+    };
+
+    const request = createMockRequest("http://localhost:3000/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
+
+    const response = await googlePostHandler(request, mockService);
+    const body = await response.json();
+
+    assert.equal(response.status, 409);
+    assert.equal(body.success, false);
+    assert.equal(body.error, "ACCOUNT_ALREADY_LINKED");
+
+    // Verificar en signIn callback de NextAuth
+    authOptions.__linkAccountFn = async () => ({
+      success: false,
+      reason: "ALREADY_LINKED_TO_OTHER_USER",
+    });
+
+    const redirectUrl = await authOptions.callbacks.signIn({
+      user: { id: "usr-carlos" },
+      account: { provider: "google", providerAccountId: "sub-conflict" },
+      profile: { sub: "sub-conflict", email: "carlos.perez@example.com", email_verified: true },
+    });
+
+    assert.equal(redirectUrl, "/login?error=OAuthAccountAlreadyLinked");
+    delete authOptions.__linkAccountFn;
+  });
+
+  // -------------------------------------------------------------------------
+  // FASE 4.8: VERIFICACIÓN DE TOKEN EN POST /api/auth/google
+  // -------------------------------------------------------------------------
+  test("Fase 4.8: En producción rechaza llamadas con perfil no verificado sin idToken", async () => {
+    const origEnv = process.env.NODE_ENV;
+    const origLifecycle = process.env.npm_lifecycle_event;
+    try {
+      process.env.NODE_ENV = "production";
+      delete process.env.npm_lifecycle_event;
+
+      const payload = {
+        id: "google-sub-prod",
+        email: "prod@example.com",
+        name: "Prod User",
+        email_verified: true,
+      };
+
+      const request = createMockRequest("http://localhost:3000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      });
+
+      const response = await googlePostHandler(request, mockService);
+      const body = await response.json();
+
+      assert.equal(response.status, 400);
+      assert.equal(body.error, "UNVERIFIED_PROFILE_REJECTED");
+    } finally {
+      process.env.NODE_ENV = origEnv;
+      if (origLifecycle) process.env.npm_lifecycle_event = origLifecycle;
+    }
+  });
+
+  test("Fase 4.8: Rechaza idToken inválido con 401 INVALID_GOOGLE_ID_TOKEN", async () => {
+    const origFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () => ({
+        ok: false,
+        json: async () => ({ error_description: "Invalid Value" }),
+      });
+
+      const request = createMockRequest("http://localhost:3000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: { idToken: "token-falso" },
+      });
+
+      const response = await googlePostHandler(request, mockService);
+      const body = await response.json();
+
+      assert.equal(response.status, 401);
+      assert.equal(body.error, "INVALID_GOOGLE_ID_TOKEN");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("Fase 4.6: resolveGoogleAuthErrorMessage traduce todos los códigos de error nuevos", () => {
+    assert.ok(resolveGoogleAuthErrorMessage("GoogleEmailNotVerified").includes("verificado"));
+    assert.ok(resolveGoogleAuthErrorMessage("OAuthAccountAlreadyLinked").includes("vinculada"));
+    assert.ok(resolveGoogleAuthErrorMessage("GoogleAuthConfigError").includes("configurado"));
+    assert.ok(resolveGoogleAuthErrorMessage("GOOGLE_OAUTH_NOT_CONFIGURED").includes("configurado"));
   });
 });
 

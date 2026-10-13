@@ -15,6 +15,7 @@ import {
   GoogleEmailNotProvidedError,
   UserInactiveError,
   GoogleAuthError,
+  GoogleEmailNotVerifiedError,
 } from "../errors/google-auth.errors";
 
 export interface GoogleProfile {
@@ -179,7 +180,12 @@ export class GoogleAuthService {
       throw new GoogleEmailNotProvidedError();
     }
 
-    // 2. Criterio 4 (Caso Límite): Normalizar email a minúsculas
+    // 2. Validación de seguridad: el correo debe estar verificado por Google (Prevención Pre-Account Takeover)
+    if (profile.email_verified === false) {
+      throw new GoogleEmailNotVerifiedError();
+    }
+
+    // 3. Criterio 4 (Caso Límite): Normalizar email a minúsculas
     const normalizedEmail = profile.email.trim().toLowerCase();
 
     // 3. Buscar si el usuario ya existe en la base de datos vía ORM
