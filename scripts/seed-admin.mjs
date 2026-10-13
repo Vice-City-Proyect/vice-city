@@ -4,13 +4,20 @@ const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = (process.env.ADMIN_SEED_EMAIL || "admin@vicecity.com").trim().toLowerCase();
 const ADMIN_NAME = process.env.ADMIN_SEED_NAME || "Administrador Principal";
-const ADMIN_PASSWORD_PLAIN =
-  process.env.ADMIN_SEED_PASSWORD ||
-  (process.env.NODE_ENV === "production" ? null : "vicecity123*");
+// VCP-86: sin contraseña por defecto. La base de datos es compartida, así que el seed
+// siempre exige ADMIN_SEED_PASSWORD (definida solo en el .env local, nunca en el repo).
+const ADMIN_PASSWORD_PLAIN = process.env.ADMIN_SEED_PASSWORD;
+const MIN_PASSWORD_LENGTH = 12;
 
 if (!ADMIN_PASSWORD_PLAIN) {
   throw new Error(
-    "Seguridad: En entornos de producción o compartidos debe definirse la variable ADMIN_SEED_PASSWORD en .env."
+    "Seguridad: debe definirse la variable ADMIN_SEED_PASSWORD en tu .env local antes de ejecutar el seed."
+  );
+}
+
+if (ADMIN_PASSWORD_PLAIN.length < MIN_PASSWORD_LENGTH) {
+  throw new Error(
+    `Seguridad: ADMIN_SEED_PASSWORD debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`
   );
 }
 
