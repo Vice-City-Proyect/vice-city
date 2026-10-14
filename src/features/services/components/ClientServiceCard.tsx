@@ -67,7 +67,7 @@ export function ClientServiceCard({ item }: ClientServiceCardProps) {
         </dl>
 
         <div className="mt-auto">
-          <ButtonLink href="/cliente/reservas" variant="dark" size="sm" className="w-full">
+          <ButtonLink href={`/cliente/reservar?serviceId=${item.id}`} variant="dark" size="sm" className="w-full">
             Reservar
           </ButtonLink>
         </div>

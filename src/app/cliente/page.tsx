@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const QUICK_ACTIONS = [
-  { href: '/cliente#servicios', label: 'Reservar servicio', icon: Waves },
+  { href: '/cliente/reservar', label: 'Reservar servicio', icon: Waves },
   { href: '/cliente/reservas', label: 'Mis reservas', icon: CalendarDays },
   { href: '/cliente/perfil', label: 'Mi perfil', icon: User },
 ];
@@ -41,7 +41,7 @@ export default function ClientHomePage() {
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <ButtonLink href="/cliente#servicios" size="lg" className="w-full sm:w-auto">
+              <ButtonLink href="/cliente/reservar" size="lg" className="w-full sm:w-auto">
                 Reservar un servicio
               </ButtonLink>
               <ButtonLink

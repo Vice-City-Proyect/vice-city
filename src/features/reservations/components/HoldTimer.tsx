@@ -1,22 +1,25 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface HoldTimerProps {
   initialSeconds: number;
   onExpire?: () => void;
+  redirectTo?: string;
 }
 
-export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
+export function HoldTimer({ initialSeconds, onExpire, redirectTo }: HoldTimerProps) {
+  const router = useRouter();
   const [secondsLeft, setSecondsLeft] = useState<number>(initialSeconds);
 
-  useEffect(() => {
-    setSecondsLeft(initialSeconds);
-  }, [initialSeconds]);
 
   useEffect(() => {
     if (secondsLeft <= 0) {
       onExpire?.();
+      if (redirectTo) {
+        router.push(redirectTo);
+      }
       return;
     }
 
@@ -32,7 +35,7 @@ export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [secondsLeft, onExpire]);
+  }, [secondsLeft, onExpire, redirectTo, router]);
 
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
@@ -63,7 +66,7 @@ export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
             </p>
             <p className="text-xs opacity-80">
               {isExpired
-                ? "El cupo ha sido liberado automáticamente para otros clientes."
+                ? "Tu reserva venció. El cupo ha sido liberado automáticamente para otros clientes."
                 : "Tu cupo está retenido de forma exclusiva mientras completas el pago."}
             </p>
           </div>
