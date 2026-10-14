@@ -58,10 +58,10 @@ export const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   // Catálogo público de servicios y categorías (GET no requiere sesión)
   /^\/api\/services(?:\/.*)?$/,
   /^\/api\/categories(?:\/.*)?$/,
-  // Endpoints públicos de reservas HOLD temporal y consulta por UUID para checkout (HU21 / FT-04)
-  /^\/api\/reservations\/(?:hold|[0-9a-fA-F-]{36})(?:\/.*)?$/,
+  // Consulta de una reserva por UUID para el checkout (HU21 / FT-04). Crear reservas o retenciones
+  // (/api/reservations y /api/reservations/hold) exige sesión: ver la regla de reservas más abajo.
+  /^\/api\/reservations\/[0-9a-fA-F-]{36}(?:\/.*)?$/,
   // Endpoints públicos de pagos y webhook oficial de Stripe (HU23 / HU24 / FT-05)
-  /^\/api\/payments\/create-intent(?:\/.*)?$/,
   /^\/api\/payments\/webhook(?:\/.*)?$/,
 ];
 
@@ -170,9 +170,9 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     description: "Creación y consulta de reservas web",
   },
   {
-    pattern: /^\/api\/payments\/checkout(?:\/.*)?$/,
+    pattern: /^\/api\/payments\/(?:checkout|create-intent)(?:\/.*)?$/,
     allowedRoles: ["CLIENT", "ADMIN"],
-    description: "Inicio de pagos en línea con Stripe",
+    description: "Inicio de pagos en línea con Stripe (solo el dueño de la reserva o ADMIN)",
   },
 
   // 8. Perfil y datos del usuario autenticado (todos los roles autorizados)

@@ -19,6 +19,8 @@ import {
   BookingNotFoundError,
   BookingNotPayableError,
   ForbiddenBookingAccessError,
+  PaymentError,
+  StripeOperationError,
 } from "../errors/payments.errors";
 
 export interface CheckoutSessionUser {
@@ -97,20 +99,33 @@ export class CheckoutService {
     const baseUrl = this.appBaseUrlFn();
     const bookingMetadata = (booking.metadata as Record<string, any>) || {};
 
-    const session = await createStripeCheckoutSession(
-      {
-        bookingId: booking.id,
-        amount,
-        currency: "COP",
-        productName: booking.services?.name || "Reserva Vice City",
-        productDescription: `Reserva del ${new Date(booking.start_at).toISOString()} — ${booking.quantity} persona(s)`,
-        customerEmail: booking.users?.email,
-        successUrl: `${baseUrl}/cliente/reservas?checkout=success&bookingId=${booking.id}`,
-        cancelUrl: `${baseUrl}/cliente/reservas?checkout=cancelled&bookingId=${booking.id}`,
-        metadata: { user_id: booking.user_id },
-      },
-      this.stripe
-    );
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await createStripeCheckoutSession(
+        {
+          bookingId: booking.id,
+          amount,
+          currency: "COP",
+          productName: booking.services?.name || "Reserva Vice City",
+          productDescription: `Reserva del ${new Date(booking.start_at).toISOString()} — ${booking.quantity} persona(s)`,
+          customerEmail: booking.users?.email,
+          successUrl: `${baseUrl}/cliente/reservas?checkout=success&bookingId=${booking.id}`,
+          cancelUrl: `${baseUrl}/cliente/reservas?checkout=cancelled&bookingId=${booking.id}`,
+          metadata: { user_id: booking.user_id },
+        },
+        this.stripe
+      );
+    } catch (error: unknown) {
+      if (error instanceof PaymentError) throw error;
+      // El detalle de Stripe solo se registra en el servidor; al cliente se le da un mensaje claro.
+      console.error(
+        "[CHECKOUT_STRIPE_ERROR]",
+        error instanceof Error ? error.message : "error desconocido"
+      );
+      throw new StripeOperationError(
+        "No fue posible crear la sesión de pago con Stripe. Intenta de nuevo en unos minutos."
+      );
+    }
 
     if (!session.url) {
       throw new BookingNotPayableError("Stripe no devolvió una URL de checkout");

@@ -113,9 +113,9 @@ describe("HU08-B: Lógica de Negocio - Matriz de Permisos por Rol (SRS Sección 
     assert.equal(isPublicRoute("/api/catalog"), true);
     assert.equal(isPublicRoute("/api/availability"), true);
     assert.equal(isPublicRoute("/api/pricing/calculate"), true);
-    assert.equal(isPublicRoute("/api/reservations/hold"), true);
+    assert.equal(isPublicRoute("/api/reservations/hold"), false);
     assert.equal(isPublicRoute("/api/reservations/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"), true);
-    assert.equal(isPublicRoute("/api/payments/create-intent"), true);
+    assert.equal(isPublicRoute("/api/payments/create-intent"), false);
     assert.equal(isPublicRoute("/api/payments/webhook"), true);
     assert.equal(isPublicRoute("/catalog"), true);
     assert.equal(isPublicRoute("/checkout/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"), true);
@@ -124,7 +124,8 @@ describe("HU08-B: Lógica de Negocio - Matriz de Permisos por Rol (SRS Sección 
     assert.equal(isRouteAllowed(null, "/api/catalog"), true);
     assert.equal(isRouteAllowed(null, "/api/availability"), true);
     assert.equal(isRouteAllowed(null, "/api/pricing/calculate"), true);
-    assert.equal(isRouteAllowed(null, "/api/reservations/hold"), true);
+    assert.equal(isRouteAllowed(null, "/api/reservations/hold"), false);
+    assert.equal(isRouteAllowed("CLIENT", "/api/reservations/hold"), true);
     assert.equal(isRouteAllowed(null, "/api/payments/webhook"), true);
   });
 

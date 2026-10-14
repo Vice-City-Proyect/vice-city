@@ -268,6 +268,93 @@ describe("FT-05 / HU23: Checkout con Tarjeta (Stripe Test)", () => {
     assert.equal(stripeRetrieveCallsCount, 1, "Debe consultar el intento existente");
   });
 
+  describe("Autorización: solo el dueño de la reserva (o un ADMIN) puede iniciar el pago", () => {
+    const OWNER = { id: "user-owner", role: "CLIENT" };
+
+    function buildService() {
+      let stripeCalls = 0;
+      const service = new StripePaymentService({
+        stripeClient: {
+          paymentIntents: {
+            create: async () => {
+              stripeCalls += 1;
+              return { id: "pi_auth", client_secret: "secret_auth", created: 1, status: "requires_payment_method" };
+            },
+            retrieve: async () => null,
+          },
+        },
+        findBookingByIdFn: async (id) => ({
+          id,
+          user_id: OWNER.id,
+          service_id: mockServiceId,
+          quantity: 1,
+          total_amount: 4000,
+          status: "pending",
+          expires_at: new Date(Date.now() + 5 * 60 * 1000),
+          services: { id: mockServiceId, name: "Piscina", currency: "COP" },
+          payments: [],
+        }),
+        createPaymentFn: async (data) => ({ id: "pay_auth", ...data }),
+      });
+      return { service, getStripeCalls: () => stripeCalls };
+    }
+
+    test("un usuario distinto al dueño es rechazado y no se llama a Stripe", async () => {
+      const { service, getStripeCalls } = buildService();
+      await assert.rejects(
+        () =>
+          service.createPaymentIntent(
+            { bookingId: mockBookingId },
+            { id: "otro-usuario", role: "CLIENT" }
+          ),
+        { name: "ForbiddenBookingAccessError" }
+      );
+      assert.equal(getStripeCalls(), 0);
+    });
+
+    test("el dueño puede iniciar el pago", async () => {
+      const { service } = buildService();
+      const result = await service.createPaymentIntent({ bookingId: mockBookingId }, OWNER);
+      assert.equal(result.providerReference, "pi_auth");
+    });
+
+    test("un ADMIN puede iniciar el pago de la reserva de otro usuario", async () => {
+      const { service } = buildService();
+      const result = await service.createPaymentIntent(
+        { bookingId: mockBookingId },
+        { id: "admin-1", role: "ADMIN" }
+      );
+      assert.equal(result.providerReference, "pi_auth");
+    });
+
+    test("el monto se envía a Stripe en centavos (pesos × 100) con la misma conversión que Checkout", async () => {
+      let amountSent = null;
+      const service = new StripePaymentService({
+        stripeClient: {
+          paymentIntents: {
+            create: async (params) => {
+              amountSent = params.amount;
+              return { id: "pi_x", client_secret: "s", created: 1, status: "requires_payment_method" };
+            },
+            retrieve: async () => null,
+          },
+        },
+        findBookingByIdFn: async (id) => ({
+          id,
+          user_id: OWNER.id,
+          total_amount: 4000,
+          status: "pending",
+          expires_at: new Date(Date.now() + 60 * 1000),
+          services: { name: "Piscina", currency: "COP" },
+          payments: [],
+        }),
+        createPaymentFn: async (data) => ({ id: "pay_x", ...data }),
+      });
+      await service.createPaymentIntent({ bookingId: mockBookingId }, OWNER);
+      assert.equal(amountSent, 400000);
+    });
+  });
+
   test("Criterio 5: Validación de contrato Zod con .strict()", () => {
     // 1. Payload válido
     const valid = createPaymentIntentSchema.safeParse({
