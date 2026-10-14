@@ -15,10 +15,10 @@ import {
   type LoginValidationErrors,
 } from '../utils/login-validation';
 
-const DASHBOARD_BY_ROLE: Record<SRSRole, string> = {
+const DASHBOARD_BY_ROLE: Record<string, string> = {
   ADMIN: '/admin',
   CLIENT: '/cliente',
-  TICKET_SELLER: '/empleado/pos',
+  TICKET_SELLER: '/employee/pos',
   QR_VALIDATOR: '/empleado/qr',
 };
 
@@ -49,9 +49,36 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  const readCallbackUrl = () => searchParams.get('callbackUrl');
 
   useEffect(() => {
     let active = true;
+
+    // 1. Verificación de sesión activa: redirige al dashboard del rol si ya está autenticado
+    getSession()
+      .then((session) => {
+        if (!active) return;
+        const role =
+          (session?.user as any)?.role || (session as any)?.data?.role;
+        if (role) {
+          const rawCallback = readCallbackUrl();
+          const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
+          const destination =
+            rawCallback && rawCallback !== '/' && rawCallback !== '/login'
+              ? rawCallback
+              : roleDestination;
+          router.replace(destination);
+          return;
+        }
+        setCheckingSession(false);
+      })
+      .catch(() => {
+        if (active) setCheckingSession(false);
+      });
+
+    // 2. Consulta disponibilidad del proveedor Google OAuth
     getProviders()
       .then((providers) => {
         if (active) setGoogleAvailable(Boolean(providers && 'google' in providers));
@@ -59,12 +86,11 @@ export function LoginForm() {
       .catch(() => {
         if (active) setGoogleAvailable(false);
       });
+
     return () => {
       active = false;
     };
-  }, []);
-
-  const readCallbackUrl = () => searchParams.get('callbackUrl');
+  }, [router, searchParams]);
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
@@ -89,7 +115,11 @@ export function LoginForm() {
     }
     setGoogleLoading(true);
     try {
-      const callbackUrl = readCallbackUrl() || '/cliente';
+      const rawCallback = readCallbackUrl();
+      const callbackUrl =
+        rawCallback && rawCallback !== '/' && rawCallback !== '/login'
+          ? rawCallback
+          : '/cliente';
       const result = await signIn('google', { callbackUrl, redirect: false });
       if (result?.error) {
         setSubmitError('No se pudo iniciar sesión con Google. Intenta nuevamente.');
@@ -136,11 +166,30 @@ export function LoginForm() {
         return;
       }
 
-      const session = await getSession();
-      const role = session?.user?.role;
+      let session = await getSession();
+      let role =
+        (session?.user as any)?.role || (session as any)?.data?.role;
+
+      // Resiliencia adicional: consulta directa al endpoint de sesión si getSession aún no sincronizó
+      if (!role) {
+        try {
+          const res = await fetch('/api/auth/session');
+          if (res.ok) {
+            const json = await res.json();
+            role = json?.data?.role || json?.user?.role;
+          }
+        } catch {
+          // Ignorar fallo de consulta auxiliar
+        }
+      }
 
       const callbackUrl = readCallbackUrl();
-      const destination = callbackUrl || (role ? DASHBOARD_BY_ROLE[role] : '/');
+      const roleDestination = role ? DASHBOARD_BY_ROLE[role] : '/';
+      const destination =
+        callbackUrl && callbackUrl !== '/' && callbackUrl !== '/login'
+          ? callbackUrl
+          : roleDestination;
+
       router.push(destination);
       router.refresh();
     } catch {
@@ -149,6 +198,26 @@ export function LoginForm() {
       setSubmitting(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div
+        className="w-full max-w-220 bg-club-surface rounded-3xl overflow-hidden flex items-center justify-center min-h-120"
+        style={{
+          border: '1.5px solid #b0bf3f',
+          boxShadow:
+            '0 8px 40px rgba(176, 191, 63, 0.13), 0 2px 12px rgba(0,0,0,0.07)',
+        }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-club-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-bold text-club-accent tracking-wider uppercase">
+            Verificando sesión...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
 
   return (
