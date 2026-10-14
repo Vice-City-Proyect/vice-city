@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession, getProviders } from 'next-auth/react';
@@ -8,12 +8,15 @@ import { signIn, getSession, getProviders } from 'next-auth/react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
-import type { SRSRole } from '@/types/next-auth';
 import {
   validateLoginForm,
   isLoginFormValid,
   type LoginValidationErrors,
 } from '../utils/login-validation';
+import {
+  sanitizeInternalCallbackUrl,
+  extractRoleFromSession,
+} from '../utils/url-sanitizer';
 
 const DASHBOARD_BY_ROLE: Record<string, string> = {
   ADMIN: '/admin',
@@ -51,7 +54,10 @@ export function LoginForm() {
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  const readCallbackUrl = () => searchParams.get('callbackUrl');
+  const readCallbackUrl = useCallback(
+    () => searchParams.get('callbackUrl'),
+    [searchParams]
+  );
 
   useEffect(() => {
     let active = true;
@@ -60,15 +66,11 @@ export function LoginForm() {
     getSession()
       .then((session) => {
         if (!active) return;
-        const role =
-          (session?.user as any)?.role || (session as any)?.data?.role;
+        const role = extractRoleFromSession(session);
         if (role) {
-          const rawCallback = readCallbackUrl();
+          const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
           const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
-          const destination =
-            rawCallback && rawCallback !== '/' && rawCallback !== '/login'
-              ? rawCallback
-              : roleDestination;
+          const destination = safeCallback || roleDestination;
           router.replace(destination);
           return;
         }
@@ -90,7 +92,7 @@ export function LoginForm() {
     return () => {
       active = false;
     };
-  }, [router, searchParams]);
+  }, [router, readCallbackUrl]);
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
@@ -116,10 +118,8 @@ export function LoginForm() {
     setGoogleLoading(true);
     try {
       const rawCallback = readCallbackUrl();
-      const callbackUrl =
-        rawCallback && rawCallback !== '/' && rawCallback !== '/login'
-          ? rawCallback
-          : '/cliente';
+      const safeCallback = sanitizeInternalCallbackUrl(rawCallback);
+      const callbackUrl = safeCallback || '/cliente';
       const result = await signIn('google', { callbackUrl, redirect: false });
       if (result?.error) {
         setSubmitError('No se pudo iniciar sesión con Google. Intenta nuevamente.');
@@ -166,29 +166,25 @@ export function LoginForm() {
         return;
       }
 
-      let session = await getSession();
-      let role =
-        (session?.user as any)?.role || (session as any)?.data?.role;
+      const session = await getSession();
+      let role = extractRoleFromSession(session);
 
       // Resiliencia adicional: consulta directa al endpoint de sesión si getSession aún no sincronizó
       if (!role) {
         try {
           const res = await fetch('/api/auth/session');
           if (res.ok) {
-            const json = await res.json();
-            role = json?.data?.role || json?.user?.role;
+            const json: unknown = await res.json();
+            role = extractRoleFromSession(json);
           }
         } catch {
           // Ignorar fallo de consulta auxiliar
         }
       }
 
-      const callbackUrl = readCallbackUrl();
-      const roleDestination = role ? DASHBOARD_BY_ROLE[role] : '/';
-      const destination =
-        callbackUrl && callbackUrl !== '/' && callbackUrl !== '/login'
-          ? callbackUrl
-          : roleDestination;
+      const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
+      const roleDestination = role ? DASHBOARD_BY_ROLE[role] || '/' : '/';
+      const destination = safeCallback || roleDestination;
 
       router.push(destination);
       router.refresh();
@@ -210,7 +206,7 @@ export function LoginForm() {
         }}
       >
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-club-primary border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-[3px] border-club-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-bold text-club-accent tracking-wider uppercase">
             Verificando sesión...
           </span>
