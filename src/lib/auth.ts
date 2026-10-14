@@ -88,7 +88,13 @@ export async function authenticateUser(
   }
 
   // 4. Caso de error: Validar que el correo del usuario esté verificado (H-AUTH-02)
-  if (user.email_verified !== true) {
+  const isEmailVerified =
+    user.email_verified === true ||
+    (typeof user.metadata === "object" &&
+      user.metadata !== null &&
+      (user.metadata as Record<string, any>).email_verified === true);
+
+  if (!isEmailVerified) {
     throw new EmailNotVerifiedError();
   }
 

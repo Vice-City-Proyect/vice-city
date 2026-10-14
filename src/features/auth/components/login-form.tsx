@@ -132,7 +132,15 @@ export function LoginForm() {
       });
 
       if (!result || result.error) {
-        setSubmitError('Correo o contraseña incorrectos. Verifica tus datos.');
+        if (
+          result?.error?.includes('confirmar tu correo') ||
+          result?.error === 'EMAIL_NOT_VERIFIED' ||
+          result?.error?.includes('EmailNotVerified')
+        ) {
+          setSubmitError('Debes confirmar tu correo electrónico antes de iniciar sesión.');
+        } else {
+          setSubmitError('Correo o contraseña incorrectos. Verifica tus datos.');
+        }
         return;
       }
 
