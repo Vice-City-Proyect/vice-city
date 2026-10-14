@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CatalogGrid } from "@/features/services/components/CatalogGrid";
 import { AvailabilitySlots } from "@/features/services/components/AvailabilitySlots";
@@ -12,7 +12,7 @@ import type { BookingDetails, HoldReservationResult } from "@/features/reservati
 
 const MOCK_CLIENT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-export default function ClientReservarPage() {
+function ClientReservarPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -254,5 +254,13 @@ export default function ClientReservarPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ClientReservarPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClientReservarPageContent />
+    </Suspense>
   );
 }
