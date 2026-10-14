@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession, getProviders } from 'next-auth/react';
@@ -8,20 +8,17 @@ import { signIn, getSession, getProviders } from 'next-auth/react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
+import type { SRSRole } from '@/types/next-auth';
 import {
   validateLoginForm,
   isLoginFormValid,
   type LoginValidationErrors,
 } from '../utils/login-validation';
-import {
-  sanitizeInternalCallbackUrl,
-  extractRoleFromSession,
-} from '../utils/url-sanitizer';
 
-const DASHBOARD_BY_ROLE: Record<string, string> = {
+const DASHBOARD_BY_ROLE: Record<SRSRole, string> = {
   ADMIN: '/admin',
   CLIENT: '/cliente',
-  TICKET_SELLER: '/employee/pos',
+  TICKET_SELLER: '/empleado/pos',
   QR_VALIDATOR: '/empleado/qr',
 };
 
@@ -52,35 +49,9 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
-
-  const readCallbackUrl = useCallback(
-    () => searchParams.get('callbackUrl'),
-    [searchParams]
-  );
 
   useEffect(() => {
     let active = true;
-
-    // 1. Verificación de sesión activa: redirige al dashboard del rol si ya está autenticado
-    getSession()
-      .then((session) => {
-        if (!active) return;
-        const role = extractRoleFromSession(session);
-        if (role) {
-          const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
-          const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
-          const destination = safeCallback || roleDestination;
-          router.replace(destination);
-          return;
-        }
-        setCheckingSession(false);
-      })
-      .catch(() => {
-        if (active) setCheckingSession(false);
-      });
-
-    // 2. Consulta disponibilidad del proveedor Google OAuth
     getProviders()
       .then((providers) => {
         if (active) setGoogleAvailable(Boolean(providers && 'google' in providers));
@@ -88,11 +59,12 @@ export function LoginForm() {
       .catch(() => {
         if (active) setGoogleAvailable(false);
       });
-
     return () => {
       active = false;
     };
-  }, [router, readCallbackUrl]);
+  }, []);
+
+  const readCallbackUrl = () => searchParams.get('callbackUrl');
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
@@ -117,9 +89,7 @@ export function LoginForm() {
     }
     setGoogleLoading(true);
     try {
-      const rawCallback = readCallbackUrl();
-      const safeCallback = sanitizeInternalCallbackUrl(rawCallback);
-      const callbackUrl = safeCallback || '/cliente';
+      const callbackUrl = readCallbackUrl() || '/cliente';
       const result = await signIn('google', { callbackUrl, redirect: false });
       if (result?.error) {
         setSubmitError('No se pudo iniciar sesión con Google. Intenta nuevamente.');
@@ -167,25 +137,10 @@ export function LoginForm() {
       }
 
       const session = await getSession();
-      let role = extractRoleFromSession(session);
+      const role = session?.user?.role;
 
-      // Resiliencia adicional: consulta directa al endpoint de sesión si getSession aún no sincronizó
-      if (!role) {
-        try {
-          const res = await fetch('/api/auth/session');
-          if (res.ok) {
-            const json: unknown = await res.json();
-            role = extractRoleFromSession(json);
-          }
-        } catch {
-          // Ignorar fallo de consulta auxiliar
-        }
-      }
-
-      const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
-      const roleDestination = role ? DASHBOARD_BY_ROLE[role] || '/' : '/';
-      const destination = safeCallback || roleDestination;
-
+      const callbackUrl = readCallbackUrl();
+      const destination = callbackUrl || (role ? DASHBOARD_BY_ROLE[role] : '/');
       router.push(destination);
       router.refresh();
     } catch {
@@ -194,26 +149,6 @@ export function LoginForm() {
       setSubmitting(false);
     }
   };
-
-  if (checkingSession) {
-    return (
-      <div
-        className="w-full max-w-220 bg-club-surface rounded-3xl overflow-hidden flex items-center justify-center min-h-120"
-        style={{
-          border: '1.5px solid #b0bf3f',
-          boxShadow:
-            '0 8px 40px rgba(176, 191, 63, 0.13), 0 2px 12px rgba(0,0,0,0.07)',
-        }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-[3px] border-club-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold text-club-accent tracking-wider uppercase">
-            Verificando sesión...
-          </span>
-        </div>
-      </div>
-    );
-  }
 
 
   return (

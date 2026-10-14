@@ -246,7 +246,7 @@ describe("FT-08 / HU27: Métricas de Ventas y Ocupación (Criterios de Aceptaci�
     const reqAdmin = new NextRequest("http://localhost:3000/api/reports/metrics?period=month", {
       headers: { "x-user-role": "ADMIN" },
     });
-    const resAdmin = await GET(reqAdmin, { metricsServiceOverride: metricsService });
+    const resAdmin = await GET(reqAdmin);
     assert.equal(resAdmin.status, 200);
     const bodyAdmin = await resAdmin.json();
     assert.equal(bodyAdmin.success, true);

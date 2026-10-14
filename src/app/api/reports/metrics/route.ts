@@ -15,12 +15,7 @@ import { metricsService, type MetricsPeriod } from "@/features/reports";
 
 const VALID_PERIODS: MetricsPeriod[] = ["day", "week", "month", "year"];
 
-interface RouteContext {
-  params?: unknown;
-  metricsServiceOverride?: Pick<typeof metricsService, "getMetrics">;
-}
-
-export async function GET(request: NextRequest, context?: RouteContext) {
+export async function GET(request: NextRequest) {
   // 1. CA03: Restringir acceso exclusivamente a administradores (403 si no es ADMIN)
   const auth = await requireAdminRole(request);
   if (!auth.authorized) {
@@ -44,8 +39,7 @@ export async function GET(request: NextRequest, context?: RouteContext) {
     }
 
     // 3. CA01, CA02, CA04: Obtener métricas consolidadas en America/Bogota
-    const service = context?.metricsServiceOverride || metricsService;
-    const metrics = await service.getMetrics(periodParam);
+    const metrics = await metricsService.getMetrics(periodParam);
 
     return NextResponse.json(
       {

@@ -11,10 +11,6 @@ jobs:
   checks:
     name: Lint, TypeScript, and tests
     runs-on: ubuntu-latest
-    env:
-      TZ: America/Bogota
-      NEXTAUTH_SECRET: test-secret-key-vice-city-auth-123456
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
