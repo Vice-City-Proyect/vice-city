@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Eye, Pencil, Power, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Check, Eye, Pencil, Power, RefreshCw, UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormField } from '@/components/ui/FormField';
@@ -21,12 +22,15 @@ import {
 } from '@/features/users/api/user-mappers';
 import {
   changeUserRole,
+  createEmployeeRecord,
   fetchAllAdminUsers,
   updateEmployeeRecord,
+  type CreateEmployeePayload,
 } from '@/features/users/api/users.api';
 import { applyUserUpdate } from '@/features/users/api/user-update-plan';
 import { UserDetailModal } from '@/features/users/components/UserDetailModal';
 import { UserFormModal } from '@/features/users/components/UserFormModal';
+import { EmployeeCreateModal } from '@/features/users/components/EmployeeCreateModal';
 
 interface UserFilters {
   role: string;
@@ -41,6 +45,8 @@ export default function AdminUsersPage() {
   const [filters, setFilters] = useState<UserFilters>(EMPTY_USER_FILTERS);
   const [selected, setSelected] = useState<User | null>(null);
   const [editing, setEditing] = useState<User | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +101,15 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleCreateEmployee(payload: CreateEmployeePayload) {
+    // Si el servidor rechaza el alta (p. ej. correo duplicado), el error vuelve al modal.
+    await createEmployeeRecord(payload);
+    setCreating(false);
+    setError(null);
+    setNotice(`Empleado ${payload.full_name} creado correctamente.`);
+    await loadData();
+  }
+
   async function handleSave(updated: User) {
     const original = users.find((item) => item.id === updated.id);
     setSaving(true);
@@ -127,7 +142,38 @@ export default function AdminUsersPage() {
         title="Usuarios y"
         highlightedTitle="empleados"
         description="Consulta y gestiona clientes, administradores y empleados del complejo."
+        actions={
+          <Button
+            size="sm"
+            onClick={() => {
+              setNotice(null);
+              setCreating(true);
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Nuevo empleado
+            </span>
+          </Button>
+        }
       />
+
+      {notice && (
+        <div
+          role="status"
+          className="mb-5 flex items-center gap-3 rounded-2xl border border-club-primary/40 bg-club-primary/10 px-4 py-3 text-sm font-bold text-club-accent"
+        >
+          <Check className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="text-[11px] font-bold uppercase tracking-wider text-text-muted hover:text-club-accent"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
@@ -305,6 +351,13 @@ export default function AdminUsersPage() {
       </Card>
 
       <UserDetailModal user={selected} onClose={() => setSelected(null)} />
+
+      {creating && (
+        <EmployeeCreateModal
+          onClose={() => setCreating(false)}
+          onCreate={handleCreateEmployee}
+        />
+      )}
 
       {editing && (
         <UserFormModal

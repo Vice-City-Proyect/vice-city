@@ -8,6 +8,7 @@ import type { BackendUserRecord } from "./user-mappers";
  * Contratos consumidos:
  * - GET   /api/admin/users?page=&limit=&search=&role=
  * - PATCH /api/admin/users/[id]/role
+ * - POST  /api/employees
  * - PATCH /api/employees/[id]
  */
 
@@ -92,6 +93,24 @@ export function changeUserRole(
       body: JSON.stringify({ role }),
     }
   );
+}
+
+export interface CreateEmployeePayload {
+  email: string;
+  full_name: string;
+  password: string;
+  role: "TICKET_SELLER" | "QR_VALIDATOR";
+  phone?: string;
+  document_id?: string;
+}
+
+export function createEmployeeRecord(
+  payload: CreateEmployeePayload
+): Promise<BackendUserRecord> {
+  return apiRequest<BackendUserRecord>("/api/employees", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export interface UpdateEmployeePayload {
