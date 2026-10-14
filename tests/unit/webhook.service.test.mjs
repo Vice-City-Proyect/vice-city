@@ -298,7 +298,7 @@ describe("Webhook de Stripe: verificación de firma", () => {
 
     await assert.rejects(
       () => service.handleRaw("{}", "t=1,v1=bad"),
-      InvalidStripeSignatureError
+      { name: "InvalidStripeSignatureError" }
     );
   });
 

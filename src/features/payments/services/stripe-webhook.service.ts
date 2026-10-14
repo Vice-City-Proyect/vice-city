@@ -13,6 +13,7 @@
 import Stripe from "stripe";
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { getStripeSecretKey, getStripeWebhookSecret } from "../lib/stripe.config";
 import type { ProcessWebhookResult } from "../types/webhook.types";
 import {
   InvalidWebhookSignatureError,
@@ -21,6 +22,8 @@ import {
 } from "../errors/webhook.errors";
 
 export interface StripeWebhookServiceDependencies {
+  stripeClient?: Stripe;
+  webhookSecret?: string;
   findBookingFn?: (bookingId: string) => Promise<any | null>;
   findPaymentByProviderRefFn?: (ref: string) => Promise<any | null>;
   updateBookingFn?: (bookingId: string, data: any) => Promise<any>;
@@ -32,18 +35,30 @@ export interface StripeWebhookServiceDependencies {
 }
 
 export class StripeWebhookService {
-  private readonly stripe: Stripe;
-  private readonly webhookSecret: string;
+  private stripe?: Stripe;
+  private webhookSecret?: string;
   private readonly deps?: StripeWebhookServiceDependencies;
 
   constructor(dependencies?: StripeWebhookServiceDependencies) {
     this.deps = dependencies;
-    const apiKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_key_vice_city";
-    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "whsec_placeholder_secret_vice_city";
+    this.webhookSecret = dependencies?.webhookSecret;
+    this.stripe = dependencies?.stripeClient;
+  }
 
-    this.stripe = new Stripe(apiKey, {
-      typescript: true,
-    });
+  private getStripe(): Stripe {
+    if (!this.stripe) {
+      this.stripe = new Stripe(getStripeSecretKey(), {
+        typescript: true,
+      });
+    }
+    return this.stripe;
+  }
+
+  private getWebhookSecret(): string {
+    if (!this.webhookSecret) {
+      this.webhookSecret = getStripeWebhookSecret();
+    }
+    return this.webhookSecret;
   }
 
   /**
@@ -56,7 +71,7 @@ export class StripeWebhookService {
 
     if (this.deps?.constructEventFn) {
       try {
-        return this.deps.constructEventFn(rawBody, signature, this.webhookSecret);
+        return this.deps.constructEventFn(rawBody, signature, this.webhookSecret || "");
       } catch (err: any) {
         throw new InvalidWebhookSignatureError(
           `Firma de Stripe inválida: ${err.message || "Firma no verificada"}`
@@ -64,11 +79,13 @@ export class StripeWebhookService {
       }
     }
 
+    const secret = this.getWebhookSecret();
+
     try {
-      return this.stripe.webhooks.constructEvent(
+      return this.getStripe().webhooks.constructEvent(
         rawBody,
         signature,
-        this.webhookSecret
+        secret
       );
     } catch (err: any) {
       throw new InvalidWebhookSignatureError(
