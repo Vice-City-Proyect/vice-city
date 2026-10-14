@@ -49,7 +49,7 @@ export class MetricsService {
 
   /**
    * Genera el flujo temporal inicial (esqueleto en ceros) según el período seleccionado.
-   * Compatible 1:1 con las gráficas de frontend (RevenueChart) y MOCK_REVENUE.
+   * Compatible 1:1 con las gráficas de frontend (RevenueChart).
    */
   private initializeRevenueFlow(period: MetricsPeriod): RevenuePointData[] {
     switch (period) {

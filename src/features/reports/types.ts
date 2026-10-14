@@ -10,7 +10,7 @@
  * - Flujo temporal de ingresos para gráficas (horas, días, semanas, meses)
  */
 
-import type { RevenuePeriod } from "./data/mock-revenue";
+import type { RevenuePeriod } from "./constants";
 
 export type MetricsPeriod = RevenuePeriod; // 'day' | 'week' | 'month' | 'year'
 

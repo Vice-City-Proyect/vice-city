@@ -31,13 +31,5 @@ export type {
   MetricsResponseData,
 } from "./types";
 
-// Data
-export {
-  REVENUE_PERIODS,
-  type RevenuePeriod,
-  type RevenuePoint,
-  MOCK_REVENUE,
-  MOCK_RESERVATIONS_BY_SERVICE,
-  MOCK_REVENUE_DISTRIBUTION,
-  MOCK_REVENUE_SUMMARY,
-} from "./data/mock-revenue";
+// Constantes
+export { REVENUE_PERIODS, type RevenuePeriod } from "./constants";

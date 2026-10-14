@@ -10,7 +10,8 @@ import {
   YAxis,
 } from 'recharts';
 import { formatCOPShort } from '@/lib/format';
-import { AXIS_TICK, CHART_COLORS, ChartTooltip } from './chart-utils';
+import { hasChartData } from '@/features/reports/utils/chart-data';
+import { AXIS_TICK, CHART_COLORS, ChartEmpty, ChartTooltip } from './chart-utils';
 
 export interface ChartPoint {
   label: string;
@@ -23,6 +24,8 @@ interface RevenueChartProps {
 }
 
 export function RevenueChart({ data, height = 260 }: RevenueChartProps) {
+  if (!hasChartData(data)) return <ChartEmpty height={height} />;
+
   return (
     <div style={{ height }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
