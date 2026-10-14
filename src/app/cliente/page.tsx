@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getServerSession } from 'next-auth/next';
 import { CalendarDays, Sparkles, User, Waves } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -6,7 +7,7 @@ import { QuickLinks } from '@/components/common/QuickLinks';
 import { ClientServiceCard } from '@/features/services/components/ClientServiceCard';
 import { CLIENT_CATALOG } from '@/features/services/data/client-catalog';
 import { ClientNextReservation } from '@/features/reservations/components/ClientNextReservation';
-import { MOCK_CLIENT_SESSION } from '@/features/auth/data/mock-session';
+import { authOptions } from '@/lib/auth';
 import { TIME_ZONE } from '@/lib/schedule';
 
 export const metadata: Metadata = {
@@ -20,7 +21,17 @@ const QUICK_ACTIONS = [
   { href: '/cliente/perfil', label: 'Mi perfil', icon: User },
 ];
 
-export default function ClientHomePage() {
+export default async function ClientHomePage() {
+  let session = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
+
+  const userName = session?.user?.name || 'Cliente';
+  const clientId = session?.user?.id || '';
+
   return (
     <div className="flex flex-col gap-8">
       <Card tone="dark" className="p-6 sm:p-8">
@@ -32,7 +43,7 @@ export default function ClientHomePage() {
             </span>
 
             <h1 className="text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl">
-              Hola, <span className="text-club-primary">{MOCK_CLIENT_SESSION.name}</span>
+              Hola, <span className="text-club-primary">{userName}</span>
             </h1>
 
             <p className="text-sm leading-relaxed text-white/70 sm:text-base">
@@ -83,7 +94,7 @@ export default function ClientHomePage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <ClientNextReservation clientId={MOCK_CLIENT_SESSION.id} />
+          <ClientNextReservation clientId={clientId} />
         </div>
         <QuickLinks
           title={
