@@ -18,10 +18,53 @@ import {
   PastDateError,
   AdvanceBookingLimitError,
 } from "@/features/services";
+import {
+  resolveSession,
+  hasAnyRole,
+  type SessionAwareRouteContext,
+} from "@/features/auth/utils/session-context";
 
-export async function POST(request: NextRequest) {
+export interface HoldRouteContext extends SessionAwareRouteContext {
+  serviceOverride?: Pick<typeof reservationHoldService, "holdReservation">;
+}
+
+export async function POST(request: NextRequest, context?: HoldRouteContext) {
   try {
-    const body = await request.json();
+    const session = await resolveSession(context);
+    if (!session) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Se requiere una sesión activa para reservar",
+          error: { code: "UNAUTHORIZED" },
+        },
+        { status: 401 }
+      );
+    }
+    if (!hasAnyRole(session, ["CLIENT", "ADMIN"])) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tu rol no tiene permisos para crear reservas web",
+          error: { code: "FORBIDDEN" },
+        },
+        { status: 403 }
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "El cuerpo de la solicitud no es un JSON válido o está vacío",
+          error: { code: "MALFORMED_JSON" },
+        },
+        { status: 400 }
+      );
+    }
     const parseResult = createHoldSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -35,7 +78,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const holdResult = await reservationHoldService.holdReservation(parseResult.data);
+    // La identidad la define la sesión: un cliente no puede retener cupos a nombre de otro usuario.
+    const isAdmin = session.role.toUpperCase() === "ADMIN";
+    if (!isAdmin && parseResult.data.userId !== session.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "No puedes reservar a nombre de otro usuario",
+          error: { code: "FORBIDDEN_USER" },
+        },
+        { status: 403 }
+      );
+    }
+
+    const service = context?.serviceOverride ?? reservationHoldService;
+    const holdResult = await service.holdReservation(parseResult.data);
 
     return NextResponse.json(
       {
