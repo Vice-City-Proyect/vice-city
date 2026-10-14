@@ -48,6 +48,42 @@ export function hashVerificationToken(token: string): string {
 }
 
 /**
+ * Resuelve y normaliza la URL base de la aplicación para enlaces de correo (H-AUTH-01 / H-AUTH-06).
+ *
+ * Reglas:
+ * 1. Prioridad: customBaseUrl > env.NEXT_PUBLIC_APP_URL > env.NEXTAUTH_URL > "http://localhost:3000".
+ * 2. Normalización de trailing slash: elimina slashes finales.
+ * 3. Prevención de ERR_SSL_PROTOCOL_ERROR (H-AUTH-06): en entornos locales o de desarrollo
+ *    (NODE_ENV !== "production" y LOCAL_HTTPS !== "true"), si la URL base fue configurada
+ *    erróneamente con "https://localhost" o "https://127.0.0.1", la normaliza automáticamente a "http://".
+ * 4. Preservación de producción: en NODE_ENV === "production", respeta y preserva HTTPS sin alterar.
+ */
+export function resolveAppBaseUrl(
+  customBaseUrl?: string,
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  const candidate = (
+    customBaseUrl ||
+    env.NEXT_PUBLIC_APP_URL ||
+    env.NEXTAUTH_URL ||
+    "http://localhost:3000"
+  ).trim();
+
+  let url = candidate.replace(/\/+$/, "");
+
+  const isProduction = env.NODE_ENV === "production";
+  const hasLocalHttps = env.LOCAL_HTTPS === "true" || env.LOCAL_HTTPS === "1";
+
+  if (!isProduction && !hasLocalHttps) {
+    if (/^https:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(url)) {
+      url = url.replace(/^https:/i, "http:");
+    }
+  }
+
+  return url;
+}
+
+/**
  * Servicio de negocio para la confirmación de correo electrónico.
  * Implementa las reglas de dominio para HU03-B:
  * 1. Generación de token criptográficamente seguro (256 bits).
@@ -70,7 +106,7 @@ export class EmailConfirmationService {
   async sendVerificationEmail(
     userId: string,
     email: string,
-    baseUrl: string = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    baseUrl?: string
   ): Promise<SendVerificationResult> {
     const cleanEmail = email.trim().toLowerCase();
     const token = crypto.randomBytes(32).toString("hex");
@@ -150,7 +186,8 @@ export class EmailConfirmationService {
     }
 
     // 3. Enviar correo mediante el proveedor inyectado
-    const verificationUrl = `${baseUrl.replace(/\/$/, "")}/verify-email?token=${token}`;
+    const appBaseUrl = resolveAppBaseUrl(baseUrl);
+    const verificationUrl = `${appBaseUrl}/verify-email?token=${token}`;
     await this.emailSender.sendVerificationEmail({
       to: cleanEmail,
       token,
@@ -323,7 +360,7 @@ export class EmailConfirmationService {
    */
   async resendVerificationEmail(
     email: string,
-    baseUrl: string = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    baseUrl?: string
   ): Promise<SendVerificationResult> {
     if (!email || typeof email !== "string" || !email.trim()) {
       throw new InvalidTokenError("El correo electrónico es obligatorio");
@@ -420,7 +457,8 @@ export class EmailConfirmationService {
     }
 
     // 4. Enviar nuevo correo
-    const verificationUrl = `${baseUrl.replace(/\/$/, "")}/verify-email?token=${newToken}`;
+    const appBaseUrl = resolveAppBaseUrl(baseUrl);
+    const verificationUrl = `${appBaseUrl}/verify-email?token=${newToken}`;
     await this.emailSender.sendVerificationEmail({
       to: cleanEmail,
       token: newToken,

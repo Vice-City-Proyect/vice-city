@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { EmailConfirmationService } from "../../src/features/auth/services/email-confirmation.service.ts";
+import { EmailConfirmationService, resolveAppBaseUrl } from "../../src/features/auth/services/email-confirmation.service.ts";
 import { MockEmailSender } from "../../src/features/auth/services/email.service.ts";
 import {
   TokenExpiredError,
@@ -287,5 +287,94 @@ describe("HU03-B: Lógica de Negocio - Confirmación de Correo Electrónico", ()
         return true;
       }
     );
+  });
+
+  describe("H-AUTH-01 & H-AUTH-06: Configuración de URL base y prevención de ERR_SSL_PROTOCOL_ERROR", () => {
+    it("resuelve 'http://localhost:3000' por defecto cuando no hay variables ni customBaseUrl", () => {
+      const url = resolveAppBaseUrl(undefined, {});
+      assert.equal(url, "http://localhost:3000");
+    });
+
+    it("utiliza NEXT_PUBLIC_APP_URL si está definido", () => {
+      const url = resolveAppBaseUrl(undefined, {
+        NEXT_PUBLIC_APP_URL: "http://127.0.0.1:4000",
+      });
+      assert.equal(url, "http://127.0.0.1:4000");
+    });
+
+    it("usa NEXTAUTH_URL como fallback si NEXT_PUBLIC_APP_URL no está definido", () => {
+      const url = resolveAppBaseUrl(undefined, {
+        NEXTAUTH_URL: "http://localhost:3001",
+      });
+      assert.equal(url, "http://localhost:3001");
+    });
+
+    it("elimina barras diagonales finales de la URL base", () => {
+      const url = resolveAppBaseUrl("http://localhost:3000///", {});
+      assert.equal(url, "http://localhost:3000");
+    });
+
+    it("normaliza defensivamente 'https://localhost' a 'http://' en desarrollo para prevenir ERR_SSL_PROTOCOL_ERROR", () => {
+      const url = resolveAppBaseUrl(undefined, {
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "https://localhost:3000",
+      });
+      assert.equal(url, "http://localhost:3000");
+    });
+
+    it("normaliza defensivamente 'https://127.0.0.1' a 'http://' en desarrollo", () => {
+      const url = resolveAppBaseUrl(undefined, {
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "https://127.0.0.1:8080",
+      });
+      assert.equal(url, "http://127.0.0.1:8080");
+    });
+
+    it("preserva HTTPS en desarrollo si LOCAL_HTTPS='true' está configurado explícitamente", () => {
+      const url = resolveAppBaseUrl(undefined, {
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "https://localhost:3000",
+        LOCAL_HTTPS: "true",
+      });
+      assert.equal(url, "https://localhost:3000");
+    });
+
+    it("preserva estrictamente HTTPS en producción (NODE_ENV='production')", () => {
+      const prodUrl = resolveAppBaseUrl(undefined, {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://vicecity.club",
+      });
+      assert.equal(prodUrl, "https://vicecity.club");
+    });
+
+    it("construye verificationUrl correctamente en sendVerificationEmail y resendVerificationEmail", async () => {
+      const mockUser = {
+        id: "usr-uuid-proto-1",
+        email: "ssl-check@vicecity.com",
+        metadata: {},
+      };
+
+      const { client } = createMockPrisma({ users: [mockUser] });
+      const emailSender = new MockEmailSender();
+      const service = new EmailConfirmationService(client, emailSender);
+
+      // Enviar primer correo
+      await service.sendVerificationEmail(mockUser.id, mockUser.email);
+      assert.equal(emailSender.sentEmails.length, 1);
+      const firstEmail = emailSender.sentEmails[0];
+      assert.ok(
+        firstEmail.verificationUrl.startsWith("http://localhost:3000/verify-email?token="),
+        `La URL debe ser http://localhost:3000 y no https://, recibido: ${firstEmail.verificationUrl}`
+      );
+
+      // Reenviar correo
+      await service.resendVerificationEmail(mockUser.email);
+      assert.equal(emailSender.sentEmails.length, 2);
+      const secondEmail = emailSender.sentEmails[1];
+      assert.ok(
+        secondEmail.verificationUrl.startsWith("http://localhost:3000/verify-email?token="),
+        `La URL de reenvío debe ser http://localhost:3000, recibido: ${secondEmail.verificationUrl}`
+      );
+    });
   });
 });
