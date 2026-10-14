@@ -1,5 +1,7 @@
 # Informe Técnico de Diagnóstico de Autenticación desde el Backend — Vice City
 
+> **Actualización (VCP-84):** este informe es histórico. El endpoint `POST /api/auth/google` que se describe aquí **fue retirado** y responde `410 ENDPOINT_RETIRED`, porque aceptaba el perfil enviado por el cliente sin verificar ningún token de Google. El inicio de sesión con Google se hace únicamente por NextAuth (`/api/auth/signin/google`), que ahora exige `email_verified === true`. Las referencias a ese endpoint más abajo describen el estado anterior.
+
 Este informe presenta el diagnóstico técnico y exhaustivo de los tres errores de autenticación reportados, realizado **exclusivamente sobre la arquitectura, código fuente, servicios y configuración del backend** en la rama `backend`.
 
 ---
