@@ -1,18 +1,17 @@
 import { PrismaClient } from "@prisma/client";
+import { validateAdminSeedPassword } from "./seed-admin-password.mjs";
+import { hashAdminPassword, ensureAdminUser } from "./seed-admin-core.mjs";
+
+// VCP-86: sin contraseña por defecto. La base de datos es compartida, así que el seed
+// siempre exige ADMIN_SEED_PASSWORD (definida solo en el .env local, nunca en el repo).
+// Se valida ANTES de crear el cliente de Prisma: una configuración inválida detiene el
+// proceso sin acceder a la base de datos.
+const ADMIN_PASSWORD_PLAIN = validateAdminSeedPassword(process.env.ADMIN_SEED_PASSWORD);
 
 const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = (process.env.ADMIN_SEED_EMAIL || "admin@vicecity.com").trim().toLowerCase();
 const ADMIN_NAME = process.env.ADMIN_SEED_NAME || "Administrador Principal";
-const ADMIN_PASSWORD_PLAIN =
-  process.env.ADMIN_SEED_PASSWORD ||
-  (process.env.NODE_ENV === "production" ? null : "vicecity123*");
-
-if (!ADMIN_PASSWORD_PLAIN) {
-  throw new Error(
-    "Seguridad: En entornos de producción o compartidos debe definirse la variable ADMIN_SEED_PASSWORD en .env."
-  );
-}
 
 async function main() {
   console.log("⏳ Iniciando siembra de usuario administrador...");
@@ -30,53 +29,21 @@ async function main() {
   console.log(`✅ Rol 'admin' encontrado con id: ${adminRole.id}`);
 
   // 2. Generar hash bcrypt estándar
-  let passwordHash;
-  try {
-    await prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
-    const hashResult = await prisma.$queryRawUnsafe(
-      `SELECT crypt($1, gen_salt('bf', 10)) as hash;`,
-      ADMIN_PASSWORD_PLAIN
-    );
-    passwordHash = hashResult[0].hash;
-  } catch {
-    // Fallback si la base de datos restringe CREATE EXTENSION
-    const bcrypt = await import("bcryptjs").catch(() => null);
-    if (bcrypt && bcrypt.hash) {
-      passwordHash = await bcrypt.hash(ADMIN_PASSWORD_PLAIN, 10);
-    } else {
-      throw new Error("No se pudo generar el hash de la contraseña.");
-    }
-  }
+  // (pgcrypto en la base; respaldo con bcryptjs si la base restringe CREATE EXTENSION)
+  const passwordHash = await hashAdminPassword(prisma, ADMIN_PASSWORD_PLAIN);
   console.log("✅ Hash de contraseña generado exitosamente con bcrypt.");
 
-  // 3. Sembrar el usuario administrador si no existe
-  const existingUser = await prisma.users.findFirst({
-    where: {
-      email: { equals: ADMIN_EMAIL, mode: "insensitive" },
-    },
+  // 3. Sembrar el usuario administrador si no existe (si existe, no se toca su contraseña)
+  const { userId, created } = await ensureAdminUser(prisma, {
+    roleId: adminRole.id,
+    email: ADMIN_EMAIL,
+    fullName: ADMIN_NAME,
+    passwordHash,
   });
-
-  let userId;
-  if (!existingUser) {
-    const newUser = await prisma.users.create({
-      data: {
-        role_id: adminRole.id,
-        email: ADMIN_EMAIL,
-        full_name: ADMIN_NAME,
-        password_hash: passwordHash,
-        is_active: true,
-        metadata: {
-          immutable: true,
-          system_root: true,
-          description: "Usuario administrador principal del sistema",
-        },
-      },
-    });
-    userId = newUser.id;
+  if (created) {
     console.log(`✅ Usuario admin creado con ID: ${userId}`);
   } else {
-    userId = existingUser.id;
-    console.log(`ℹ️ El usuario admin ya existe con ID: ${userId}.`);
+    console.log(`ℹ️ El usuario admin ya existe con ID: ${userId}. No se modificó su contraseña.`);
   }
 
   // 4. Configurar trigger de protección en PostgreSQL
@@ -132,7 +99,7 @@ async function main() {
       data: { role_id: dummyRoleId },
     });
     console.warn("⚠️ ALERTA: La modificación de rol fue permitida indebidamente.");
-  } catch (error) {
+  } catch {
     console.log("✅ Éxito: La base de datos rechazó la degradación del admin tal como se requiere.");
   }
 

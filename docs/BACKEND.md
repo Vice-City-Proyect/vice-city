@@ -90,7 +90,7 @@ npm run db:generate
 # Probar la conectividad activa contra PostgreSQL en Supabase
 npm run db:test
 
-# Crear el superadministrador inicial (admin@vicecity.com / vicecity123*)
+# Crear el superadministrador inicial (requiere ADMIN_SEED_PASSWORD en tu .env, mín. 12 caracteres)
 npm run db:seed:admin
 ```
 
@@ -289,7 +289,7 @@ Configura las siguientes variables en `.env.local` y `.env`:
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | `pk_test_your_stripe_publishable_key` | Clave pública de Stripe para inicializar Stripe Elements en el frontend. |
 | `ADMIN_SEED_EMAIL` | No | `admin@vicecity.com` | Correo del superadministrador para `npm run db:seed:admin`. |
 | `ADMIN_SEED_NAME` | No | `Administrador Principal` | Nombre del superadministrador para `npm run db:seed:admin`. |
-| `ADMIN_SEED_PASSWORD` | No* | `vicecity123*` | Contraseña del superadministrador (*obligatoria en producción para seed). |
+| `ADMIN_SEED_PASSWORD` | Sí (para el seed) | — (sin valor por defecto) | Contraseña del superadministrador, mínimo 12 caracteres. Solo en tu `.env` local. |
 
 > [!WARNING]
 > No dupliques el nombre de la variable en el valor (ej. `DATABASE_URL="DATABASE_URL=..."`). Asegúrate de que no haya espacios alrededor del signo igual `=`.
@@ -401,7 +401,7 @@ Para importar en herramientas como [editor.swagger.io](https://editor.swagger.io
 | [`docs/swagger/auth-register.swagger.json`](./docs/swagger/auth-register.swagger.json) | Registro de Usuarios | `POST /api/auth/register` |
 | [`docs/swagger/auth-login.swagger.json`](./docs/swagger/auth-login.swagger.json) | Login y Sesión | `POST /api/auth/login`, `GET /api/auth/session` |
 | [`docs/swagger/auth-password-reset.swagger.json`](./docs/swagger/auth-password-reset.swagger.json) | Recuperación de Contraseña | `POST /api/auth/forgot-password`, `GET/POST /api/auth/reset-password` |
-| [`docs/swagger/auth-google.swagger.json`](./docs/swagger/auth-google.swagger.json) | Login Social con Google | `GET /api/auth/google`, `POST /api/auth/google` |
+| [`docs/swagger/auth-google.swagger.json`](./docs/swagger/auth-google.swagger.json) | Login Social con Google | `GET /api/auth/google`, `POST /api/auth/google` (retirado: 410 `ENDPOINT_RETIRED`) |
 | [`docs/swagger/auth-logout.swagger.json`](./docs/swagger/auth-logout.swagger.json) | Cierre de Sesión | `POST /api/auth/logout` |
 | [`docs/swagger/admin-roles.swagger.json`](./docs/swagger/admin-roles.swagger.json) | Gestión Administrativa de Roles | `GET /api/admin/users`, `PATCH /api/admin/users/{id}/role` |
 | [`docs/swagger/employees.swagger.json`](./docs/swagger/employees.swagger.json) | Gestión de Empleados | `GET/POST /api/employees`, `GET/PATCH/DELETE /api/employees/{id}` |
@@ -429,7 +429,7 @@ Tabla consolidada de las 27 rutas API implementadas en el backend:
 | `GET` | `/api/auth/reset-password` | Validación de token de reset (HU04) | Público | ✅ Implementado y Documentado |
 | `POST` | `/api/auth/reset-password` | Restablecimiento de contraseña con token (HU04) | Público | ✅ Implementado y Documentado |
 | `GET` | `/api/auth/google` | Inicio de flujo Google OAuth (HU05) | Público | ✅ Implementado y Documentado |
-| `POST` | `/api/auth/google` | Procesamiento de credenciales Google (HU05) | Público | ✅ Implementado y Documentado |
+| `POST` | `/api/auth/google` | **Retirado (VCP-84):** responde `410 ENDPOINT_RETIRED`. El login con Google es solo por NextAuth (`/api/auth/signin/google`), que exige `email_verified === true` | Público | ⛔ Retirado |
 | `POST` | `/api/auth/logout` | Cierre de sesión y revocación JWT (HU06) | Público / Sesión | ✅ Implementado y Documentado |
 | `GET` | `/api/admin/users` | Listado general de usuarios (HU07) | `ADMIN` | ✅ Implementado y Documentado |
 | `PATCH` | `/api/admin/users/[id]/role` | Actualización de rol con auditoría (HU07) | `ADMIN` | ✅ Implementado y Documentado |

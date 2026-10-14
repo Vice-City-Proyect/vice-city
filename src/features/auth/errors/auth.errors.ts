@@ -78,3 +78,13 @@ export class UserAlreadyVerifiedError extends Error {
     this.name = "UserAlreadyVerifiedError";
   }
 }
+
+export class EmailNotVerifiedError extends Error {
+  readonly code = "EMAIL_NOT_VERIFIED";
+
+  constructor(message = "Debes confirmar tu correo electrónico antes de iniciar sesión.") {
+    super(message);
+    this.name = "EmailNotVerifiedError";
+  }
+}
+

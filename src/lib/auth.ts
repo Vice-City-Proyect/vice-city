@@ -10,6 +10,7 @@ import {
   googleAuthService,
   GoogleEmailNotProvidedError,
   UserInactiveError,
+  EmailNotVerifiedError,
   type GoogleProfile,
 } from "@/features/auth";
 import { linkAccount } from "@/features/users/linked-accounts.repository";
@@ -86,7 +87,18 @@ export async function authenticateUser(
     throw new Error("Credenciales incorrectas: correo o contraseña no válidos");
   }
 
-  // 4. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
+  // 4. Caso de error: Validar que el correo del usuario esté verificado (H-AUTH-02)
+  const isEmailVerified =
+    user.email_verified === true ||
+    (typeof user.metadata === "object" &&
+      user.metadata !== null &&
+      (user.metadata as Record<string, any>).email_verified === true);
+
+  if (!isEmailVerified) {
+    throw new EmailNotVerifiedError();
+  }
+
+  // 5. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
   const roleName = user.roles?.name ? user.roles.name.toUpperCase() : "";
 
   // Normalización para compatibilidad si el rol en BD es legacy "CUSTOMER" -> "CLIENT"
@@ -301,6 +313,12 @@ export const authOptions: NextAuthOptions = {
     // 1. Delegación a la lógica de negocio al iniciar sesión (HU05-B)
     async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
+        // VCP-84: solo se vincula o crea la cuenta si Google confirma el correo
+        // (email_verified === true). Si el claim viene en false o no viene, se rechaza.
+        const googleClaims = profile as { email_verified?: boolean } | undefined;
+        if (googleClaims?.email_verified !== true) {
+          return false;
+        }
         try {
           const googleProfile: GoogleProfile = {
             id:
@@ -311,7 +329,7 @@ export const authOptions: NextAuthOptions = {
             email: profile?.email || user.email,
             name: profile?.name || user.name,
             picture: (profile as any)?.picture || (profile as any)?.image || user.image,
-            email_verified: (profile as any)?.email_verified ?? true,
+            email_verified: true,
           };
 
           // Delegación estricta a la capa de lógica de negocio (HU05-B LN)

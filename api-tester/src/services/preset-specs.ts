@@ -204,8 +204,9 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
     '/api/auth/google': {
       post: {
         tags: ['Auth - Google OAuth'],
-        summary: 'Iniciar o federar sesión con Google',
-        description: 'Recibe el perfil autenticado por Google y crea la cuenta o la vincula sin duplicidad.',
+        summary: '[RETIRADO] Iniciar o federar sesión con Google',
+        description: 'RETIRADO (VCP-84): ya no ejecuta lógica y responde 410 ENDPOINT_RETIRED. El login con Google se hace solo por NextAuth (GET /api/auth/signin/google), que exige email_verified === true.',
+        deprecated: true,
         operationId: 'googleAuthLogin',
         requestBody: {
           required: true,
@@ -226,9 +227,8 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
           },
         },
         responses: {
-          '200': { description: 'Inicio de sesión con Google exitoso' },
-          '400': { description: 'Perfil de Google inválido' },
-          '403': { description: 'Cuenta inactiva' },
+          '410': { description: 'Endpoint retirado (ENDPOINT_RETIRED)' },
+          '400': { description: 'Cuerpo con formato inválido' },
         },
       },
     },

@@ -15,6 +15,9 @@ export {
   ResendEmailSender,
   SmtpEmailSender,
   getEmailSender,
+  DEFAULT_RESEND_FROM,
+  isValidFromAddress,
+  normalizeFromAddress,
 } from "./services/email.service";
 export type {
   IEmailSender,
@@ -30,7 +33,9 @@ export {
   UserAlreadyVerifiedError,
   TokenAlreadyUsedError,
   EmailAlreadyConfirmedError,
+  EmailNotVerifiedError,
 } from "./errors/email-confirmation.errors";
+export { ResendConfirmationModal } from "./components/ResendConfirmationModal";
 
 // Servicios de Recuperación de Contraseña (HU04-B)
 export {

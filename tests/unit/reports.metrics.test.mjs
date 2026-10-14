@@ -16,7 +16,6 @@ import assert from "node:assert/strict";
 import {
   MetricsService,
   getDateRangeInBogota,
-  getBogotaDateParts,
 } from "../../src/features/reports/index.ts";
 import { NextRequest } from "next/server";
 

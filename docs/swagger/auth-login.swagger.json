@@ -104,6 +104,21 @@
               }
             }
           },
+          "403": {
+            "description": "El usuario no ha confirmado su correo electrónico",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "EMAIL_NOT_VERIFIED" },
+                    "message": { "type": "string", "example": "Debes confirmar tu correo electrónico antes de iniciar sesión." }
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Error interno del servidor",
             "content": {

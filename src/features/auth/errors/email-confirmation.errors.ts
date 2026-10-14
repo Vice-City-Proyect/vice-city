@@ -45,3 +45,6 @@ export class EmailAlreadyConfirmedError extends Error {
     this.name = "EmailAlreadyConfirmedError";
   }
 }
+
+export { EmailNotVerifiedError } from "./auth.errors";
+

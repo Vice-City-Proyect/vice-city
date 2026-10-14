@@ -21,8 +21,9 @@
     "/api/auth/google": {
       "post": {
         "tags": ["Auth - Google"],
-        "summary": "Iniciar sesión o vincular cuenta con Google",
-        "description": "Procesa los datos autenticados de Google OAuth. Si el usuario no existe, se registra automáticamente con rol CLIENT y correo verificado. Si ya existe, se vincula sin duplicidad.",
+        "summary": "[RETIRADO] Iniciar sesión o vincular cuenta con Google",
+        "description": "RETIRADO (VCP-84): este endpoint confiaba en el perfil enviado por el cliente sin verificar ningún token de Google, por lo que ya no ejecuta lógica y responde 410 ENDPOINT_RETIRED (tras validar el formato del cuerpo). El inicio de sesión con Google se realiza únicamente por NextAuth: GET /api/auth/signin/google. NextAuth solo vincula o crea la cuenta si Google confirma el correo (email_verified === true).",
+        "deprecated": true,
         "operationId": "handleGoogleAuth",
         "requestBody": {
           "required": true,
@@ -35,38 +36,23 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Autenticación exitosa o cuenta vinculada",
+          "410": {
+            "description": "Endpoint retirado. Respuesta estándar ante cualquier solicitud válida en formato.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GoogleAuthSuccessResponse"
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "ENDPOINT_RETIRED",
+                  "message": "Este endpoint fue retirado. Inicia sesión con Google desde la pantalla de login."
                 }
               }
             }
           },
           "400": {
             "description": "Error de validación, cuerpo malformado o error reportado por Google/usuario",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Cuenta de usuario inactiva o bloqueada en el sistema",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Error interno del servidor",
             "content": {
               "application/json": {
                 "schema": {
@@ -236,29 +222,6 @@
             "type": "boolean",
             "description": "Indica si el correo está verificado por Google",
             "example": true
-          }
-        }
-      },
-      "GoogleAuthSuccessResponse": {
-        "type": "object",
-        "properties": {
-          "success": { "type": "boolean", "example": true },
-          "message": { "type": "string", "example": "Usuario creado exitosamente con rol CLIENT y correo verificado." },
-          "data": {
-            "type": "object",
-            "properties": {
-              "user": {
-                "type": "object",
-                "properties": {
-                  "id": { "type": "string", "format": "uuid", "example": "4a7b9c1d-1234-5678-9abc-def012345678" },
-                  "email": { "type": "string", "format": "email", "example": "usuario@gmail.com" },
-                  "name": { "type": "string", "example": "Carlos Pérez" },
-                  "role": { "type": "string", "enum": ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"], "example": "CLIENT" }
-                }
-              },
-              "isNewUser": { "type": "boolean", "example": true },
-              "isLinked": { "type": "boolean", "example": false }
-            }
           }
         }
       },
