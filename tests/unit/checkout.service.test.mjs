@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CheckoutService } from "../../src/features/payments/services/checkout.service.ts";
+import { CheckoutService } from "../../src/features/payments/services/checkout.service";
 import {
   BookingNotFoundError,
   BookingNotPayableError,
   ForbiddenBookingAccessError,
-} from "../../src/features/payments/errors/payments.errors.ts";
+} from "../../src/features/payments/errors/payments.errors";
 
 const NOW = new Date("2099-06-02T14:00:00.000Z");
 
@@ -91,7 +91,7 @@ describe("CheckoutService: creación de la sesión de pago", () => {
     const { service } = build(baseBooking({ user_id: "otro-user" }));
     await assert.rejects(
       () => service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" }),
-      ForbiddenBookingAccessError
+      { name: "ForbiddenBookingAccessError" }
     );
   });
 
@@ -105,7 +105,7 @@ describe("CheckoutService: creación de la sesión de pago", () => {
     const { service } = build(baseBooking({ status: "confirmed" }));
     await assert.rejects(
       () => service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" }),
-      BookingNotPayableError
+      { name: "BookingNotPayableError" }
     );
   });
 
@@ -115,7 +115,7 @@ describe("CheckoutService: creación de la sesión de pago", () => {
     );
     await assert.rejects(
       () => service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" }),
-      BookingNotPayableError
+      { name: "BookingNotPayableError" }
     );
   });
 
@@ -123,7 +123,7 @@ describe("CheckoutService: creación de la sesión de pago", () => {
     const { service } = build(null);
     await assert.rejects(
       () => service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" }),
-      BookingNotFoundError
+      { name: "BookingNotFoundError" }
     );
   });
 });

@@ -105,10 +105,14 @@ export async function POST(
         { status: 400 }
       );
     }
-    if (error instanceof PaymentError) {
+    if (
+      error instanceof PaymentError ||
+      (typeof error === "object" && error !== null && "statusCode" in error && "code" in error)
+    ) {
+      const err = error as PaymentError;
       return NextResponse.json(
-        { success: false, error: error.code, message: error.message },
-        { status: error.statusCode }
+        { success: false, error: err.code, message: err.message },
+        { status: err.statusCode }
       );
     }
 
