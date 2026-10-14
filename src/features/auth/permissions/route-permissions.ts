@@ -174,6 +174,13 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     allowedRoles: ["CLIENT", "ADMIN"],
     description: "Inicio de pagos en línea con Stripe",
   },
+
+  // 8. Perfil y datos del usuario autenticado (todos los roles autorizados)
+  {
+    pattern: /^\/api\/users\/me(?:\/.*)?$/,
+    allowedRoles: ["ADMIN", "CLIENT", "TICKET_SELLER", "QR_VALIDATOR"],
+    description: "Consulta y actualización del perfil del usuario autenticado",
+  },
 ];
 
 /**
