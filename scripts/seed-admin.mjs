@@ -1,25 +1,16 @@
 import { PrismaClient } from "@prisma/client";
+import { validateAdminSeedPassword } from "./seed-admin-password.mjs";
+
+// VCP-86: sin contraseña por defecto. La base de datos es compartida, así que el seed
+// siempre exige ADMIN_SEED_PASSWORD (definida solo en el .env local, nunca en el repo).
+// Se valida ANTES de crear el cliente de Prisma: una configuración inválida detiene el
+// proceso sin acceder a la base de datos.
+const ADMIN_PASSWORD_PLAIN = validateAdminSeedPassword(process.env.ADMIN_SEED_PASSWORD);
 
 const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = (process.env.ADMIN_SEED_EMAIL || "admin@vicecity.com").trim().toLowerCase();
 const ADMIN_NAME = process.env.ADMIN_SEED_NAME || "Administrador Principal";
-// VCP-86: sin contraseña por defecto. La base de datos es compartida, así que el seed
-// siempre exige ADMIN_SEED_PASSWORD (definida solo en el .env local, nunca en el repo).
-const ADMIN_PASSWORD_PLAIN = process.env.ADMIN_SEED_PASSWORD;
-const MIN_PASSWORD_LENGTH = 12;
-
-if (!ADMIN_PASSWORD_PLAIN) {
-  throw new Error(
-    "Seguridad: debe definirse la variable ADMIN_SEED_PASSWORD en tu .env local antes de ejecutar el seed."
-  );
-}
-
-if (ADMIN_PASSWORD_PLAIN.length < MIN_PASSWORD_LENGTH) {
-  throw new Error(
-    `Seguridad: ADMIN_SEED_PASSWORD debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`
-  );
-}
 
 async function main() {
   console.log("⏳ Iniciando siembra de usuario administrador...");
