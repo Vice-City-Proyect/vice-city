@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import type { Session } from "next-auth";
 import { ZodError } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma as defaultPrisma } from "@/lib/prisma";
 import { updateProfileSchema } from "@/features/users/schemas/profile.schema";
+import { normalizeRole } from "@/features/auth/permissions/route-permissions";
 
 interface RouteContext {
   params?: unknown;
-  sessionOverride?: any;
-  prismaOverride?: any;
+  sessionOverride?: Session | null;
+  prismaOverride?: Pick<typeof defaultPrisma, "users">;
+}
+
+/**
+ * Rol SRS del usuario: el de la BD (con alias legacy "customer" -> "CLIENT") y,
+ * si no es válido, el de la sesión. Nunca inventa un rol que el usuario no tiene.
+ */
+function toSrsRole(dbRole?: string | null, sessionRole?: string | null) {
+  return normalizeRole(dbRole) ?? normalizeRole(sessionRole);
 }
 
 async function resolveSession(request: NextRequest, context?: RouteContext) {
@@ -17,8 +27,8 @@ async function resolveSession(request: NextRequest, context?: RouteContext) {
   }
   try {
     return await getServerSession(authOptions);
-  } catch (err: any) {
-    if (err?.message?.includes("outside a request scope")) {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("outside a request scope")) {
       return null;
     }
     throw err;
@@ -53,7 +63,7 @@ export async function GET(request: NextRequest, context?: RouteContext) {
         OR: [
           ...(sessionUserId ? [{ id: sessionUserId }] : []),
           ...(sessionUserEmail
-            ? [{ email: { equals: sessionUserEmail, mode: "insensitive" } }]
+            ? [{ email: { equals: sessionUserEmail, mode: "insensitive" as const } }]
             : []),
         ],
       },
@@ -81,7 +91,7 @@ export async function GET(request: NextRequest, context?: RouteContext) {
           email: user.email,
           phone: user.phone ?? null,
           document_id: user.document_id ?? null,
-          role: user.roles?.name || session.user.role || "CLIENT",
+          role: toSrsRole(user.roles?.name, session.user.role),
           status: user.is_active ? "ACTIVE" : "INACTIVE",
           created_at: user.created_at,
         },
@@ -160,7 +170,7 @@ export async function PATCH(request: NextRequest, context?: RouteContext) {
         OR: [
           ...(sessionUserId ? [{ id: sessionUserId }] : []),
           ...(sessionUserEmail
-            ? [{ email: { equals: sessionUserEmail, mode: "insensitive" } }]
+            ? [{ email: { equals: sessionUserEmail, mode: "insensitive" as const } }]
             : []),
         ],
       },
@@ -204,7 +214,7 @@ export async function PATCH(request: NextRequest, context?: RouteContext) {
           email: updatedUser.email,
           phone: updatedUser.phone ?? null,
           document_id: updatedUser.document_id ?? null,
-          role: updatedUser.roles?.name || session.user.role || "CLIENT",
+          role: toSrsRole(updatedUser.roles?.name, session.user.role),
           status: updatedUser.is_active ? "ACTIVE" : "INACTIVE",
           created_at: updatedUser.created_at,
         },

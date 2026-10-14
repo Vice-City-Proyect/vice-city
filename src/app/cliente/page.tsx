@@ -8,6 +8,7 @@ import { ClientServiceCard } from '@/features/services/components/ClientServiceC
 import { CLIENT_CATALOG } from '@/features/services/data/client-catalog';
 import { ClientNextReservation } from '@/features/reservations/components/ClientNextReservation';
 import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { TIME_ZONE } from '@/lib/schedule';
 
 export const metadata: Metadata = {
@@ -29,8 +30,22 @@ export default async function ClientHomePage() {
     session = null;
   }
 
-  const userName = session?.user?.name || 'Cliente';
   const clientId = session?.user?.id || '';
+
+  // El nombre de la sesión (JWT) queda desactualizado al editar el perfil:
+  // se lee el valor vigente desde la base de datos en cada visita.
+  let userName = 'Cliente';
+  if (clientId) {
+    try {
+      const user = await prisma.users.findUnique({
+        where: { id: clientId },
+        select: { full_name: true },
+      });
+      if (user?.full_name) userName = user.full_name;
+    } catch {
+      // Sin datos frescos: saludo genérico, nunca un nombre desactualizado.
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">

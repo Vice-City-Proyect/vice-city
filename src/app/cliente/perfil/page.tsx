@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { signOut } from 'next-auth/react';
 import { AlertCircle, Check, KeyRound, Loader2, LogOut, Save } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { formatDate } from '@/lib/format';
+import { formatTimestampDate } from '@/lib/format';
 import { ROLE_LABELS } from '@/components/layout/app-nav';
+import { PROFILE_UPDATED_EVENT } from '@/features/users/hooks/use-current-user';
 
 interface UserProfile {
   id: string;
@@ -19,9 +20,9 @@ interface UserProfile {
   email: string;
   phone: string | null;
   document_id: string | null;
-  role: string;
+  role: string | null;
   created_at: string | null;
-  is_active: boolean;
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 export default function ClientProfilePage() {
@@ -41,43 +42,58 @@ export default function ClientProfilePage() {
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
-  const fetchProfile = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const response = await fetch('/api/users/me');
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Sesión no autorizada. Por favor, inicia sesión de nuevo.');
-        }
-        throw new Error('Error al cargar la información del perfil.');
-      }
-
-      const json = await response.json();
-      if (!json.success || !json.data) {
-        throw new Error(json.message || 'No se pudieron recuperar los datos del usuario.');
-      }
-
-      const data: UserProfile = json.data;
-      setProfile(data);
-      setPersonal({
-        name: data.full_name ?? '',
-        email: data.email ?? '',
-        phone: data.phone ?? '',
-      });
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'No se pudo cargar la información del perfil.';
-      setFetchError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    let active = true;
+
+    async function loadProfile() {
+      try {
+        const response = await fetch('/api/users/me', { cache: 'no-store' });
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Sesión no autorizada. Por favor, inicia sesión de nuevo.');
+          }
+          throw new Error('Error al cargar la información del perfil.');
+        }
+
+        const json = await response.json().catch(() => null);
+        if (!json?.success || !json.data) {
+          throw new Error(json?.message || 'No se pudieron recuperar los datos del usuario.');
+        }
+
+        if (!active) return;
+        const data: UserProfile = json.data;
+        setProfile(data);
+        setPersonal({
+          name: data.full_name ?? '',
+          email: data.email ?? '',
+          phone: data.phone ?? '',
+        });
+      } catch (err: unknown) {
+        if (!active) return;
+        setProfile(null);
+        setFetchError(
+          err instanceof Error ? err.message : 'No se pudo cargar la información del perfil.',
+        );
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  function retryFetchProfile() {
+    setLoading(true);
+    setFetchError(null);
+    setReloadKey((key) => key + 1);
+  }
 
   async function handlePersonalSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,10 +113,10 @@ export default function ClientProfilePage() {
         }),
       });
 
-      const json = await response.json();
+      const json = await response.json().catch(() => null);
 
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || 'No se pudieron guardar los cambios en el perfil.');
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.message || 'No se pudieron guardar los cambios en el perfil.');
       }
 
       const updated = json.data as UserProfile;
@@ -114,7 +130,7 @@ export default function ClientProfilePage() {
 
       // Notificar a listeners globales (p. ej. AppShell / Layout)
       window.dispatchEvent(
-        new CustomEvent('user-profile-updated', { detail: { full_name: updated.full_name } })
+        new CustomEvent(PROFILE_UPDATED_EVENT, { detail: { full_name: updated.full_name } })
       );
     } catch (err: unknown) {
       const message =
@@ -125,7 +141,7 @@ export default function ClientProfilePage() {
     }
   }
 
-  function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPasswordSaved(false);
 
@@ -139,8 +155,32 @@ export default function ClientProfilePage() {
     }
 
     setPasswordError('');
-    setPasswordSaved(true);
-    setPasswords({ current: '', next: '', confirm: '' });
+    setPasswordSaving(true);
+
+    try {
+      const response = await fetch('/api/users/me/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: passwords.current,
+          new_password: passwords.next,
+        }),
+      });
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.message || 'No se pudo actualizar la contraseña.');
+      }
+
+      setPasswordSaved(true);
+      setPasswords({ current: '', next: '', confirm: '' });
+    } catch (err: unknown) {
+      setPasswordError(
+        err instanceof Error ? err.message : 'Ocurrió un error al actualizar la contraseña.',
+      );
+    } finally {
+      setPasswordSaving(false);
+    }
   }
 
   if (loading) {
@@ -177,7 +217,7 @@ export default function ClientProfilePage() {
             Error al cargar el perfil
           </h2>
           <p className="max-w-md text-sm text-text-muted">{fetchError}</p>
-          <Button size="sm" onClick={fetchProfile} className="mt-2">
+          <Button size="sm" onClick={retryFetchProfile} className="mt-2">
             Reintentar
           </Button>
         </div>
@@ -306,24 +346,24 @@ export default function ClientProfilePage() {
                   id="profile-password"
                   type="password"
                   value={passwords.current}
-                  onChange={(event) =>
-                    setPasswords({ ...passwords, current: event.target.value })
-                  }
+                  onChange={(event) => {
+                    setPasswords({ ...passwords, current: event.target.value });
+                    setPasswordSaved(false);
+                  }}
                   required
                 />
               </FormField>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormField
-                  htmlFor="profile-password-new"
-                  label="Nueva contraseña"
-                  error={passwordError || undefined}
-                >
+                <FormField htmlFor="profile-password-new" label="Nueva contraseña">
                   <Input
                     id="profile-password-new"
                     type="password"
                     value={passwords.next}
-                    onChange={(event) => setPasswords({ ...passwords, next: event.target.value })}
+                    onChange={(event) => {
+                      setPasswords({ ...passwords, next: event.target.value });
+                      setPasswordError('');
+                    }}
                     required
                   />
                 </FormField>
@@ -341,9 +381,23 @@ export default function ClientProfilePage() {
                 </FormField>
               </div>
 
+              {passwordError && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-semibold text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-3">
-                <Button size="sm" type="submit">
-                  Actualizar contraseña
+                <Button size="sm" type="submit" disabled={passwordSaving}>
+                  {passwordSaving ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Actualizando...
+                    </span>
+                  ) : (
+                    'Actualizar contraseña'
+                  )}
                 </Button>
                 {passwordSaved && (
                   <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-club-accent">
@@ -364,7 +418,7 @@ export default function ClientProfilePage() {
                 {profile?.full_name || personal.name}
               </h2>
               <div className="flex justify-center">
-                <StatusBadge status={profile?.is_active ? 'ACTIVE' : 'INACTIVE'} />
+                <StatusBadge status={profile?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'} />
               </div>
             </div>
           </div>
@@ -383,7 +437,7 @@ export default function ClientProfilePage() {
             <div>
               <dt className="font-bold uppercase tracking-wider text-text-muted">Rol</dt>
               <dd className="mt-1 font-bold text-text-main">
-                {ROLE_LABELS[profile?.role as keyof typeof ROLE_LABELS] ?? profile?.role ?? 'Cliente'}
+                {ROLE_LABELS[profile?.role as keyof typeof ROLE_LABELS] ?? profile?.role ?? '—'}
               </dd>
             </div>
             <div>
@@ -399,7 +453,7 @@ export default function ClientProfilePage() {
                 Fecha de registro
               </dt>
               <dd className="mt-1 font-bold text-text-main">
-                {profile?.created_at ? formatDate(profile.created_at) : '—'}
+                {formatTimestampDate(profile?.created_at) ?? '—'}
               </dd>
             </div>
           </dl>

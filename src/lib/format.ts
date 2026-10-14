@@ -38,6 +38,17 @@ export function formatDate(iso: string): string {
   return DATE_FORMAT.format(new Date(`${iso}T12:00:00-05:00`));
 }
 
+/**
+ * Formatea una marca de tiempo ISO completa (p. ej. "2025-01-15T10:00:00.000Z")
+ * como fecha corta en hora de Bogotá. Devuelve null si el valor no es una fecha
+ * válida, para que la pantalla muestre un guion en vez de romperse.
+ */
+export function formatTimestampDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : DATE_FORMAT.format(date);
+}
+
 export function formatLongDate(iso: string): string {
   return LONG_DATE_FORMAT.format(new Date(`${iso}T12:00:00-05:00`));
 }
