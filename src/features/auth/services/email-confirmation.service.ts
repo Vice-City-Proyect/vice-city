@@ -156,7 +156,19 @@ export class EmailConfirmationService {
         // Silencioso en caso de mock sin tabla física
       }
 
-      // En metadata no se persiste el token en texto plano (H-AUTH-05)
+      // H-AUTH-05: El token vive EXCLUSIVAMENTE en verification_tokens como hash SHA-256.
+      // Si existía algún verification_token legacy en metadata, se limpia preservando todas las demás propiedades.
+      if (currentMetadata.verification_token) {
+        const { verification_token: _vt, ...cleanMetadata } = currentMetadata;
+        await this.db.users.update({
+          where: { id: userId },
+          data: {
+            metadata: cleanMetadata as any,
+          },
+        });
+      }
+    } else {
+      // Fallback defensivo para mocks sin tabla verification_tokens: NUNCA guardar token en texto plano (H-AUTH-05)
       await this.db.users.update({
         where: { id: userId },
         data: {
@@ -169,17 +181,6 @@ export class EmailConfirmationService {
               used: false,
               revoked: false,
             },
-          } as any,
-        },
-      });
-    } else {
-      // Fallback para mocks de pruebas unitarias que no implementan la tabla física verification_tokens
-      await this.db.users.update({
-        where: { id: userId },
-        data: {
-          metadata: {
-            ...currentMetadata,
-            verification_token: tokenData,
           } as any,
         },
       });
@@ -241,21 +242,16 @@ export class EmailConfirmationService {
           });
 
           const currentMeta = (tokenRecord.users?.metadata as Record<string, any>) || {};
+          const { verification_token: _ignored, ...cleanMeta } = currentMeta;
           await this.db.users.update({
             where: { id: tokenRecord.user_id },
             data: {
               email_verified: true,
               email_verified_at: now,
               metadata: {
-                ...currentMeta,
+                ...cleanMeta,
                 email_verified: true,
                 email_verified_at: now.toISOString(),
-                verification_token: {
-                  token_hash: tokenRecord.token_hash,
-                  used: true,
-                  used_at: now.toISOString(),
-                  expires_at: tokenRecord.expires_at.toISOString(),
-                },
               } as any,
             },
           });
@@ -279,24 +275,19 @@ export class EmailConfirmationService {
       }
     }
 
-    // 2. Consulta en metadata de users (soporte para mocks de pruebas unitarias)
-    let user: any = await (this.db.users.findFirst as any)({
-      where: {
-        metadata: {
-          path: ["verification_token", "token"],
-          equals: cleanToken,
-        },
-      },
-    }).catch(() => null);
-
-    // Fallback defensivo para mocks sin soporte de path JSON
-    if (!user) {
-      const users = await this.db.users.findMany().catch(() => []);
+    // 2. Consulta defensiva en metadata de users (soporte para transiciones o mocks sin verification_tokens)
+    let user: any = null;
+    try {
+      const users = await this.db.users.findMany();
       user =
         users.find((u: any) => {
           const meta = (u.metadata as Record<string, any>) || {};
-          return meta.verification_token?.token === cleanToken;
+          const vt = meta.verification_token;
+          if (!vt) return false;
+          return vt.token_hash === tokenHash || vt.token === cleanToken;
         }) || null;
+    } catch {
+      user = null;
     }
 
     if (!user) {
@@ -326,22 +317,18 @@ export class EmailConfirmationService {
       throw new TokenExpiredError("El enlace de confirmación ha expirado. Por favor, solicita uno nuevo");
     }
 
-    // Marcar al usuario como verificado y consumir el token con Prisma ORM
+    // Marcar al usuario como verificado y eliminar verification_token de metadata (H-AUTH-05)
     const verifiedAt = new Date();
+    const { verification_token: _ignored, ...cleanMetadata } = metadata;
     await this.db.users.update({
       where: { id: user.id },
       data: {
         email_verified: true,
         email_verified_at: verifiedAt,
         metadata: {
-          ...metadata,
+          ...cleanMetadata,
           email_verified: true,
           email_verified_at: verifiedAt.toISOString(),
-          verification_token: {
-            ...tokenData,
-            used: true,
-            used_at: verifiedAt.toISOString(),
-          },
         } as any,
       },
     });
@@ -426,6 +413,20 @@ export class EmailConfirmationService {
         // Ignorar si en mock
       }
 
+      // H-AUTH-05: El token vive EXCLUSIVAMENTE en verification_tokens como hash SHA-256.
+      // Se elimina verification_token de metadata si existía previamente, preservando los demás datos.
+      const { verification_token: _vt, ...cleanMetadata } = currentMetadata;
+      await this.db.users.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            ...cleanMetadata,
+            previous_token_revoked_at: now.toISOString(),
+          } as any,
+        },
+      });
+    } else {
+      // Fallback para mocks sin tabla verification_tokens: persistir únicamente el hash (H-AUTH-05)
       await this.db.users.update({
         where: { id: user.id },
         data: {
@@ -438,18 +439,6 @@ export class EmailConfirmationService {
               used: false,
               revoked: false,
             },
-            previous_token_revoked_at: now.toISOString(),
-          } as any,
-        },
-      });
-    } else {
-      // Fallback para mocks de pruebas unitarias sin tabla física verification_tokens
-      await this.db.users.update({
-        where: { id: user.id },
-        data: {
-          metadata: {
-            ...currentMetadata,
-            verification_token: newTokenData,
             previous_token_revoked_at: now.toISOString(),
           } as any,
         },
