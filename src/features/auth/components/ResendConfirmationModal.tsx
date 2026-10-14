@@ -23,14 +23,17 @@ export function ResendConfirmationModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setEmail(defaultEmail);
       setFieldError(undefined);
       setSubmitError(null);
       setSuccessMessage(null);
     }
-  }, [open, defaultEmail]);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

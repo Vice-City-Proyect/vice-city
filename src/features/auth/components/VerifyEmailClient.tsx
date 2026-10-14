@@ -78,9 +78,16 @@ export function VerifyEmailClient() {
     }
   }, []);
 
-  useEffect(() => {
+  const [prevToken, setPrevToken] = useState(token);
+  if (token !== prevToken) {
+    setPrevToken(token);
     if (!token) {
       setState("missing");
+    }
+  }
+
+  useEffect(() => {
+    if (!token) {
       return;
     }
 
