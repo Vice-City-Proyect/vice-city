@@ -103,6 +103,29 @@ describe("HU02-B: API Endpoints de login y sesión (/api/auth/login y /api/auth/
     assert.equal(res.cookies.get("__Secure-next-auth.session-token"), undefined);
   });
 
+  test("Criterio H-AUTH-02: Responde 403 si el correo no está verificado (EMAIL_NOT_VERIFIED)", async () => {
+    const req = createLoginRequest({
+      email: "noverificado@vicecity.com",
+      password: "PasswordValido123!",
+    });
+
+    const authenticateUserOverride = async () => {
+      const error = new Error("Debes confirmar tu correo electrónico antes de iniciar sesión.");
+      error.code = "EMAIL_NOT_VERIFIED";
+      throw error;
+    };
+
+    const res = await POST(req, { authenticateUserOverride });
+    assert.equal(res.status, 403);
+
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.error, "EMAIL_NOT_VERIFIED");
+    assert.ok(data.message.includes("Debes confirmar tu correo"));
+    assert.equal(res.cookies.get("next-auth.session-token"), undefined);
+    assert.equal(res.cookies.get("__Secure-next-auth.session-token"), undefined);
+  });
+
   test("Criterio: Login exitoso devuelve 200, datos de usuario y establece la cookie de sesión NextAuth (HTTP)", async () => {
     const mockUser = {
       id: "usr-admin-uuid-1",
@@ -328,6 +351,7 @@ describe("HU02-B: API Endpoints de login y sesión (/api/auth/login y /api/auth/
     assert.ok(content.paths["/api/auth/login"].post.responses["200"]);
     assert.ok(content.paths["/api/auth/login"].post.responses["400"]);
     assert.ok(content.paths["/api/auth/login"].post.responses["401"]);
+    assert.ok(content.paths["/api/auth/login"].post.responses["403"]);
 
     assert.ok(content.paths["/api/auth/session"]);
     assert.ok(content.paths["/api/auth/session"].get);

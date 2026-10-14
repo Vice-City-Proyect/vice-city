@@ -85,19 +85,104 @@ export class MockEmailSender implements IEmailSender {
 }
 
 /**
+ * Constantes y funciones de validación/normalización para el remitente de correos (EMAIL_FROM).
+ */
+export const DEFAULT_RESEND_FROM = "Vice City <onboarding@resend.dev>";
+
+const EMAIL_REGEX = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+const NAME_AND_EMAIL_REGEX = /^([^<>\r\n]+)\s*<([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+)>$/;
+const ANGLE_BRACKET_ONLY_REGEX = /^<\s*([^\s@<>]+@[^\s@<>]+\.[^\s@<>]+)\s*>$/;
+
+/**
+ * Valida que una dirección de correo para el remitente cumpla con los formatos
+ * aceptados por proveedores como Resend:
+ * 1. "email@ejemplo.com"
+ * 2. "Nombre <email@ejemplo.com>"
+ */
+export function isValidFromAddress(from?: string | null): boolean {
+  if (!from || typeof from !== "string") return false;
+  const trimmed = from.trim();
+  if (!trimmed) return false;
+
+  if (EMAIL_REGEX.test(trimmed)) {
+    return true;
+  }
+
+  const match = trimmed.match(NAME_AND_EMAIL_REGEX);
+  if (match) {
+    const name = match[1].trim();
+    const email = match[2].trim();
+    return name.length > 0 && EMAIL_REGEX.test(email);
+  }
+
+  return false;
+}
+
+/**
+ * Normaliza el valor de EMAIL_FROM:
+ * - Si está vacío o es solo espacios: devuelve el valor predeterminado (fallback).
+ * - Si viene sin nombre pero entre corchetes angulares ("<correo@dominio.com>"):
+ *   lo normaliza al formato válido con nombre "Vice City <correo@dominio.com>".
+ * - Si viene con formato "Nombre <correo@dominio.com>": normaliza espacios.
+ * - En cualquier otro caso devuelve el valor recortado para su posterior validación.
+ */
+export function normalizeFromAddress(
+  fromRaw?: string | null,
+  fallback: string = DEFAULT_RESEND_FROM
+): string {
+  if (!fromRaw || typeof fromRaw !== "string" || !fromRaw.trim()) {
+    return fallback;
+  }
+
+  const trimmed = fromRaw.trim();
+
+  // Caso: solo correo entre corchetes sin nombre e.g. "<onboarding@resend.dev>"
+  const angleMatch = trimmed.match(ANGLE_BRACKET_ONLY_REGEX);
+  if (angleMatch) {
+    const email = angleMatch[1].trim();
+    return `Vice City <${email}>`;
+  }
+
+  // Caso: Nombre <correo@dominio.com>
+  const nameMatch = trimmed.match(NAME_AND_EMAIL_REGEX);
+  if (nameMatch) {
+    const name = nameMatch[1].trim();
+    const email = nameMatch[2].trim();
+    if (name.length > 0) {
+      return `${name} <${email}>`;
+    }
+  }
+
+  return trimmed;
+}
+
+/**
  * Implementación de producción con Resend (API REST oficial vía fetch).
  * No requiere librerías externas adicionales y utiliza RESEND_API_KEY y EMAIL_FROM.
  */
 export class ResendEmailSender implements IEmailSender {
+  public readonly apiKey: string;
+  public readonly from: string;
+
   constructor(
-    private readonly apiKey: string = process.env.RESEND_API_KEY || "",
-    private readonly from: string = process.env.EMAIL_FROM || "Vice City <onboarding@resend.dev>"
-  ) {}
+    apiKey: string = process.env.RESEND_API_KEY || "",
+    from: string = process.env.EMAIL_FROM || DEFAULT_RESEND_FROM
+  ) {
+    this.apiKey = apiKey;
+    this.from = normalizeFromAddress(from, DEFAULT_RESEND_FROM);
+  }
 
   async sendEmail(options: SendEmailOptions): Promise<boolean> {
     if (!this.apiKey) {
       console.warn("[ResendEmailSender] RESEND_API_KEY no está configurada. Correo no enviado.");
       return false;
+    }
+
+    if (!isValidFromAddress(this.from)) {
+      console.error("[ResendEmailSender] Configuración de remitente inválida.");
+      throw new Error(
+        "Configuración de remitente inválida para Resend: el remitente debe seguir el formato 'email@example.com' o 'Nombre <email@example.com>'."
+      );
     }
 
     const response = await fetch("https://api.resend.com/emails", {
@@ -187,7 +272,7 @@ export function resolveSmtpConfig(env: NodeJS.ProcessEnv = process.env): SmtpCon
     secure,
     user,
     pass,
-    from: env.EMAIL_FROM?.trim() || "Vice City <no-reply@vicecity.club>",
+    from: normalizeFromAddress(env.EMAIL_FROM, "Vice City <no-reply@vicecity.club>"),
   };
 }
 
@@ -197,8 +282,10 @@ export function resolveSmtpConfig(env: NodeJS.ProcessEnv = process.env): SmtpCon
  */
 export class SmtpEmailSender implements IEmailSender {
   private readonly transporter: nodemailer.Transporter;
+  private readonly config: SmtpConfig;
 
-  constructor(private readonly config: SmtpConfig) {
+  constructor(config: SmtpConfig) {
+    this.config = config;
     this.transporter = nodemailer.createTransport({
       host: config.host,
       port: config.port,

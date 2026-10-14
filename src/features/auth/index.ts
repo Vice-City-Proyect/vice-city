@@ -15,6 +15,9 @@ export {
   ResendEmailSender,
   SmtpEmailSender,
   getEmailSender,
+  DEFAULT_RESEND_FROM,
+  isValidFromAddress,
+  normalizeFromAddress,
 } from "./services/email.service";
 export type {
   IEmailSender,
@@ -30,7 +33,9 @@ export {
   UserAlreadyVerifiedError,
   TokenAlreadyUsedError,
   EmailAlreadyConfirmedError,
+  EmailNotVerifiedError,
 } from "./errors/email-confirmation.errors";
+export { ResendConfirmationModal } from "./components/ResendConfirmationModal";
 
 // Servicios de Recuperación de Contraseña (HU04-B)
 export {
@@ -120,3 +125,10 @@ export {
   type SRSRole,
   type RoutePermissionRule,
 } from "./permissions/route-permissions";
+
+// Utilidades de Redirección Segura y Extracción de Rol (HU28)
+export {
+  sanitizeInternalCallbackUrl,
+  extractRoleFromSession,
+} from "./utils/url-sanitizer";
+

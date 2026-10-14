@@ -16,7 +16,6 @@ import assert from "node:assert/strict";
 import {
   MetricsService,
   getDateRangeInBogota,
-  getBogotaDateParts,
 } from "../../src/features/reports/index.ts";
 import { NextRequest } from "next/server";
 
@@ -246,7 +245,7 @@ describe("FT-08 / HU27: Métricas de Ventas y Ocupación (Criterios de Aceptaci�
     const reqAdmin = new NextRequest("http://localhost:3000/api/reports/metrics?period=month", {
       headers: { "x-user-role": "ADMIN" },
     });
-    const resAdmin = await GET(reqAdmin);
+    const resAdmin = await GET(reqAdmin, { metricsServiceOverride: metricsService });
     assert.equal(resAdmin.status, 200);
     const bodyAdmin = await resAdmin.json();
     assert.equal(bodyAdmin.success, true);

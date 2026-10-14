@@ -6,6 +6,7 @@ import { signIn, getProviders } from "next-auth/react";
 import { Input } from "@/components/ui/Input";
 import { FormField } from "@/components/ui/FormField";
 import { Button } from "@/components/ui/Button";
+import { ResendConfirmationModal } from "./ResendConfirmationModal";
 
 export default function RegisterForm() {
   // --- Estados del Formulario ---
@@ -27,6 +28,7 @@ export default function RegisterForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
+  const [isResendModalOpen, setIsResendModalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -173,12 +175,24 @@ export default function RegisterForm() {
         <p className="text-text-muted text-sm">
           Te enviamos un correo de confirmación a <strong>{email}</strong>. Confírmalo para poder iniciar sesión.
         </p>
+        <button
+          type="button"
+          onClick={() => setIsResendModalOpen(true)}
+          className="mt-2 text-xs font-bold text-club-accent underline hover:text-club-primary transition-colors cursor-pointer"
+        >
+          ¿No recibiste el correo? Haz clic aquí para reenviarlo
+        </button>
         <Link 
           href="/login"
           className="mt-4 px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors"
         >
           Ir a Iniciar Sesión
         </Link>
+        <ResendConfirmationModal
+          open={isResendModalOpen}
+          onClose={() => setIsResendModalOpen(false)}
+          defaultEmail={email}
+        />
       </div>
     );
   }

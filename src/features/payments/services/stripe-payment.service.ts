@@ -12,6 +12,7 @@
 
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
+import { getStripeSecretKey } from "../lib/stripe.config";
 import type {
   CreatePaymentIntentParams,
   CreatePaymentIntentResult,
@@ -36,7 +37,7 @@ export interface StripePaymentServiceDependencies {
 }
 
 export class StripePaymentService {
-  private readonly stripe: {
+  private stripe?: {
     paymentIntents: {
       create: (params: any, options?: any) => Promise<any>;
       retrieve: (id: string) => Promise<any>;
@@ -49,12 +50,21 @@ export class StripePaymentService {
 
     if (dependencies?.stripeClient) {
       this.stripe = dependencies.stripeClient;
-    } else {
-      const apiKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_key_vice_city";
-      this.stripe = new Stripe(apiKey, {
+    }
+  }
+
+  private getStripe(): {
+    paymentIntents: {
+      create: (params: any, options?: any) => Promise<any>;
+      retrieve: (id: string) => Promise<any>;
+    };
+  } {
+    if (!this.stripe) {
+      this.stripe = new Stripe(getStripeSecretKey(), {
         typescript: true,
       });
     }
+    return this.stripe;
   }
 
   /**
@@ -115,7 +125,7 @@ export class StripePaymentService {
 
     if (existingPendingPayment) {
       try {
-        const existingIntent = await this.stripe.paymentIntents.retrieve(
+        const existingIntent = await this.getStripe().paymentIntents.retrieve(
           existingPendingPayment.provider_reference
         );
 
@@ -152,7 +162,7 @@ export class StripePaymentService {
 
     let paymentIntent: any;
     try {
-      paymentIntent = await this.stripe.paymentIntents.create(
+      paymentIntent = await this.getStripe().paymentIntents.create(
         {
           amount: amountInCents,
           currency,

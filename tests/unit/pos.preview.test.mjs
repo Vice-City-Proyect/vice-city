@@ -9,6 +9,8 @@
  * 4. Caso límite: confirmar dos veces la misma venta no genera dos tickets (idempotencia ante doble clic).
  */
 
+process.env.TZ = process.env.TZ || "America/Bogota";
+
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 

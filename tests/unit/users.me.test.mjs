@@ -190,7 +190,79 @@ describe("HU28 — Endpoint /api/users/me (Datos reales de perfil)", () => {
     assert.equal(getJson.data.phone, "+573119998877");
   });
 
-  test("7. PATCH /api/users/me permite limpiar el teléfono estableciéndolo en null", async () => {
+  test("7. GET normaliza el rol de BD 'customer' al rol SRS 'CLIENT'", async () => {
+    const db = {
+      users: {
+        async findFirst() {
+          return {
+            id: "usr_legacy",
+            full_name: "Ana Legacy",
+            email: "ana@example.com",
+            phone: null,
+            document_id: null,
+            roles: { name: "customer" },
+            is_active: true,
+            created_at: new Date("2025-03-01T10:00:00Z"),
+          };
+        },
+      },
+    };
+    const session = { user: { id: "usr_legacy", email: "ana@example.com" } };
+    const req = createJsonRequest("http://localhost:3000/api/users/me");
+
+    const res = await GET(req, { sessionOverride: session, prismaOverride: db });
+    const json = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(json.data.role, "CLIENT");
+    assert.equal(json.data.phone, null);
+    assert.equal(json.data.document_id, null);
+  });
+
+  test("8. GET informa status INACTIVE para un usuario desactivado", async () => {
+    const db = {
+      users: {
+        async findFirst() {
+          return {
+            id: "usr_off",
+            full_name: "Inactivo",
+            email: "off@example.com",
+            phone: null,
+            document_id: null,
+            roles: { name: "CLIENT" },
+            is_active: false,
+            created_at: null,
+          };
+        },
+      },
+    };
+    const session = { user: { id: "usr_off", email: "off@example.com" } };
+    const req = createJsonRequest("http://localhost:3000/api/users/me");
+
+    const res = await GET(req, { sessionOverride: session, prismaOverride: db });
+    const json = await res.json();
+    assert.equal(json.data.status, "INACTIVE");
+  });
+
+  test("9. GET devuelve 500 con mensaje claro si la BD falla", async () => {
+    const db = {
+      users: {
+        async findFirst() {
+          throw new Error("db down");
+        },
+      },
+    };
+    const session = { user: { id: "usr_client_1", email: "carlos@example.com" } };
+    const req = createJsonRequest("http://localhost:3000/api/users/me");
+
+    const res = await GET(req, { sessionOverride: session, prismaOverride: db });
+    const json = await res.json();
+    assert.equal(res.status, 500);
+    assert.equal(json.success, false);
+    assert.equal(json.error, "INTERNAL_SERVER_ERROR");
+    assert.equal(json.data, undefined);
+  });
+
+  test("10. PATCH /api/users/me permite limpiar el teléfono estableciéndolo en null", async () => {
     const mockDb = createMockDb();
     const req = createJsonRequest("http://localhost:3000/api/users/me", {
       method: "PATCH",

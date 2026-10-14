@@ -7,6 +7,7 @@ import {
   TokenExpiredError,
   TokenAlreadyUsedError,
   EmailAlreadyConfirmedError,
+  UserAlreadyVerifiedError,
   UserNotFoundError,
 } from "../../src/features/auth/errors/auth.errors.ts";
 import { NextRequest } from "next/server";
@@ -155,6 +156,24 @@ describe("HU03-B: API Endpoints de confirmación de correo (/api/auth/confirm-em
     assert.equal(data.success, false);
     assert.equal(data.error, "TOKEN_ALREADY_USED");
     assert.ok(data.message.includes("ya ha sido utilizado"));
+  });
+
+  test("Criterio H-AUTH-03: Petición repetida cuando el usuario ya fue verificado responde 409 Conflict (USER_ALREADY_VERIFIED)", async () => {
+    const req = createJsonRequest("http://localhost:3000/api/auth/confirm-email", {
+      token: "already-verified-user-token",
+    });
+
+    const mockService = async () => {
+      throw new UserAlreadyVerifiedError("El correo electrónico ya ha sido verificado previamente");
+    };
+
+    const res = await confirmEmailPOST(req, { serviceOverride: mockService });
+    assert.equal(res.status, 409);
+
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.error, "USER_ALREADY_VERIFIED");
+    assert.ok(data.message.includes("ya ha sido verificado"));
   });
 
   // --- Tests para GET /api/auth/confirm-email ---

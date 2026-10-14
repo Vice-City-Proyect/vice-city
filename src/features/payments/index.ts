@@ -47,6 +47,13 @@ export {
 } from "./errors/payment.errors";
 
 export {
+  StripeNotConfiguredError,
+  InvalidStripeSignatureError,
+  BookingNotPayableError,
+  ForbiddenBookingAccessError,
+} from "./errors/payments.errors";
+
+export {
   InvalidWebhookSignatureError,
   WebhookBookingNotFoundError,
   WebhookProcessingError,

@@ -14,6 +14,7 @@ import {
   BookingNotFoundError,
   BookingCancelledError,
   StripePaymentError,
+  StripeNotConfiguredError,
 } from "@/features/payments";
 
 export async function POST(request: NextRequest) {
@@ -97,6 +98,17 @@ export async function POST(request: NextRequest) {
           error: { code: error.code },
         },
         { status: 502 }
+      );
+    }
+
+    if (error instanceof StripeNotConfiguredError || (error as any)?.code === "STRIPE_NOT_CONFIGURED") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: (error as any)?.message || "La pasarela de pagos no está configurada.",
+          error: { code: "STRIPE_NOT_CONFIGURED" },
+        },
+        { status: 503 }
       );
     }
 
