@@ -9,18 +9,14 @@ import type { ServiceAvailabilityResult, TimeSlot } from "@/features/services/ty
 export default function CatalogPage() {
   const [categories, setCategories] = useState<CategoryWithServices[]>([]);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(
+    () => new Date().toISOString().split("T")[0]
+  );
   const [availability, setAvailability] = useState<ServiceAvailabilityResult | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [availabilityLoading, setAvailabilityLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Inicializar fecha por defecto (hoy en formato YYYY-MM-DD)
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    setSelectedDate(today);
-  }, []);
 
   // Cargar catálogo de servicios desde la API
   useEffect(() => {
@@ -152,4 +148,3 @@ export default function CatalogPage() {
     </div>
   );
 }
-

@@ -125,3 +125,10 @@ export {
   type SRSRole,
   type RoutePermissionRule,
 } from "./permissions/route-permissions";
+
+// Utilidades de Redirección Segura y Extracción de Rol (HU28)
+export {
+  sanitizeInternalCallbackUrl,
+  extractRoleFromSession,
+} from "./utils/url-sanitizer";
+

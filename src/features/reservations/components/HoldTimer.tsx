@@ -9,10 +9,13 @@ interface HoldTimerProps {
 
 export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
   const [secondsLeft, setSecondsLeft] = useState<number>(initialSeconds);
+  const [previousInitialSeconds, setPreviousInitialSeconds] =
+    useState<number>(initialSeconds);
 
-  useEffect(() => {
+  if (initialSeconds !== previousInitialSeconds) {
+    setPreviousInitialSeconds(initialSeconds);
     setSecondsLeft(initialSeconds);
-  }, [initialSeconds]);
+  }
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -97,4 +100,3 @@ export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
     </div>
   );
 }
-
