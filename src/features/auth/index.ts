@@ -35,6 +35,7 @@ export {
   EmailAlreadyConfirmedError,
   EmailNotVerifiedError,
 } from "./errors/email-confirmation.errors";
+export { ResendConfirmationModal } from "./components/ResendConfirmationModal";
 
 // Servicios de Recuperación de Contraseña (HU04-B)
 export {

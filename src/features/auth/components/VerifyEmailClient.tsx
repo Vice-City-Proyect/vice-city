@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ResendConfirmationModal } from "./ResendConfirmationModal";
 
 const cardStyle = {
   border: "1.5px solid #b0bf3f",
@@ -23,6 +24,7 @@ export function VerifyEmailClient() {
   const token = (searchParams.get("token") || "").trim();
   const [state, setState] = useState<VerifyState>(token ? "verifying" : "missing");
   const [message, setMessage] = useState<string>("");
+  const [isResendModalOpen, setIsResendModalOpen] = useState(false);
 
   // Rastrear el token que ya ha sido solicitado o está en vuelo (H-AUTH-03)
   // Previene peticiones duplicadas causadas por el doble montaje de React.StrictMode
@@ -123,12 +125,21 @@ export function VerifyEmailClient() {
           <>
             <h1 className="text-2xl font-bold text-club-accent">Enlace expirado</h1>
             <p className="text-text-muted text-sm">{message}</p>
-            <Link
-              href="/login"
-              className="inline-block mt-2 px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors"
-            >
-              Volver a Iniciar Sesión
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 mt-4 items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsResendModalOpen(true)}
+                className="px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer"
+              >
+                Solicitar nuevo enlace
+              </button>
+              <Link
+                href="/login"
+                className="px-6 py-2.5 border border-club-primary/30 text-text-main rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-surface transition-colors"
+              >
+                Volver a Iniciar Sesión
+              </Link>
+            </div>
           </>
         );
       case "network_error":
@@ -154,23 +165,39 @@ export function VerifyEmailClient() {
             <p className="text-text-muted text-sm">
               {message || "El enlace de confirmación está incompleto o no es válido."}
             </p>
-            <Link
-              href="/register"
-              className="inline-block mt-2 px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors"
-            >
-              Registrarme de nuevo
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 mt-4 items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsResendModalOpen(true)}
+                className="px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer"
+              >
+                Reenviar enlace
+              </button>
+              <Link
+                href="/register"
+                className="px-6 py-2.5 border border-club-primary/30 text-text-main rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-surface transition-colors"
+              >
+                Registrarme de nuevo
+              </Link>
+            </div>
           </>
         );
     }
   };
 
   return (
-    <div
-      className="w-full max-w-md p-8 rounded-3xl bg-club-surface text-center flex flex-col items-center justify-center space-y-4"
-      style={cardStyle}
-    >
-      {renderContent()}
-    </div>
+    <>
+      <div
+        className="w-full max-w-md p-8 rounded-3xl bg-club-surface text-center flex flex-col items-center justify-center space-y-4"
+        style={cardStyle}
+      >
+        {renderContent()}
+      </div>
+
+      <ResendConfirmationModal
+        open={isResendModalOpen}
+        onClose={() => setIsResendModalOpen(false)}
+      />
+    </>
   );
 }

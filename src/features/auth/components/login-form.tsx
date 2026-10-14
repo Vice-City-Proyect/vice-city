@@ -14,6 +14,7 @@ import {
   isLoginFormValid,
   type LoginValidationErrors,
 } from '../utils/login-validation';
+import { ResendConfirmationModal } from './ResendConfirmationModal';
 
 const DASHBOARD_BY_ROLE: Record<SRSRole, string> = {
   ADMIN: '/admin',
@@ -49,6 +50,7 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
+  const [isResendModalOpen, setIsResendModalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -238,7 +240,16 @@ export function LoginForm() {
                 role="alert"
                 className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm text-center"
               >
-                {displayError}
+                <p>{displayError}</p>
+                {displayError.toLowerCase().includes('confirmar tu correo') && (
+                  <button
+                    type="button"
+                    onClick={() => setIsResendModalOpen(true)}
+                    className="mt-2 text-xs font-bold text-club-accent underline hover:text-club-primary transition-colors cursor-pointer block mx-auto"
+                  >
+                    ¿No recibiste el correo? Haz clic aquí para reenviarlo
+                  </button>
+                )}
               </div>
             )}
 
@@ -293,8 +304,15 @@ export function LoginForm() {
               </label>
             </div>
 
-            {/* ── Enlace: contraseña olvidada ───────────────────────────── */}
-            <div className="flex justify-end -mt-2">
+            {/* ── Enlaces secundarios: reenvío y recuperación ──────────────── */}
+            <div className="flex justify-between items-center -mt-2">
+              <button
+                type="button"
+                onClick={() => setIsResendModalOpen(true)}
+                className="text-xs text-text-muted hover:text-club-accent transition-colors underline underline-offset-2 cursor-pointer"
+              >
+                Reenviar confirmación
+              </button>
               <Link
                 href="/forgot-password"
                 className="text-xs text-text-muted hover:text-club-accent transition-colors underline underline-offset-2"
@@ -353,6 +371,12 @@ export function LoginForm() {
           </p>
         </div>
       </div>
+
+      <ResendConfirmationModal
+        open={isResendModalOpen}
+        onClose={() => setIsResendModalOpen(false)}
+        defaultEmail={email}
+      />
     </div>
   );
 }
