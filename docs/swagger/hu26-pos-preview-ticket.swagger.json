@@ -1,0 +1,133 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City - Previsualización y Emisión del Ticket Digital (HU26)",
+    "description": "Especificación de API para previsualizar tickets en taquilla y emitirlos al confirmar con código QR al portador verificable en base de datos (RN-017, RN-019, RN-020).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/pos/preview": {
+      "post": {
+        "summary": "Previsualizar ticket antes de confirmar la venta en POS",
+        "description": "Calcula y retorna la previsualización del ticket digital con nombre del cliente, fecha, hora, servicio, cantidad y total exacto, sin generar registros en base de datos.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sellerId",
+                  "clientName",
+                  "clientId",
+                  "serviceId",
+                  "startAt",
+                  "endAt",
+                  "quantity",
+                  "paymentMethod"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sellerId": { "type": "string", "format": "uuid" },
+                  "clientName": { "type": "string", "example": "Carlos Mendoza" },
+                  "clientId": { "type": "string", "example": "1020304050" },
+                  "serviceId": { "type": "string", "format": "uuid" },
+                  "startAt": { "type": "string", "format": "date-time", "example": "2026-10-15T10:00:00-05:00" },
+                  "endAt": { "type": "string", "format": "date-time", "example": "2026-10-15T11:00:00-05:00" },
+                  "quantity": { "type": "integer", "minimum": 1, "example": 2 },
+                  "paymentMethod": { "type": "string", "enum": ["cash", "card"], "example": "cash" },
+                  "clientPhone": { "type": "string", "example": "3001234567" },
+                  "notes": { "type": "string", "example": "Previsualización taquilla" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Previsualización generada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Previsualización del ticket generada exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "previewId": { "type": "string", "example": "a8fbc394d12e..." },
+                        "sellerId": { "type": "string", "format": "uuid" },
+                        "sellerName": { "type": "string", "example": "Daniela Taquillera" },
+                        "clientName": { "type": "string", "example": "Carlos Mendoza" },
+                        "clientId": { "type": "string", "example": "1020304050" },
+                        "serviceId": { "type": "string", "format": "uuid" },
+                        "serviceName": { "type": "string", "example": "Piscina Adultos" },
+                        "startAt": { "type": "string", "format": "date-time" },
+                        "endAt": { "type": "string", "format": "date-time" },
+                        "quantity": { "type": "integer", "example": 2 },
+                        "unitPrice": { "type": "number", "example": 2000 },
+                        "totalAmount": { "type": "number", "example": 4000 },
+                        "currency": { "type": "string", "example": "COP" },
+                        "paymentMethod": { "type": "string", "example": "cash" },
+                        "availableCapacity": { "type": "integer", "example": 48 },
+                        "isStartedSlotPurchased": { "type": "boolean", "example": false },
+                        "expiresAtEndOfSlot": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros inválidos o franja horaria fuera de operación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: El vendedor no cuenta con rol TICKET_SELLER o ADMIN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Aforo insuficiente para la cantidad solicitada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

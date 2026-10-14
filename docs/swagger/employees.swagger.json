@@ -1,0 +1,410 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Gestión de Empleados por el Administrador (HU19)",
+    "description": "Especificación OpenAPI 3.0.3 para la gestión de cuentas del personal de taquilla (TICKET_SELLER) y validadores de acceso (QR_VALIDATOR), con control de estado y auditoría en audit_logs.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin - Employees",
+      "description": "Endpoints administrativos para crear, consultar, actualizar, desactivar y reactivar cuentas de empleados"
+    }
+  ],
+  "paths": {
+    "/api/employees": {
+      "get": {
+        "tags": ["Admin - Employees"],
+        "summary": "Listar empleados del complejo deportivo",
+        "description": "Retorna la lista de empleados con roles TICKET_SELLER o QR_VALIDATOR. Permite filtrar por estado (activos/inactivos), rol y término de búsqueda. Exclusivo para usuarios con rol ADMIN.",
+        "operationId": "getEmployees",
+        "parameters": [
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "description": "Si es 'true', incluye también empleados inactivos",
+            "schema": { "type": "boolean", "default": false }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por rol específico de empleado",
+            "schema": { "type": "string", "enum": ["TICKET_SELLER", "QR_VALIDATOR"] }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Búsqueda por nombre o correo electrónico",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de empleados obtenida exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EmployeeResponse"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: requiere rol ADMIN",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin - Employees"],
+        "summary": "Crear nueva cuenta de empleado",
+        "description": "Crea una nueva cuenta de empleado con rol TICKET_SELLER o QR_VALIDATOR, encripta su contraseña y registra la acción en audit_logs. Rechaza correos duplicados y roles no permitidos. Exclusivo para ADMIN.",
+        "operationId": "createEmployee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEmployeeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Empleado creado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "$ref": "#/components/schemas/EmployeeResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos, correo repetido, o rol no permitido (solo TICKET_SELLER o QR_VALIDATOR)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: requiere rol ADMIN",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employees/{id}": {
+      "get": {
+        "tags": ["Admin - Employees"],
+        "summary": "Consultar detalle de un empleado por ID",
+        "description": "Obtiene la información de un empleado específico mediante su identificador UUID. Exclusivo para ADMIN.",
+        "operationId": "getEmployeeById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID UUID del empleado",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del empleado encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/EmployeeResponse" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Empleado no encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: requiere rol ADMIN",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Admin - Employees"],
+        "summary": "Actualizar datos o estado de un empleado",
+        "description": "Permite actualizar datos personales o reactivar/desactivar la cuenta de un empleado. La acción se audita en audit_logs. Rechaza autodesactivación si el usuario es el propio ADMIN.",
+        "operationId": "updateEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID UUID del empleado a actualizar",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEmployeeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Empleado actualizado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/EmployeeResponse" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos o intento de autodesactivación del administrador",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: requiere rol ADMIN",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Admin - Employees"],
+        "summary": "Desactivar empleado (baja lógica)",
+        "description": "Cambia el estado is_active = false del empleado especificado para revocar inmediatamente su capacidad de inicio de sesión. Registra auditoría. El administrador no puede desactivarse a sí mismo.",
+        "operationId": "deactivateEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID UUID del empleado a desactivar",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Empleado desactivado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Empleado desactivado exitosamente" },
+                    "data": { "$ref": "#/components/schemas/EmployeeResponse" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error al desactivar o intento de autodesactivación",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado: requiere rol ADMIN",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateEmployeeInput": {
+        "type": "object",
+        "required": ["email", "full_name", "password", "role"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "taquilla.norte@vicecity.com"
+          },
+          "full_name": {
+            "type": "string",
+            "example": "Mariana Pajón"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Taquilla2026!"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["TICKET_SELLER", "QR_VALIDATOR"],
+            "example": "TICKET_SELLER"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+57 300 123 4567"
+          },
+          "document_id": {
+            "type": "string",
+            "example": "1098765432"
+          }
+        }
+      },
+      "UpdateEmployeeInput": {
+        "type": "object",
+        "properties": {
+          "full_name": { "type": "string", "example": "Mariana Pajón Actualizada" },
+          "phone": { "type": "string", "example": "+57 301 987 6543" },
+          "document_id": { "type": "string", "example": "1098765432" },
+          "role": { "type": "string", "enum": ["TICKET_SELLER", "QR_VALIDATOR"] },
+          "is_active": { "type": "boolean", "example": false }
+        }
+      },
+      "EmployeeResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "b1a2c3d4-e5f6-7890-abcd-ef1234567890" },
+          "email": { "type": "string", "format": "email", "example": "taquilla.norte@vicecity.com" },
+          "full_name": { "type": "string", "example": "Mariana Pajón" },
+          "phone": { "type": "string", "nullable": true, "example": "+57 300 123 4567" },
+          "document_id": { "type": "string", "nullable": true, "example": "1098765432" },
+          "is_active": { "type": "boolean", "example": true },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-10-11T12:00:00.000Z" },
+          "updated_at": { "type": "string", "format": "date-time", "example": "2026-10-11T12:00:00.000Z" },
+          "role": { "type": "string", "example": "ticket_seller" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "Mensaje descriptivo del error" },
+          "details": { "type": "string", "example": "Detalle técnico adicional si aplica" }
+        }
+      }
+    }
+  }
+}

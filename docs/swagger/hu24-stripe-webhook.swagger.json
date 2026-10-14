@@ -1,0 +1,142 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City - Webhook de Stripe y Confirmación de Tickets (HU24)",
+    "description": "Especificación de API para recepción del webhook oficial de Stripe, validación de firma y emisión de tickets QR (RN-016, RN-018, RN-019).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/payments/webhook": {
+      "post": {
+        "summary": "Recepción de eventos de Stripe y confirmación de pago",
+        "description": "Valida la firma criptográfica 'stripe-signature' con el secreto del webhook. Al recibir 'payment_intent.succeeded', confirma la reserva, actualiza el registro en 'payments' a 'paid' y genera el ticket digital con código QR seguro. Garantiza idempotencia ante reintentos de Stripe y no procesa reembolsos de dinero en el MVP (RN-018).",
+        "parameters": [
+          {
+            "name": "stripe-signature",
+            "in": "header",
+            "required": true,
+            "description": "Firma criptográfica enviada por Stripe para autenticar el webhook",
+            "schema": {
+              "type": "string",
+              "example": "t=1612345678,v1=5257a869e7ecebeda32affa62cd..."
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Payload del evento de Stripe (JSON crudo)",
+                "properties": {
+                  "id": { "type": "string", "example": "evt_1MtwC0LkdIwHu7ix..." },
+                  "type": { "type": "string", "example": "payment_intent.succeeded" },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "object": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "example": "pi_1MtwBwLkdIwHu7ix..." },
+                          "amount": { "type": "integer", "example": 16000000 },
+                          "currency": { "type": "string", "example": "cop" },
+                          "status": { "type": "string", "example": "succeeded" },
+                          "metadata": {
+                            "type": "object",
+                            "properties": {
+                              "bookingId": { "type": "string", "format": "uuid" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evento procesado exitosamente o ya procesado previamente (idempotente)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Evento de pago procesado exitosamente y ticket generado" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "processed": { "type": "boolean", "example": true },
+                        "eventType": { "type": "string", "example": "payment_intent.succeeded" },
+                        "paymentIntentId": { "type": "string", "example": "pi_1MtwBwLkdIwHu7ix..." },
+                        "bookingId": { "type": "string", "format": "uuid" },
+                        "ticketId": { "type": "string", "format": "uuid" },
+                        "ticketCode": { "type": "string", "example": "9FA2C4E618B0..." },
+                        "isAlreadyProcessed": { "type": "boolean", "example": false },
+                        "overdueHoldRescued": { "type": "boolean", "example": false }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Firma del webhook inválida o ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string", "example": "La firma del webhook de Stripe no es válida o está ausente." },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "string", "example": "INVALID_WEBHOOK_SIGNATURE" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reserva no encontrada para el payment_intent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" },
+                    "error": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
