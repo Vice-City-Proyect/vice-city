@@ -90,7 +90,7 @@ npm run db:generate
 # Probar la conectividad activa contra PostgreSQL en Supabase
 npm run db:test
 
-# Crear el superadministrador inicial (admin@vicecity.com / vicecity123*)
+# Crear el superadministrador inicial (requiere ADMIN_SEED_PASSWORD en tu .env, mín. 12 caracteres)
 npm run db:seed:admin
 ```
 
@@ -289,7 +289,7 @@ Configura las siguientes variables en `.env.local` y `.env`:
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | `pk_test_your_stripe_publishable_key` | Clave pública de Stripe para inicializar Stripe Elements en el frontend. |
 | `ADMIN_SEED_EMAIL` | No | `admin@vicecity.com` | Correo del superadministrador para `npm run db:seed:admin`. |
 | `ADMIN_SEED_NAME` | No | `Administrador Principal` | Nombre del superadministrador para `npm run db:seed:admin`. |
-| `ADMIN_SEED_PASSWORD` | No* | `vicecity123*` | Contraseña del superadministrador (*obligatoria en producción para seed). |
+| `ADMIN_SEED_PASSWORD` | Sí (para el seed) | — (sin valor por defecto) | Contraseña del superadministrador, mínimo 12 caracteres. Solo en tu `.env` local. |
 
 > [!WARNING]
 > No dupliques el nombre de la variable en el valor (ej. `DATABASE_URL="DATABASE_URL=..."`). Asegúrate de que no haya espacios alrededor del signo igual `=`.
