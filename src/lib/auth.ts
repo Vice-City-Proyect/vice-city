@@ -301,8 +301,10 @@ export const authOptions: NextAuthOptions = {
     // 1. Delegación a la lógica de negocio al iniciar sesión (HU05-B)
     async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
-        // VCP-84: un correo que Google no marca como verificado no se puede vincular ni crear.
-        if ((profile as any)?.email_verified === false) {
+        // VCP-84: solo se vincula o crea la cuenta si Google confirma el correo
+        // (email_verified === true). Si el claim viene en false o no viene, se rechaza.
+        const googleClaims = profile as { email_verified?: boolean } | undefined;
+        if (googleClaims?.email_verified !== true) {
           return false;
         }
         try {
@@ -315,7 +317,7 @@ export const authOptions: NextAuthOptions = {
             email: profile?.email || user.email,
             name: profile?.name || user.name,
             picture: (profile as any)?.picture || (profile as any)?.image || user.image,
-            email_verified: (profile as any)?.email_verified ?? true,
+            email_verified: true,
           };
 
           // Delegación estricta a la capa de lógica de negocio (HU05-B LN)

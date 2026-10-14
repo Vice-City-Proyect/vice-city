@@ -194,7 +194,7 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
   test("Criterio 2: NextAuth signIn callback redirige al login con error ante cuenta de Google sin email", async () => {
     const signInCallback = authOptions.callbacks.signIn;
     const account = { provider: "google", providerAccountId: "sub-sin-email" };
-    const profile = { sub: "sub-sin-email", email: null };
+    const profile = { sub: "sub-sin-email", email: null, email_verified: true };
 
     const redirectTarget = await signInCallback({
       user: {},
@@ -208,7 +208,12 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
   test("Criterio 2: NextAuth signIn callback redirige al login si la cuenta existente está inactiva", async () => {
     const signInCallback = authOptions.callbacks.signIn;
     const account = { provider: "google", providerAccountId: "sub-inactivo" };
-    const profile = { sub: "sub-inactivo", email: "inactivo@example.com", name: "Inactivo" };
+    const profile = {
+      sub: "sub-inactivo",
+      email: "inactivo@example.com",
+      name: "Inactivo",
+      email_verified: true,
+    };
 
     const redirectTarget = await signInCallback({
       user: {},
@@ -232,6 +237,39 @@ describe("HU05-B: API Endpoints - Inicio de Sesión con Google", () => {
 
     assert.equal(result, false);
     assert.equal(mockUsers.length, usersBefore);
+  });
+
+  test("VCP-84: NextAuth signIn rechaza una cuenta de Google sin el claim email_verified (rechazo por defecto)", async () => {
+    const signInCallback = authOptions.callbacks.signIn;
+    const usersBefore = mockUsers.length;
+
+    const result = await signInCallback({
+      user: {},
+      account: { provider: "google", providerAccountId: "sub-sin-claim" },
+      profile: { sub: "sub-sin-claim", email: "sinclaim@example.com" },
+    });
+
+    assert.equal(result, false);
+    assert.equal(mockUsers.length, usersBefore);
+  });
+
+  test("VCP-84: NextAuth signIn acepta y crea la cuenta cuando Google confirma email_verified: true", async () => {
+    const signInCallback = authOptions.callbacks.signIn;
+    const usersBefore = mockUsers.length;
+
+    const result = await signInCallback({
+      user: {},
+      account: { provider: "google", providerAccountId: "sub-verificado" },
+      profile: {
+        sub: "sub-verificado",
+        email: "verificado@example.com",
+        name: "Verificado",
+        email_verified: true,
+      },
+    });
+
+    assert.equal(result, true);
+    assert.equal(mockUsers.length, usersBefore + 1);
   });
 
   test("VCP-84: POST /api/auth/google sin servicio inyectado responde 410 y no ejecuta lógica", async () => {

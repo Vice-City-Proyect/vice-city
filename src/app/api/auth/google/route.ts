@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { googleProfileSchema } from "@/features/auth/schemas/google-auth.schema";
 import {
-  googleAuthService,
   GoogleEmailNotProvidedError,
   UserInactiveError,
   GoogleAuthError,
