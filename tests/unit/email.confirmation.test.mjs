@@ -10,7 +10,6 @@ import {
   TokenExpiredError,
   InvalidTokenError,
   UserAlreadyVerifiedError,
-  UserNotFoundError,
   TokenAlreadyUsedError,
 } from "../../src/features/auth/errors/email-confirmation.errors.ts";
 
