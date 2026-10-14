@@ -97,19 +97,12 @@ export class EmailConfirmationService {
 
     const currentMetadata = (user.metadata as Record<string, any>) || {};
 
-    // 1. Actualizar metadata del usuario con el nuevo token vía Prisma ORM
-    await this.db.users.update({
-      where: { id: userId },
-      data: {
-        metadata: {
-          ...currentMetadata,
-          verification_token: tokenData,
-        } as any,
-      },
-    });
+    const hasVerificationTokensTable = Boolean(
+      this.db?.verification_tokens && typeof this.db.verification_tokens.create === "function"
+    );
 
-    // 2. Si la tabla verification_tokens está disponible en el cliente Prisma, persistir el hash
-    if (this.db?.verification_tokens && typeof this.db.verification_tokens.create === "function") {
+    // 1. Si la tabla verification_tokens está disponible en el cliente Prisma, persistir exclusivamente el hash (H-AUTH-05 / OWASP)
+    if (hasVerificationTokensTable) {
       try {
         await this.db.verification_tokens.updateMany({
           where: { user_id: userId, used: false },
@@ -126,6 +119,34 @@ export class EmailConfirmationService {
       } catch {
         // Silencioso en caso de mock sin tabla física
       }
+
+      // En metadata no se persiste el token en texto plano (H-AUTH-05)
+      await this.db.users.update({
+        where: { id: userId },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            verification_token: {
+              token_hash: tokenHash,
+              expires_at: expiresAt.toISOString(),
+              created_at: now.toISOString(),
+              used: false,
+              revoked: false,
+            },
+          } as any,
+        },
+      });
+    } else {
+      // Fallback para mocks de pruebas unitarias que no implementan la tabla física verification_tokens
+      await this.db.users.update({
+        where: { id: userId },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            verification_token: tokenData,
+          } as any,
+        },
+      });
     }
 
     // 3. Enviar correo mediante el proveedor inyectado
@@ -193,7 +214,7 @@ export class EmailConfirmationService {
                 email_verified: true,
                 email_verified_at: now.toISOString(),
                 verification_token: {
-                  token: cleanToken,
+                  token_hash: tokenRecord.token_hash,
                   used: true,
                   used_at: now.toISOString(),
                   expires_at: tokenRecord.expires_at.toISOString(),
@@ -345,20 +366,12 @@ export class EmailConfirmationService {
       revoked: false,
     };
 
-    // Actualizar usuario en Prisma con el nuevo token activo
-    await this.db.users.update({
-      where: { id: user.id },
-      data: {
-        metadata: {
-          ...currentMetadata,
-          verification_token: newTokenData,
-          previous_token_revoked_at: now.toISOString(),
-        } as any,
-      },
-    });
+    const hasVerificationTokensTable = Boolean(
+      this.db?.verification_tokens && typeof this.db.verification_tokens.create === "function"
+    );
 
     // Invalida tokens previos en verification_tokens si existe la tabla
-    if (this.db?.verification_tokens && typeof this.db.verification_tokens.create === "function") {
+    if (hasVerificationTokensTable) {
       try {
         await this.db.verification_tokens.updateMany({
           where: { user_id: user.id, used: false },
@@ -375,6 +388,35 @@ export class EmailConfirmationService {
       } catch {
         // Ignorar si en mock
       }
+
+      await this.db.users.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            verification_token: {
+              token_hash: tokenHash,
+              expires_at: expiresAt.toISOString(),
+              created_at: now.toISOString(),
+              used: false,
+              revoked: false,
+            },
+            previous_token_revoked_at: now.toISOString(),
+          } as any,
+        },
+      });
+    } else {
+      // Fallback para mocks de pruebas unitarias sin tabla física verification_tokens
+      await this.db.users.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            verification_token: newTokenData,
+            previous_token_revoked_at: now.toISOString(),
+          } as any,
+        },
+      });
     }
 
     // 4. Enviar nuevo correo

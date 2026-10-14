@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { authenticateUser, authOptions, getAuthSecret, VALID_SRS_ROLES } from "../../src/lib/auth.ts";
+import { EmailNotVerifiedError } from "../../src/features/auth/errors/auth.errors.ts";
 import { hashPassword } from "../../src/lib/password.ts";
 
 /**
@@ -42,6 +43,7 @@ describe("HU02-B: Lógica de Negocio - Autenticación y JWT (NextAuth)", () => {
       full_name: "Daniela Zapata",
       password_hash: hashedPassword,
       is_active: true,
+      email_verified: true,
       roles: {
         id: "role-client-1",
         name: "CLIENT",
@@ -106,6 +108,7 @@ describe("HU02-B: Lógica de Negocio - Autenticación y JWT (NextAuth)", () => {
         full_name: `Empleado ${role}`,
         password_hash: hashedPassword,
         is_active: true,
+        email_verified: true,
         roles: {
           id: `role-${role.toLowerCase()}`,
           name: role,
@@ -176,6 +179,7 @@ describe("HU02-B: Lógica de Negocio - Autenticación y JWT (NextAuth)", () => {
       full_name: "Rol Invalido",
       password_hash: hashedPassword,
       is_active: true,
+      email_verified: true,
       roles: {
         id: "role-invalid",
         name: "SUPER_GUEST_INVALIDO", // No pertenece al SRS
@@ -233,6 +237,41 @@ describe("HU02-B: Lógica de Negocio - Autenticación y JWT (NextAuth)", () => {
       },
       (err) => {
         assert.ok(err.message.includes("obligatorio"));
+        return true;
+      }
+    );
+  });
+
+  it("Criterio H-AUTH-02: Rechaza inicio de sesión con EmailNotVerifiedError si el correo no ha sido verificado", async () => {
+    const rawPassword = "PasswordSeguro123!";
+    const hashedPassword = await hashPassword(rawPassword);
+
+    const mockUnverifiedUser = {
+      id: "usr-unverified-uuid",
+      email: "noverificado@vicecity.com",
+      full_name: "Usuario No Verificado",
+      password_hash: hashedPassword,
+      is_active: true,
+      email_verified: false,
+      roles: {
+        id: "role-client-1",
+        name: "CLIENT",
+      },
+    };
+
+    const { client } = createMockPrisma({ users: [mockUnverifiedUser] });
+
+    await assert.rejects(
+      async () => {
+        await authenticateUser(
+          { email: "noverificado@vicecity.com", password: rawPassword },
+          client
+        );
+      },
+      (err) => {
+        assert.ok(err instanceof EmailNotVerifiedError, "Debe ser instancia de EmailNotVerifiedError");
+        assert.equal(err.code, "EMAIL_NOT_VERIFIED");
+        assert.ok(err.message.includes("Debes confirmar tu correo"));
         return true;
       }
     );
