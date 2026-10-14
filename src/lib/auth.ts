@@ -10,6 +10,7 @@ import {
   googleAuthService,
   GoogleEmailNotProvidedError,
   UserInactiveError,
+  EmailNotVerifiedError,
   type GoogleProfile,
 } from "@/features/auth";
 import { linkAccount } from "@/features/users/linked-accounts.repository";
@@ -86,7 +87,18 @@ export async function authenticateUser(
     throw new Error("Credenciales incorrectas: correo o contraseña no válidos");
   }
 
-  // 4. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
+  // 4. Caso de error: Validar que el correo del usuario esté verificado (H-AUTH-02)
+  const isEmailVerified =
+    user.email_verified === true ||
+    (typeof user.metadata === "object" &&
+      user.metadata !== null &&
+      (user.metadata as Record<string, any>).email_verified === true);
+
+  if (!isEmailVerified) {
+    throw new EmailNotVerifiedError();
+  }
+
+  // 5. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
   const roleName = user.roles?.name ? user.roles.name.toUpperCase() : "";
 
   // Normalización para compatibilidad si el rol en BD es legacy "CUSTOMER" -> "CLIENT"

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { loginSchema } from "@/features/auth/schemas/login.schema";
+import { EmailNotVerifiedError } from "@/features/auth/errors/auth.errors";
 import {
   authenticateUser,
   createSessionToken,
@@ -136,6 +137,23 @@ export async function POST(
           message: error.message,
         },
         { status: 400 }
+      );
+    }
+
+    if (
+      error instanceof EmailNotVerifiedError ||
+      (error instanceof Error &&
+        ((error as { code?: string }).code === "EMAIL_NOT_VERIFIED" ||
+          error.message.includes("Debes confirmar tu correo") ||
+          error.message.includes("EMAIL_NOT_VERIFIED")))
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "EMAIL_NOT_VERIFIED",
+          message: error instanceof Error ? error.message : "Debes confirmar tu correo electrónico antes de iniciar sesión.",
+        },
+        { status: 403 }
       );
     }
 
