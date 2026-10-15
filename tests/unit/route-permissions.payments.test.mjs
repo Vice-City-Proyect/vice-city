@@ -19,14 +19,19 @@ describe("HU08-B (extensión): permisos de reservas web, pagos y verificación d
   test("reservas y checkout son privadas y solo para CLIENT y ADMIN", () => {
     assert.equal(isProtectedRoute("/api/reservations"), true);
     assert.equal(isProtectedRoute("/api/payments/checkout"), true);
+    assert.equal(isProtectedRoute("/api/payments/create-intent"), true);
 
     assert.deepEqual(getAllowedRolesForRoute("/api/reservations"), ["CLIENT", "ADMIN"]);
     assert.deepEqual(getAllowedRolesForRoute("/api/payments/checkout"), ["CLIENT", "ADMIN"]);
+    assert.deepEqual(getAllowedRolesForRoute("/api/payments/create-intent"), ["CLIENT", "ADMIN"]);
 
     assert.equal(isRouteAllowed("CLIENT", "/api/reservations"), true);
     assert.equal(isRouteAllowed("ADMIN", "/api/payments/checkout"), true);
     assert.equal(isRouteAllowed("TICKET_SELLER", "/api/reservations"), false);
     assert.equal(isRouteAllowed("QR_VALIDATOR", "/api/payments/checkout"), false);
+    assert.equal(isRouteAllowed("CLIENT", "/api/payments/create-intent"), true);
+    assert.equal(isRouteAllowed("TICKET_SELLER", "/api/payments/create-intent"), false);
+    assert.equal(isRouteAllowed(null, "/api/payments/create-intent"), false);
     assert.equal(isRouteAllowed(null, "/api/reservations"), false);
   });
 

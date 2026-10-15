@@ -4,13 +4,8 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CatalogGrid } from "@/features/services/components/CatalogGrid";
 import { AvailabilitySlots } from "@/features/services/components/AvailabilitySlots";
-import { HoldTimer } from "@/features/reservations/components/HoldTimer";
-import { ReservationSummaryCard } from "@/features/reservations/components/ReservationSummaryCard";
 import type { CategoryWithServices, ServiceItem } from "@/features/services/types/catalog.types";
 import type { ServiceAvailabilityResult, TimeSlot } from "@/features/services/types/availability.types";
-import type { BookingDetails, HoldReservationResult } from "@/features/reservations/types/reservation.types";
-
-const MOCK_CLIENT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 function ClientReservarPageContent() {
   const router = useRouter();
@@ -27,9 +22,6 @@ function ClientReservarPageContent() {
   const [error, setError] = useState<string | null>(null);
 
   const [reserving, setReserving] = useState<boolean>(false);
-  const [, setHoldResult] = useState<HoldReservationResult | null>(null);
-  const [booking, setBooking] = useState<BookingDetails | null>(null);
-  const [showTimer, setShowTimer] = useState<boolean>(false);
   const [reserved, setReserved] = useState<boolean>(false);
 
 
@@ -108,43 +100,26 @@ function ClientReservarPageContent() {
       const startDateTime = new Date(`${selectedDate}T${selectedSlot.startTime}:00.000-05:00`).toISOString();
       const endDateTime = new Date(`${selectedDate}T${selectedSlot.endTime}:00.000-05:00`).toISOString();
 
-      const res = await fetch("/api/reservations/hold", {
+      // El usuario lo define la sesión del servidor: no se envía ningún userId desde el navegador.
+      const res = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: MOCK_CLIENT_USER_ID,
           serviceId: selectedService.id,
           startAt: startDateTime,
           endAt: endDateTime,
           quantity: 1,
         }),
       });
-      const json = await res.json();
-      if (json.success && json.data) {
-        setHoldResult(json.data);
+      const json = await res.json().catch(() => null);
+      if (json?.success && json.data?.id) {
         setReserved(true);
-        setShowTimer(true);
-        const bookingDetails: BookingDetails = {
-          id: json.data.bookingId,
-          userId: json.data.userId,
-          serviceId: json.data.serviceId,
-          serviceName: json.data.serviceName,
-          startAt: json.data.startAt,
-          endAt: json.data.endAt,
-          quantity: json.data.quantity,
-          totalAmount: json.data.totalAmount,
-          currency: json.data.currency,
-          status: json.data.status,
-          expiresAt: json.data.expiresAt,
-          isHoldExpired: false,
-          remainingSeconds: json.data.remainingSeconds,
-          notes: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setBooking(bookingDetails);
+        // La reserva queda retenida 10 minutos: se lleva al cliente al pago.
+        router.push(`/checkout/${json.data.id}`);
+      } else if (res.status === 401) {
+        setError("Inicia sesión para reservar.");
       } else {
-        setError(json.message || "Error al crear la reserva.");
+        setError(json?.message || "Error al crear la reserva.");
       }
     } catch (err: unknown) {
       console.error("Error al reservar:", err);
@@ -152,16 +127,6 @@ function ClientReservarPageContent() {
     } finally {
       setReserving(false);
     }
-  };
-
-  const handleExpire = () => {
-    setShowTimer(false);
-    setReserved(false);
-    setSelectedSlot(null);
-    setHoldResult(null);
-    setBooking(null);
-    setError("Tu reserva venció");
-    router.push("/cliente/reservar");
   };
 
   return (
@@ -241,13 +206,6 @@ function ClientReservarPageContent() {
                   </div>
                 )}
 
-                {showTimer && booking && (
-                  <HoldTimer initialSeconds={booking.remainingSeconds} onExpire={handleExpire} />
-                )}
-
-                {booking && (
-                  <ReservationSummaryCard booking={booking} />
-                )}
               </div>
             </div>
           </div>

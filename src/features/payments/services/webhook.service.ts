@@ -16,7 +16,6 @@ import { prisma as defaultPrisma } from "@/lib/prisma";
 import {
   constructStripeEvent,
   getStripeClient,
-  refundPaymentIntent,
 } from "./stripe.client";
 import { createTicketForBooking } from "./ticket.service";
 import {
@@ -24,6 +23,7 @@ import {
   type BookingConfirmationEmailParams,
 } from "./booking-email.service";
 import { InvalidStripeSignatureError } from "../errors/payments.errors";
+import { STRIPE_CURRENCY, toStripeMinorUnits } from "../lib/stripe.config";
 
 export interface WebhookResult {
   received: true;
@@ -41,11 +41,28 @@ export interface StripeWebhookDeps {
   sendEmailFn?: (params: BookingConfirmationEmailParams) => Promise<boolean>;
 }
 
+type ReviewReason = "HOLD_EXPIRED" | "AMOUNT_MISMATCH";
+
 interface TransactionOutcome {
-  kind: "confirmed" | "already" | "hold_expired" | "not_found";
+  kind:
+    | "confirmed"
+    | "already"
+    | "raced"
+    | "review_needed"
+    | "already_recorded"
+    | "not_found";
   booking?: any;
   ticket?: any;
+  reason?: ReviewReason;
+  paymentId?: string;
 }
+
+/**
+ * Estado de un cobro recibido que NO se pudo confirmar (HOLD vencido o monto distinto).
+ * Es un valor válido de la restricción `payments_status_valid`. El MVP no reembolsa
+ * (RN-018): el cobro queda en revisión manual y no se confirma la reserva.
+ */
+const REVIEW_STATUS = "processing";
 
 export class StripeWebhookService {
   private db: PrismaClient;
@@ -99,6 +116,7 @@ export class StripeWebhookService {
       id: session.id,
       payment_status: session.payment_status,
       amount_total: session.amount_total,
+      currency: session.currency ?? null,
       customer_email: (session as any).customer_email ?? null,
       mode: session.mode,
     };
@@ -108,6 +126,21 @@ export class StripeWebhookService {
     const pi = (session as any).payment_intent;
     if (!pi) return null;
     return typeof pi === "string" ? pi : pi.id ?? null;
+  }
+
+  /**
+   * Verifica que lo cobrado por Stripe coincida con el total congelado de la reserva.
+   * Nunca se confirma por el valor de la base de datos si Stripe cobró otra cosa.
+   */
+  private paidAmountMatches(
+    session: Stripe.Checkout.Session,
+    booking: { total_amount: unknown }
+  ): boolean {
+    const expected = toStripeMinorUnits(Number(booking.total_amount));
+    const currency = String(session.currency ?? "").toLowerCase();
+    return (
+      session.amount_total === expected && currency === STRIPE_CURRENCY.toLowerCase()
+    );
   }
 
   private async handleCheckoutCompleted(
@@ -132,6 +165,8 @@ export class StripeWebhookService {
       return { received: true, handled: false, type, reason: "PAYMENT_NOT_COMPLETED" };
     }
 
+    const providerReference = paymentIntentId || session.id;
+
     const outcome = await this.db.$transaction(
       async (tx: any): Promise<TransactionOutcome> => {
         const booking = await tx.bookings.findUnique({
@@ -147,58 +182,82 @@ export class StripeWebhookService {
 
         // Idempotencia: si ya hay un pago exitoso o la reserva ya está confirmada.
         const existingPayment = await tx.payments.findFirst({
-          where: { booking_id: bookingId, status: "SUCCEEDED" },
+          where: { booking_id: bookingId, status: "approved" },
         });
 
         if (existingPayment || booking.status === "confirmed") {
           return { kind: "already", booking };
         }
 
+        // Reintento de un cobro que ya se registró para revisión: no se repite.
+        const existingReview = await tx.payments.findFirst({
+          where: {
+            booking_id: bookingId,
+            provider_reference: providerReference,
+            status: REVIEW_STATUS,
+          },
+        });
+        if (existingReview) {
+          return { kind: "already_recorded" };
+        }
+
         const holdExpired = booking.expires_at
           ? new Date(booking.expires_at).getTime() <= now.getTime()
           : false;
+        const notPayable = booking.status !== "pending" || holdExpired;
+        const amountMismatch = !notPayable && !this.paidAmountMatches(session, booking);
 
-        // HOLD vencido o reserva no pendiente: no confirmar (se reembolsará fuera).
-        if (booking.status !== "pending" || holdExpired) {
-          await tx.payments.create({
+        // HOLD vencido, reserva no pendiente o monto cobrado distinto al de la reserva:
+        // no se confirma. El cobro queda en revisión manual (sin reembolso automático).
+        if (notPayable || amountMismatch) {
+          const reason: ReviewReason = notPayable ? "HOLD_EXPIRED" : "AMOUNT_MISMATCH";
+          const payment = await tx.payments.create({
             data: {
               booking_id: bookingId,
               amount: Number(booking.total_amount),
               currency: "COP",
-              method: "STRIPE",
-              status: "REFUNDED",
+              method: "card",
+              status: REVIEW_STATUS,
               provider: "stripe",
-              provider_reference: paymentIntentId || session.id,
-              raw_response: this.summarizeSession(session),
+              provider_reference: providerReference,
+              raw_response: { ...this.summarizeSession(session), review_reason: reason },
             },
           });
-          return { kind: "hold_expired", booking };
+          return { kind: "review_needed", reason, paymentId: payment.id };
         }
 
-        const updatedBooking = await tx.bookings.update({
-          where: { id: bookingId },
+        const confirmedMetadata = {
+          ...meta,
+          stripe_session_id: session.id,
+          stripe_payment_intent: paymentIntentId,
+          paid_at: now.toISOString(),
+        };
+
+        // Confirmación atómica (compare-and-set): solo una entrega concurrente del mismo
+        // evento puede pasar la reserva de "pending" a "confirmed"; las demás no duplican
+        // pago ni ticket.
+        const claimed = await tx.bookings.updateMany({
+          where: { id: bookingId, status: "pending" },
           data: {
             status: "confirmed",
             expires_at: null,
             updated_at: now,
-            metadata: {
-              ...meta,
-              stripe_session_id: session.id,
-              stripe_payment_intent: paymentIntentId,
-              paid_at: now.toISOString(),
-            },
+            metadata: confirmedMetadata,
           },
         });
+        if (claimed.count === 0) {
+          return { kind: "raced" };
+        }
 
         await tx.payments.create({
           data: {
             booking_id: bookingId,
             amount: Number(booking.total_amount),
             currency: "COP",
-            method: "STRIPE",
-            status: "SUCCEEDED",
+            method: "card",
+            status: "approved",
             provider: "stripe",
-            provider_reference: paymentIntentId || session.id,
+            provider_reference: providerReference,
             paid_at: now,
             raw_response: this.summarizeSession(session),
           },
@@ -212,12 +271,31 @@ export class StripeWebhookService {
           metadata: { stripe_session_id: session.id },
         });
 
-        return { kind: "confirmed", booking: { ...updatedBooking, services: booking.services, users: booking.users }, ticket };
+        return {
+          kind: "confirmed",
+          booking: {
+            ...booking,
+            status: "confirmed",
+            expires_at: null,
+            updated_at: now,
+            metadata: confirmedMetadata,
+          },
+          ticket,
+        };
       }
     );
 
     if (outcome.kind === "confirmed" || outcome.kind === "already") {
-      await this.deliverConfirmation(outcome.booking, outcome.ticket?.code);
+      // El correo es secundario: si el proveedor falla, el pago ya está confirmado y Stripe
+      // NO debe recibir un error (reintentaría el webhook sin fin). Se reintenta en la próxima entrega.
+      try {
+        await this.deliverConfirmation(outcome.booking, outcome.ticket?.code);
+      } catch (error: unknown) {
+        console.error("[BOOKING_EMAIL_FAILED] reserva confirmada, correo pendiente", {
+          bookingId,
+          message: error instanceof Error ? error.message : "error desconocido",
+        });
+      }
       return {
         received: true,
         handled: true,
@@ -227,16 +305,35 @@ export class StripeWebhookService {
       };
     }
 
-    if (outcome.kind === "hold_expired") {
-      // Reembolso automático del pago recibido fuera del HOLD de 10 minutos.
-      if (paymentIntentId) {
-        try {
-          await refundPaymentIntent(paymentIntentId, this.stripe);
-        } catch {
-          // El reembolso podría requerir intervención manual; se registra como REFUNDED.
-        }
-      }
-      return { received: true, handled: true, type, confirmed: false, reason: "HOLD_EXPIRED" };
+    // Otra entrega del mismo evento ganó la confirmación: ella envía el correo.
+    if (outcome.kind === "raced") {
+      return {
+        received: true,
+        handled: true,
+        type,
+        confirmed: true,
+        reason: "ALREADY_CONFIRMED",
+      };
+    }
+
+    if (outcome.kind === "already_recorded") {
+      return {
+        received: true,
+        handled: true,
+        type,
+        confirmed: false,
+        reason: "ALREADY_RECORDED",
+      };
+    }
+
+    if (outcome.kind === "review_needed") {
+      // Alguien debe revisar a mano este cobro: se dejó registrado pero la reserva no se confirmó.
+      console.error("[STRIPE_PAYMENT_REVIEW_REQUIRED] cobro sin confirmar: revisión manual", {
+        paymentId: outcome.paymentId,
+        bookingId,
+        reason: outcome.reason,
+      });
+      return { received: true, handled: true, type, confirmed: false, reason: outcome.reason };
     }
 
     return { received: true, handled: false, type, reason: "BOOKING_NOT_FOUND" };
@@ -259,9 +356,18 @@ export class StripeWebhookService {
       if (!booking) return;
 
       const existing = await tx.payments.findFirst({
-        where: { booking_id: bookingId, status: "SUCCEEDED" },
+        where: { booking_id: bookingId, status: "approved" },
       });
       if (existing) return; // nunca degradar un pago exitoso
+
+      // Idempotencia: la base impone unicidad por (provider, provider_reference). Un reintento del
+      // mismo evento no debe insertar otra vez el cobro ni responder con error (Stripe reintentaría
+      // sin fin).
+      const providerReference = paymentIntentId || session.id;
+      const alreadyRecorded = await tx.payments.findFirst({
+        where: { booking_id: bookingId, provider_reference: providerReference },
+      });
+      if (alreadyRecorded) return;
 
       const meta = (booking.metadata as Record<string, any>) || {};
       await tx.payments.create({
@@ -269,10 +375,10 @@ export class StripeWebhookService {
           booking_id: bookingId,
           amount: Number(booking.total_amount),
           currency: "COP",
-          method: "STRIPE",
-          status: "FAILED",
+          method: "card",
+          status: "failed",
           provider: "stripe",
-          provider_reference: paymentIntentId || session.id,
+          provider_reference: providerReference,
           raw_response: this.summarizeSession(session),
         },
       });

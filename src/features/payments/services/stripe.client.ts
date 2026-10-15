@@ -12,6 +12,7 @@ import {
   getStripeSecretKey,
   getStripeWebhookSecret,
   STRIPE_CURRENCY,
+  toStripeMinorUnits,
 } from "../lib/stripe.config";
 
 let cachedClient: Stripe | null = null;
@@ -30,7 +31,7 @@ export function resetStripeClient(): void {
 
 export interface CreateCheckoutSessionInput {
   bookingId: string;
-  /** Monto total en la unidad mínima de la moneda (COP no tiene decimales: entero de pesos) */
+  /** Monto total en pesos COP; se convierte a la unidad mínima de Stripe (× 100) al crear la sesión */
   amount: number;
   currency?: string;
   productName: string;
@@ -58,7 +59,7 @@ export async function createStripeCheckoutSession(
         quantity: 1,
         price_data: {
           currency,
-          unit_amount: Math.round(input.amount),
+          unit_amount: toStripeMinorUnits(input.amount),
           product_data: {
             name: input.productName,
             description: input.productDescription,

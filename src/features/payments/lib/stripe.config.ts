@@ -35,3 +35,15 @@ export function getAppBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 export const STRIPE_CURRENCY = "COP";
+
+/**
+ * Stripe trata el peso colombiano como moneda de dos decimales: la API recibe el
+ * monto en centavos (pesos × 100). Verificado en modo test: `unit_amount: 4000`
+ * se interpreta como "$40.00 COP" y Stripe lo rechaza por el mínimo de cobro.
+ */
+export const STRIPE_MINOR_UNIT_FACTOR = 100;
+
+/** Convierte pesos COP (como se guardan en la reserva) a la unidad mínima de Stripe. */
+export function toStripeMinorUnits(amountInPesos: number): number {
+  return Math.round(amountInPesos * STRIPE_MINOR_UNIT_FACTOR);
+}

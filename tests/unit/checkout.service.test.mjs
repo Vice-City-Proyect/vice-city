@@ -78,7 +78,8 @@ describe("CheckoutService: creación de la sesión de pago", () => {
     assert.equal(result.checkoutUrl, "https://checkout.stripe.com/c/pay/cs_test_1");
 
     const params = stripe.created[0];
-    assert.equal(params.line_items[0].price_data.unit_amount, 4000);
+    // Stripe trata el COP con dos decimales: 4.000 pesos se envían como 400.000 centavos.
+    assert.equal(params.line_items[0].price_data.unit_amount, 400000);
     assert.equal(params.line_items[0].price_data.currency, "cop");
     assert.equal(params.metadata.booking_id, "bk-1");
     assert.equal(params.mode, "payment");
@@ -117,6 +118,35 @@ describe("CheckoutService: creación de la sesión de pago", () => {
       () => service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" }),
       { name: "BookingNotPayableError" }
     );
+  });
+
+  it("el monto enviado a Stripe es pesos × 100 también con valores no redondos", async () => {
+    const { service, stripe } = build(baseBooking({ total_amount: 140000 }));
+    await service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" });
+    assert.equal(stripe.created[0].line_items[0].price_data.unit_amount, 14000000);
+  });
+
+  it("si Stripe falla, devuelve un error claro (502) y no guarda la sesión en la reserva", async () => {
+    const stripe = createFakeStripe();
+    stripe.checkout.sessions.create = async () => {
+      throw new Error("The Checkout Session's total amount must convert to at least 50 cents.");
+    };
+    const db = createMockDb(baseBooking());
+    const service = new CheckoutService({ db, stripe, nowFn: () => NOW });
+
+    await assert.rejects(
+      () => service.createCheckoutSession("bk-1", { id: "user-1", role: "CLIENT" }),
+      (error) => {
+        assert.equal(error.name, "StripeOperationError");
+        assert.equal(error.code, "STRIPE_OPERATION_FAILED");
+        assert.equal(error.statusCode, 502);
+        // el detalle interno de Stripe no se filtra al cliente
+        assert.doesNotMatch(error.message, /50 cents/);
+        return true;
+      }
+    );
+    assert.equal(db.state.updates.length, 0);
+    assert.equal(db.state.booking.metadata.stripe_session_id, undefined);
   });
 
   it("lanza BookingNotFoundError si la reserva no existe", async () => {

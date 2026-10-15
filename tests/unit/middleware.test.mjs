@@ -151,9 +151,7 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
       "http://localhost:3000/api/catalog",
       "http://localhost:3000/api/availability?serviceId=abc&date=2026-10-15",
       "http://localhost:3000/api/pricing/calculate",
-      "http://localhost:3000/api/reservations/hold",
       "http://localhost:3000/api/reservations/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
-      "http://localhost:3000/api/payments/create-intent",
       "http://localhost:3000/api/payments/webhook",
       "http://localhost:3000/catalog",
       "http://localhost:3000/checkout/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
@@ -207,6 +205,9 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
       "http://localhost:3000/api/admin/users",
       "http://localhost:3000/api/employee/pos",
       "http://localhost:3000/api/client/tickets",
+      "http://localhost:3000/api/payments/checkout",
+      "http://localhost:3000/api/payments/create-intent",
+      "http://localhost:3000/api/reservations/hold",
     ];
 
     for (const url of protectedApis) {

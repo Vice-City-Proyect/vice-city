@@ -24,6 +24,13 @@ import {
   BookingCancelledError,
   StripePaymentError,
 } from "../errors/payment.errors";
+import { ForbiddenBookingAccessError } from "../errors/payments.errors";
+import { toStripeMinorUnits } from "../lib/stripe.config";
+
+export interface PaymentRequester {
+  id: string;
+  role: string;
+}
 
 export interface StripePaymentServiceDependencies {
   findBookingByIdFn?: (id: string) => Promise<any | null>;
@@ -71,7 +78,8 @@ export class StripePaymentService {
    * Crea o reutiliza un PaymentIntent de Stripe para una reserva en estado HOLD (pending)
    */
   async createPaymentIntent(
-    params: CreatePaymentIntentParams
+    params: CreatePaymentIntentParams,
+    requester?: PaymentRequester
   ): Promise<CreatePaymentIntentResult> {
     const { bookingId } = params;
 
@@ -93,6 +101,14 @@ export class StripePaymentService {
 
     if (!booking) {
       throw new BookingNotFoundError(`La reserva con id '${bookingId}' no existe.`);
+    }
+
+    // 1.1 Autorización a nivel de recurso: dueño de la reserva o ADMIN.
+    if (requester) {
+      const isAdmin = requester.role?.toUpperCase() === "ADMIN";
+      if (!isAdmin && booking.user_id !== requester.id) {
+        throw new ForbiddenBookingAccessError();
+      }
     }
 
     // 2. Validar que la reserva no esté cancelada ni ya pagada
@@ -158,7 +174,7 @@ export class StripePaymentService {
     const currency = (booking.services?.currency || "COP").toLowerCase();
 
     // En Stripe, el monto se envía en la unidad mínima (centavos para monedas de 2 decimales como COP / USD)
-    const amountInCents = Math.round(totalAmount * 100);
+    const amountInCents = toStripeMinorUnits(totalAmount);
 
     let paymentIntent: any;
     try {
