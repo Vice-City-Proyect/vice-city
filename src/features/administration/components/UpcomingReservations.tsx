@@ -4,23 +4,14 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Table } from '@/components/ui/Table';
-import { formatCOP, formatDate, toISODate } from '@/lib/format';
+import { formatCOP, formatDate } from '@/lib/format';
 import type { Reservation } from '@/types/reservation';
-import { MOCK_RESERVATIONS } from '@/features/reservations/data/mock-reservations';
 
-function isUpcoming(reservation: Reservation): boolean {
-  const today = toISODate(new Date());
-  return reservation.date >= today && reservation.status !== 'CANCELLED';
-}
-
-function sortReservations(a: Reservation, b: Reservation): number {
-  if (a.date !== b.date) return a.date.localeCompare(b.date);
-  return a.startTime.localeCompare(b.startTime);
-}
-
-export function UpcomingReservations() {
-  const upcoming = MOCK_RESERVATIONS.filter(isUpcoming).sort(sortReservations).slice(0, 6);
-
+/**
+ * Próximas reservas confirmadas. El backend ya las entrega ordenadas por fecha y franja
+ * (GET /api/reports/dashboard-summary), así que aquí solo se muestran.
+ */
+export function UpcomingReservations({ reservations: upcoming }: { reservations: Reservation[] }) {
   return (
     <Card className="p-5 sm:p-6">
       <div className="mb-5 flex items-center justify-between gap-4">

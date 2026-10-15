@@ -29,6 +29,13 @@ export interface UpdateAdminReservationPayload {
   status?: Reservation['status'];
 }
 
+/** Respuesta de GET /api/reports/dashboard-summary (solo ADMIN). */
+export interface AdminDashboardSummaryData {
+  pendingReservations: number;
+  activeUsers: number;
+  upcomingReservations: AdminReservation[];
+}
+
 export interface CancelAdminReservationPayload {
   status: 'CANCELLED';
   cancellationReason?: string;

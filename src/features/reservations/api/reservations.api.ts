@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from '@/lib/api-client';
 import type {
+  AdminDashboardSummaryData,
   AdminReservation,
   AdminReservationsPage,
   CancelAdminReservationPayload,
@@ -151,6 +152,16 @@ export function fetchMyReservations(
 
   const query = searchParams.toString();
   return fetchAdminReservationsPage(`/api/reservations${query ? `?${query}` : ''}`);
+}
+
+/**
+ * Resumen del dashboard del administrador (GET /api/reports/dashboard-summary):
+ * reservas pendientes, usuarios activos y próximas reservas.
+ */
+export function fetchAdminDashboardSummary(): Promise<AdminDashboardSummaryData> {
+  return apiRequest<AdminDashboardSummaryData>('/api/reports/dashboard-summary', {
+    cache: 'no-store',
+  });
 }
 
 export function updateAdminReservation(
