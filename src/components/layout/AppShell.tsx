@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, Menu, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
+import { performClientLogout } from '@/lib/logout';
 import type { NavItem } from './app-nav';
 
 interface AppShellProps {
@@ -81,14 +82,17 @@ export function AppShell({ nav, user, children }: AppShellProps) {
         </nav>
 
         <div className="border-t border-white/10 px-3 py-4">
-          <Link
-            href="/login"
-            onClick={() => setIsMenuOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 transition-colors duration-200 hover:bg-white/10 hover:text-white"
+          <button
+            type="button"
+            onClick={async () => {
+              setIsMenuOpen(false);
+              await performClientLogout('/login');
+            }}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 transition-colors duration-200 hover:bg-white/10 hover:text-white"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             Cerrar sesión
-          </Link>
+          </button>
         </div>
       </aside>
 
