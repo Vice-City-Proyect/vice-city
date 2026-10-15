@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession, getProviders } from 'next-auth/react';
 
@@ -282,43 +283,29 @@ export function LoginForm() {
       {/* ── COLUMNA IZQUIERDA: Branding ────────────────────────────────────── */}
       <div className="bg-club-surface flex items-center justify-center p-10 md:p-14 border-b md:border-b-0 md:border-r border-club-primary/30">
         <div className="flex flex-col items-center gap-3 select-none">
-          {/*
-           * Logo Vice City — representación tipográfica.
-           * Sin imágenes para mantener la carga ligera y evitar dependencias
-           * de archivos de /public en este entorno de desarrollo.
-           */}
-          <div
-            className="border-2 border-club-accent px-8 py-6 flex flex-col items-center leading-none"
-            style={{ minWidth: 180 }}
-          >
-            <span
-              className="text-5xl font-black text-club-accent uppercase"
-              style={{ fontFamily: 'serif', letterSpacing: '0.08em' }}
-            >
-              VICE
-            </span>
-            <span
-              className="text-5xl font-black text-club-accent uppercase"
-              style={{ fontFamily: 'serif', letterSpacing: '0.08em' }}
-            >
-              CITY
-            </span>
-            <span
-              className="text-xs font-bold mt-1 uppercase tracking-[0.3em]"
-              style={{ color: '#b0bf3f' }}
-            >
-              Sports
-            </span>
-          </div>
+          {/* Logo Vice City — asset oficial en /public/logo/logo.jpeg */}
+          <Image
+            src="/logo/logo.jpeg"
+            alt="Vice City Sports"
+            width={220}
+            height={220}
+            priority
+            className="object-contain"
+          />
         </div>
       </div>
 
       {/* ── COLUMNA DERECHA: Formulario ────────────────────────────────────── */}
       <div className="bg-club-surface p-8 md:p-12 flex flex-col relative">
-        {/* Badge de marca — esquina superior derecha */}
-        <div className="absolute top-5 right-5 border border-club-accent/25 rounded px-1.5 py-1 flex flex-col items-center leading-none">
-          <span className="text-[9px] font-black text-club-accent tracking-widest">VC</span>
-          <span className="text-[9px] font-black text-club-accent tracking-widest">—</span>
+        {/* Mini logo — esquina superior derecha */}
+        <div className="absolute top-5 right-5 border border-club-accent/25 rounded-lg overflow-hidden flex items-center justify-center">
+          <Image
+            src="/logo/favicon-updated.jpg"
+            alt="Vice City Favicon"
+            width={32}
+            height={32}
+            className="h-8 w-8 object-cover"
+          />
         </div>
 
         <div className="my-auto w-full max-w-sm mx-auto pt-6 md:pt-0">
