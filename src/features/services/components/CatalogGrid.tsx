@@ -68,7 +68,7 @@ export function CatalogGrid({
                     </div>
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-4">
+                  <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-zinc-100 pt-4">
                     <div>
                       <p className="text-xs text-zinc-500">Precio por hora</p>
                       <p className="text-lg font-bold text-zinc-900">
@@ -79,7 +79,7 @@ export function CatalogGrid({
                     <button
                       type="button"
                       onClick={() => onSelectService?.(service)}
-                      className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
+                      className={`w-full sm:w-auto text-center rounded-lg px-4 py-2 text-xs font-semibold transition-colors cursor-pointer ${
                         isSelected
                           ? "bg-sky-600 text-white hover:bg-sky-700"
                           : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"

@@ -72,10 +72,10 @@ export function ReservationEditModal({
     >
       <form id="reservation-edit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="rounded-2xl border border-text-main/10 bg-club-bg/60 p-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-text-main">
+          <p className="text-xs font-bold uppercase tracking-wider text-text-main break-words">
             {reservation.clientName}
           </p>
-          <p className="mt-1 text-xs text-text-muted">
+          <p className="mt-1 text-xs text-text-muted break-words">
             {reservation.serviceName} · {reservation.resource}
           </p>
         </div>
@@ -147,7 +147,7 @@ export function ReservationEditModal({
           </Select>
         </FormField>
 
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-text-main/10 bg-club-bg/60 px-4 py-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl border border-text-main/10 bg-club-bg/60 px-4 py-3">
           <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
             Total registrado
           </span>

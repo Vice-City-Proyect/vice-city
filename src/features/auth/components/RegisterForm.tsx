@@ -160,7 +160,7 @@ export default function RegisterForm() {
   if (status === "success") {
     return (
       <div
-        className="w-full max-w-md p-8 rounded-3xl bg-club-surface text-center flex flex-col items-center justify-center space-y-4"
+        className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface text-center flex flex-col items-center justify-center space-y-4"
         style={{
           border: "1.5px solid #b0bf3f",
           boxShadow: "0 8px 40px rgba(176, 191, 63, 0.13), 0 2px 12px rgba(0,0,0,0.07)",
@@ -200,7 +200,7 @@ export default function RegisterForm() {
   // --- Vista Principal (Formulario de Registro) ---
   return (
     <div
-      className="w-full max-w-md p-8 rounded-3xl bg-club-surface"
+      className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface"
       style={{
         border: "1.5px solid #b0bf3f",
         boxShadow: "0 8px 40px rgba(176, 191, 63, 0.13), 0 2px 12px rgba(0,0,0,0.07)",

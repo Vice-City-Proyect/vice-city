@@ -18,16 +18,16 @@ export function Header() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-text-main/10 bg-club-bg/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:h-20 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6 lg:h-20 lg:px-8">
         <Link
           href="/"
           onClick={closeMenu}
-          className="flex items-center gap-2 font-black uppercase leading-none tracking-tight text-club-accent"
+          className="flex min-w-0 items-center gap-1.5 font-black uppercase leading-none tracking-tight text-club-accent sm:gap-2"
         >
-          <span aria-hidden className="text-2xl lg:text-3xl">
+          <span aria-hidden className="text-xl sm:text-2xl lg:text-3xl shrink-0">
             🦎
           </span>
-          <span className="whitespace-nowrap text-base sm:text-lg lg:text-2xl">
+          <span className="truncate whitespace-nowrap text-sm sm:text-lg lg:text-2xl">
             Vice City <span className="text-club-primary">Iguana</span>
           </span>
         </Link>
@@ -45,8 +45,8 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <ButtonLink href="/login" size="md">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <ButtonLink href="/login" size="sm" className="sm:px-5 sm:py-3 sm:text-sm">
             Reservar
           </ButtonLink>
 
@@ -56,9 +56,9 @@ export function Header() {
             aria-expanded={isMenuOpen}
             aria-controls="menu-movil"
             aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-text-main/15 text-club-accent transition-colors hover:bg-club-surface md:hidden"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-text-main/15 text-club-accent transition-colors hover:bg-club-surface sm:h-10 sm:w-10 md:hidden"
           >
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isMenuOpen ? <X className="h-4 w-4 sm:h-5 sm:w-5" /> : <Menu className="h-4 w-4 sm:h-5 sm:w-5" />}
           </button>
         </div>
       </div>

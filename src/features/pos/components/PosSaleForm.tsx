@@ -145,9 +145,9 @@ export function PosSaleForm({
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-xl w-full text-white mx-auto">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl max-w-xl w-full text-white mx-auto">
       {/* Encabezado del POS */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800 mb-6">
         <div>
           <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 block">
             Módulo POS Empleado
@@ -155,7 +155,7 @@ export function PosSaleForm({
           <h2 className="text-xl font-black text-white mt-0.5">Taquilla & Ventas Presenciales</h2>
           <p className="text-xs text-slate-400">Vendedor: {sellerName}</p>
         </div>
-        <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-mono font-semibold">
+        <span className="self-start sm:self-auto bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-mono font-semibold">
           TICKET_SELLER
         </span>
       </div>
@@ -261,7 +261,7 @@ export function PosSaleForm({
         </div>
 
         {/* Franja Horaria y Cantidad */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
               Franja Horaria *
@@ -304,11 +304,11 @@ export function PosSaleForm({
           <label className="block text-xs font-medium text-slate-300 mb-2">
             Método de Pago en Taquilla *
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setPaymentMethod("cash")}
-              className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+              className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 paymentMethod === "cash"
                   ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10"
                   : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750"
@@ -321,7 +321,7 @@ export function PosSaleForm({
             <button
               type="button"
               onClick={() => setPaymentMethod("card")}
-              className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+              className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 paymentMethod === "card"
                   ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10"
                   : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750"
@@ -334,7 +334,7 @@ export function PosSaleForm({
         </div>
 
         {/* Total a Cobrar */}
-        <div className="bg-slate-850 p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+        <div className="bg-slate-850 p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <span className="text-[11px] text-slate-400 block">Total estimado a cobrar:</span>
             <span className="text-xs text-slate-300">{quantity} cupo(s) × ${unitPrice.toLocaleString("es-CO")} COP</span>

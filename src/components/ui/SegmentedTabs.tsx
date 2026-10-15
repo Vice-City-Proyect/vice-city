@@ -31,7 +31,7 @@ export function SegmentedTabs<T extends string>({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option.value)}
-            className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors duration-200 sm:flex-none sm:px-4 ${
+            className={`flex-1 rounded-lg px-2.5 py-2 text-center text-[11px] font-bold uppercase tracking-wider transition-colors duration-200 sm:flex-none sm:px-4 ${
               isActive
                 ? 'bg-club-accent text-white'
                 : 'text-text-muted hover:bg-club-bg hover:text-text-main'

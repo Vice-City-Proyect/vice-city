@@ -280,7 +280,7 @@ export function LoginForm() {
       }}
     >
       {/* ── COLUMNA IZQUIERDA: Branding ────────────────────────────────────── */}
-      <div className="bg-club-surface flex items-center justify-center p-10 md:p-14 border-b md:border-b-0 md:border-r border-club-primary/30">
+      <div className="bg-club-surface flex items-center justify-center p-6 sm:p-10 md:p-14 border-b md:border-b-0 md:border-r border-club-primary/30">
         <div className="flex flex-col items-center gap-3 select-none">
           {/*
            * Logo Vice City — representación tipográfica.
@@ -314,7 +314,7 @@ export function LoginForm() {
       </div>
 
       {/* ── COLUMNA DERECHA: Formulario ────────────────────────────────────── */}
-      <div className="bg-club-surface p-8 md:p-12 flex flex-col relative">
+      <div className="bg-club-surface p-6 sm:p-8 md:p-12 flex flex-col relative">
         {/* Badge de marca — esquina superior derecha */}
         <div className="absolute top-5 right-5 border border-club-accent/25 rounded px-1.5 py-1 flex flex-col items-center leading-none">
           <span className="text-[9px] font-black text-club-accent tracking-widest">VC</span>
@@ -414,7 +414,7 @@ export function LoginForm() {
             </div>
 
             {/* ── Enlaces secundarios: reenvío y recuperación ──────────────── */}
-            <div className="flex justify-between items-center -mt-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 -mt-2 text-center sm:text-left">
               <button
                 type="button"
                 onClick={() => setIsResendModalOpen(true)}

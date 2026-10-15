@@ -36,7 +36,7 @@ export function TicketQRCodeCard({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-md w-full text-white mx-auto relative overflow-hidden">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl max-w-md w-full text-white mx-auto relative overflow-hidden">
       {/* Detalle visual de entrada deportiva */}
       <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500" />
 
@@ -54,7 +54,7 @@ export function TicketQRCodeCard({
       </div>
 
       {/* Tarjeta de Código QR Simulado */}
-      <div className="bg-white rounded-2xl p-6 flex flex-col items-center justify-center shadow-inner mb-6 text-slate-900">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center shadow-inner mb-6 text-slate-900">
         {/* Renderizado de Matriz QR Estilizada */}
         <div className="w-48 h-48 bg-slate-900 rounded-xl p-3 flex flex-col justify-between items-center shadow-md">
           <div className="flex justify-between w-full">
@@ -80,32 +80,32 @@ export function TicketQRCodeCard({
           </div>
         </div>
 
-        <span className="text-xs font-mono font-bold tracking-widest mt-3 text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+        <span className="text-xs font-mono font-bold tracking-widest mt-3 text-slate-700 bg-slate-100 px-3 py-1 rounded-full break-all text-center max-w-full">
           CÓDIGO: {ticketCode}
         </span>
       </div>
 
       {/* Información del Ticket */}
       <div className="space-y-3 text-xs">
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-slate-400">Titular</span>
-          <span className="font-semibold text-slate-200">{holderName}</span>
+        <div className="flex justify-between py-1 border-b border-slate-800/60 gap-2">
+          <span className="text-slate-400 shrink-0">Titular</span>
+          <span className="font-semibold text-slate-200 text-right break-words min-w-0">{holderName}</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-slate-400">Servicio</span>
-          <span className="font-semibold text-slate-200">{serviceName}</span>
+        <div className="flex justify-between py-1 border-b border-slate-800/60 gap-2">
+          <span className="text-slate-400 shrink-0">Servicio</span>
+          <span className="font-semibold text-slate-200 text-right break-words min-w-0">{serviceName}</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-slate-400">Reserva ID</span>
-          <span className="font-mono text-slate-300">{bookingId.slice(0, 8)}...</span>
+        <div className="flex justify-between py-1 border-b border-slate-800/60 gap-2">
+          <span className="text-slate-400 shrink-0">Reserva ID</span>
+          <span className="font-mono text-slate-300 text-right break-all min-w-0">{bookingId.slice(0, 8)}...</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-slate-400">Válido Desde</span>
-          <span className="font-medium text-emerald-300">{formatDate(validFrom)}</span>
+        <div className="flex justify-between py-1 border-b border-slate-800/60 gap-2">
+          <span className="text-slate-400 shrink-0">Válido Desde</span>
+          <span className="font-medium text-emerald-300 text-right">{formatDate(validFrom)}</span>
         </div>
-        <div className="flex justify-between py-1">
-          <span className="text-slate-400">Válido Hasta</span>
-          <span className="font-medium text-rose-300">{formatDate(validUntil)}</span>
+        <div className="flex justify-between py-1 gap-2">
+          <span className="text-slate-400 shrink-0">Válido Hasta</span>
+          <span className="font-medium text-rose-300 text-right">{formatDate(validUntil)}</span>
         </div>
       </div>
 
