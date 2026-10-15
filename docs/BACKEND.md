@@ -367,7 +367,7 @@ curl -X POST "http://localhost:3000/api/pricing/calculate" \
 
 ## 8. Swagger / OpenAPI y Herramientas DX
 
-El proyecto proporciona **15 especificaciones OpenAPI 3.0 oficiales** organizadas en `docs/swagger/` y dos formas complementarias de visualizarlas y probarlas:
+El proyecto proporciona **21 especificaciones OpenAPI 3.0 oficiales** organizadas en `docs/swagger/` y dos formas complementarias de visualizarlas y probarlas:
 
 ### 1. Vice-City API Tester (Recomendado para el equipo de Frontend)
 El repositorio incluye una aplicación local interactiva basada en React + Vite que embebe **Swagger UI** oficial (`swagger-ui-dist`) y un constructor de solicitudes HTTP en vivo.
@@ -413,6 +413,8 @@ Para importar en herramientas como [editor.swagger.io](https://editor.swagger.io
 | [`docs/swagger/hu25-pos-sale.swagger.json`](./docs/swagger/hu25-pos-sale.swagger.json) | Venta Presencial POS (HU25) | `POST /api/pos/sale` |
 | [`docs/swagger/hu26-pos-preview-ticket.swagger.json`](./docs/swagger/hu26-pos-preview-ticket.swagger.json) | Previsualización y Emisión del Ticket POS (HU26) | `POST /api/pos/preview` |
 | [`docs/swagger/qr-scanner.swagger.json`](./docs/swagger/qr-scanner.swagger.json) | Escáner QR y Control de Acceso (HU13) | `GET /api/qr/{code}`, `POST /api/qr/{code}/entry` |
+| [`docs/swagger/reservations.swagger.json`](./docs/swagger/reservations.swagger.json) | Reservas Web: creación y listado del usuario (VCP-93) | `POST /api/reservations`, `GET /api/reservations` |
+| [`docs/swagger/dashboard-summary.swagger.json`](./docs/swagger/dashboard-summary.swagger.json) | Resúmenes de dashboard para admin y empleados (VCP-93) | `GET /api/reports/dashboard-summary`, `GET /api/employee/summary` |
 
 ---
 
@@ -442,6 +444,9 @@ Tabla consolidada de las 27 rutas API implementadas en el backend:
 | `GET` | `/api/availability` | Consulta de aforo y cupos por fecha (HU20) | Público / POS | ✅ Implementado y Documentado |
 | `POST` | `/api/reservations/hold` | Creación de reserva con HOLD 10 min (HU21) | Público / Cliente | ✅ Implementado y Documentado |
 | `GET` | `/api/reservations/[id]` | Consulta de estado y tiempo de HOLD (HU21) | Público / Cliente | ✅ Implementado y Documentado |
+| `GET` | `/api/reservations` | Listado de reservas del usuario con filtros, fechas y paginación; el CLIENT ve solo las suyas (VCP-93) | `CLIENT`, `ADMIN` | ✅ Implementado y Documentado |
+| `GET` | `/api/reports/dashboard-summary` | Reservas pendientes, usuarios activos y próximas reservas del dashboard admin (VCP-93) | `ADMIN` | ✅ Implementado y Documentado |
+| `GET` | `/api/employee/summary` | Resumen operativo del día y reservas de hoy para empleados, sin datos de contacto (VCP-93) | `TICKET_SELLER`, `QR_VALIDATOR`, `ADMIN` | ✅ Implementado y Documentado |
 | `POST` | `/api/pricing/calculate` | Cálculo de tarifas con promociones (HU22) | Público | ✅ Implementado y Documentado |
 | `POST` | `/api/payments/create-intent` | Creación de PaymentIntent en Stripe (HU23) | Público / Cliente | ✅ Implementado y Documentado |
 | `POST` | `/api/payments/webhook` | Webhook de confirmación y tickets QR (HU24) | Firma Stripe | ✅ Implementado y Documentado |
