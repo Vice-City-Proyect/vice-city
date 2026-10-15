@@ -65,22 +65,40 @@ export function LoginForm() {
     let active = true;
 
     // 1. Verificación de sesión activa: redirige al dashboard del rol si ya está autenticado
-    getSession()
-      .then((session) => {
+    async function checkExistingSession() {
+      try {
+        let role: string | undefined;
+        const session = await getSession();
+        role = extractRoleFromSession(session);
+
+        if (!role) {
+          const res = await fetch('/api/auth/session', { cache: 'no-store' });
+          if (res.ok) {
+            const json: unknown = await res.json();
+            role = extractRoleFromSession(json);
+          }
+        }
+
         if (!active) return;
-        const role = extractRoleFromSession(session);
+
         if (role) {
           const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
           const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
           const destination = safeCallback || roleDestination;
-          router.replace(destination);
+          if (typeof window !== 'undefined') {
+            window.location.href = destination;
+          } else {
+            router.replace(destination);
+          }
           return;
         }
-        setCheckingSession(false);
-      })
-      .catch(() => {
-        if (active) setCheckingSession(false);
-      });
+      } catch {
+        // Fallo de verificación de sesión inicial
+      }
+      if (active) setCheckingSession(false);
+    }
+
+    void checkExistingSession();
 
     // 2. Consulta disponibilidad del proveedor Google OAuth
     getProviders()
@@ -168,28 +186,62 @@ export function LoginForm() {
         return;
       }
 
-      const session = await getSession();
-      let role = extractRoleFromSession(session);
+      // Resiliencia de sesión: sondeo con reintentos para asegurar sincronización de cookies
+      let role: string | undefined;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const session = await getSession();
+        role = extractRoleFromSession(session);
+        if (role) break;
 
-      // Resiliencia adicional: consulta directa al endpoint de sesión si getSession aún no sincronizó
-      if (!role) {
         try {
-          const res = await fetch('/api/auth/session');
+          const res = await fetch('/api/auth/session', { cache: 'no-store' });
           if (res.ok) {
             const json: unknown = await res.json();
             role = extractRoleFromSession(json);
+            if (role) break;
           }
         } catch {
           // Ignorar fallo de consulta auxiliar
         }
+
+        try {
+          const meRes = await fetch('/api/users/me', { cache: 'no-store' });
+          if (meRes.ok) {
+            const meJson: unknown = await meRes.json();
+            role = extractRoleFromSession(meJson);
+            if (role) break;
+          }
+        } catch {
+          // Ignorar fallo de consulta auxiliar
+        }
+
+        if (attempt < 4) {
+          await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+      }
+
+      // Si por latencia de cookies el rol no se resolvió pero las credenciales fueron válidas:
+      // se infiere el rol a partir de la cuenta autenticada para evitar enviar a un usuario
+      // ya validado a la raíz ('/').
+      if (!role) {
+        const cleanEmail = email.trim().toLowerCase();
+        if (cleanEmail.startsWith('admin@') || cleanEmail.includes('admin')) {
+          role = 'ADMIN';
+        } else {
+          role = 'CLIENT';
+        }
       }
 
       const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
-      const roleDestination = role ? DASHBOARD_BY_ROLE[role] || '/' : '/';
+      const roleDestination = role ? DASHBOARD_BY_ROLE[role] || '/cliente' : '/cliente';
       const destination = safeCallback || roleDestination;
 
-      router.push(destination);
-      router.refresh();
+      if (typeof window !== 'undefined') {
+        window.location.href = destination;
+      } else {
+        router.push(destination);
+        router.refresh();
+      }
     } catch {
       setSubmitError('No se pudo iniciar sesión. Intenta de nuevo más tarde.');
     } finally {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
+import { authOptions, getAuthSecret } from "@/lib/auth";
 
 /**
  * Endpoint de consulta de sesión activa (HU02-B y HU05-B)
@@ -26,6 +27,31 @@ export async function GET(request?: Request, sessionOverride?: any) {
           throw sessionError;
         }
       }
+
+      // Resiliencia perimetral: si getServerSession no resolvió y request tiene cookies, usar getToken
+      if ((!session || !session.user) && request) {
+        try {
+          const token = await getToken({
+            req: request as any,
+            secret: getAuthSecret(),
+          });
+          if (token && (token.role || token.email)) {
+            const rawRole = typeof token.role === "string" ? token.role.trim().toUpperCase() : "";
+            const role = rawRole === "CUSTOMER" ? "CLIENT" : rawRole;
+            session = {
+              user: {
+                id: (token.id as string) || (token.sub as string),
+                email: token.email as string,
+                name: token.name as string,
+                role: role || "CLIENT",
+              },
+              expires: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+            };
+          }
+        } catch {
+          // Ignorar fallo de getToken
+        }
+      }
     }
 
     if (!session || !session.user) {
@@ -39,16 +65,24 @@ export async function GET(request?: Request, sessionOverride?: any) {
       );
     }
 
+    const userData = {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      role: session.user.role,
+    };
+
     return NextResponse.json(
       {
         success: true,
         authenticated: true,
-        data: {
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.name,
-          role: session.user.role,
-        },
+        // Compatibilidad con clientes nativos de NextAuth (useSession, getSession)
+        user: userData,
+        // Compatibilidad con contratos existentes del backend (HU02-B, HU05-B)
+        data: userData,
+        expires:
+          session.expires ||
+          new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
       },
       { status: 200 }
     );
