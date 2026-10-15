@@ -83,16 +83,28 @@ export function ServiceCard({ service, onEdit, onToggle, onDelete }: ServiceCard
         </dl>
 
         <div className="mt-auto flex items-center gap-2 border-t border-text-main/10 pt-4">
-          <CardAction label="Editar servicio" onClick={() => onEdit(service)}>
+          <CardAction
+            label="Editar servicio"
+            tooltip="Editar"
+            onClick={() => onEdit(service)}
+            variant="default"
+          >
             <Pencil className="h-4 w-4" />
           </CardAction>
           <CardAction
-            label={service.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
+            label={service.status === 'ACTIVE' ? 'Desactivar servicio' : 'Activar servicio'}
+            tooltip={service.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
             onClick={() => onToggle(service)}
+            variant={service.status === 'ACTIVE' ? 'warning' : 'success'}
           >
             <Power className="h-4 w-4" />
           </CardAction>
-          <CardAction label="Eliminar" onClick={() => onDelete(service)}>
+          <CardAction
+            label="Eliminar servicio"
+            tooltip="Eliminar"
+            onClick={() => onDelete(service)}
+            variant="danger"
+          >
             <Trash2 className="h-4 w-4" />
           </CardAction>
         </div>
@@ -101,25 +113,61 @@ export function ServiceCard({ service, onEdit, onToggle, onDelete }: ServiceCard
   );
 }
 
-function CardAction({
-  label,
-  onClick,
-  children,
-}: {
+type CardActionVariant = 'default' | 'danger' | 'warning' | 'success';
+
+interface CardActionProps {
   label: string;
+  tooltip?: string;
   onClick: () => void;
   children: React.ReactNode;
-}) {
+  variant?: CardActionVariant;
+}
+
+const VARIANT_STYLES: Record<CardActionVariant, string> = {
+  default:
+    'hover:border-club-primary hover:bg-club-primary hover:text-club-accent hover:shadow-xs focus-visible:ring-club-primary',
+  danger:
+    'hover:border-red-500 hover:bg-red-500 hover:text-white hover:shadow-xs focus-visible:ring-red-500',
+  warning:
+    'hover:border-amber-500 hover:bg-amber-500 hover:text-white hover:shadow-xs focus-visible:ring-amber-500',
+  success:
+    'hover:border-emerald-600 hover:bg-emerald-600 hover:text-white hover:shadow-xs focus-visible:ring-emerald-600',
+};
+
+function CardAction({
+  label,
+  tooltip,
+  onClick,
+  children,
+  variant = 'default',
+}: CardActionProps) {
+  const tooltipText = tooltip || label;
+
   return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-text-main/10 bg-club-bg/70 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-colors hover:border-club-primary hover:text-club-accent"
-    >
-      {children}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
+    <div className="relative flex-1">
+      <button
+        type="button"
+        title={label}
+        aria-label={label}
+        onClick={onClick}
+        className={`group/btn relative inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border border-text-main/10 bg-club-bg/70 text-text-muted transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${VARIANT_STYLES[variant]}`}
+      >
+        <span className="transition-transform duration-200 group-hover/btn:scale-110">
+          {children}
+        </span>
+        <span className="sr-only">{label}</span>
+
+        {/* Tooltip flotante instantáneo al pasar el mouse */}
+        <span
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 z-30 opacity-0 scale-95 transition-all duration-150 group-hover/btn:opacity-100 group-hover/btn:scale-100 group-focus-visible/btn:opacity-100 group-focus-visible/btn:scale-100 whitespace-nowrap rounded-lg bg-club-accent px-2.5 py-1 text-[11px] font-bold text-white shadow-lg"
+        >
+          {tooltipText}
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 bg-club-accent" />
+        </span>
+      </button>
+    </div>
   );
 }
+
+
