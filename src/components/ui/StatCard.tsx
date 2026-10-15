@@ -17,7 +17,7 @@ export function StatCard({ label, value, icon, hint, className = '' }: StatCardP
           <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
             {label}
           </span>
-          <span className="text-2xl font-black leading-none tracking-tight text-club-accent sm:text-3xl">
+          <span className="break-words text-xl font-black leading-none tracking-tight text-club-accent sm:text-2xl lg:text-3xl">
             {value}
           </span>
           {hint && <span className="text-xs leading-snug text-text-muted">{hint}</span>}

@@ -43,7 +43,7 @@ export function PosTicketPreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl max-w-md w-full text-white space-y-5 animate-in fade-in zoom-in duration-200">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl max-w-md w-full text-white space-y-5 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
         {/* Cabecera */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div>
@@ -118,12 +118,12 @@ export function PosTicketPreviewModal({
         </p>
 
         {/* Botones de Acción */}
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
           <button
             type="button"
             disabled={isConfirming}
             onClick={onCancel}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-3 px-4 rounded-xl border border-slate-700 transition-all text-xs disabled:opacity-50"
+            className="w-full sm:flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-3 px-4 rounded-xl border border-slate-700 transition-all text-xs disabled:opacity-50 cursor-pointer text-center"
           >
             ← Modificar
           </button>
@@ -132,7 +132,7 @@ export function PosTicketPreviewModal({
             type="button"
             disabled={isConfirming}
             onClick={onConfirm}
-            className="flex-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full sm:flex-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isConfirming ? (
               <>

@@ -35,17 +35,17 @@ export function Modal({ open, onClose, title, eyebrow, children, footer }: Modal
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-club-surface shadow-md sm:max-h-[85vh] sm:rounded-3xl"
+        className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-club-surface shadow-md sm:max-h-[85vh] sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-text-main/10 px-6 py-5">
-          <div className="flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-3 border-b border-text-main/10 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex min-w-0 flex-col gap-1">
             {eyebrow && (
               <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
                 {eyebrow}
               </span>
             )}
-            <h2 className="text-lg font-black uppercase leading-tight tracking-tight text-club-accent">
+            <h2 className="break-words text-base font-black uppercase leading-tight tracking-tight text-club-accent sm:text-lg">
               {title}
             </h2>
           </div>
@@ -60,10 +60,10 @@ export function Modal({ open, onClose, title, eyebrow, children, footer }: Modal
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
 
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-text-main/10 bg-club-bg/60 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-text-main/10 bg-club-bg/60 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
             {footer}
           </div>
         )}

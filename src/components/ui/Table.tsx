@@ -30,7 +30,7 @@ export function Table<T>({ columns, data, rowKey, renderCard, minWidth = '48rem'
         </div>
       )}
 
-      <div className={`${renderCard ? 'hidden md:block' : 'block'} overflow-x-auto`}>
+      <div className={`${renderCard ? 'hidden md:block' : 'block'} w-full max-w-full overflow-x-auto overscroll-x-contain`}>
         <table className="w-full border-collapse text-left" style={{ minWidth }}>
           <thead>
             <tr className="border-b border-text-main/10">

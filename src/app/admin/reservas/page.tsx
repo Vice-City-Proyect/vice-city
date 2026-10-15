@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Ban, Eye, Pencil, Plus, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { AlertTriangle, Ban, Eye, Pencil, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -182,13 +181,6 @@ export default function AdminReservationsPage() {
         title="Reservas del"
         highlightedTitle="complejo"
         description="Consulta, filtra y administra todas las reservas del complejo deportivo."
-        actions={
-          <Button type="button" size="sm" disabled title="Disponible en MR2">
-            <Plus className="h-4 w-4" />
-            Nueva reserva
-            <span className="ml-1 text-[10px] normal-case">Disponible en MR2</span>
-          </Button>
-        }
       />
 
       {(error || servicesError) && (

@@ -48,7 +48,7 @@ export function ClientNextReservation({ clientId }: { clientId: string }) {
             <p className="text-xs text-text-muted">{next.resource}</p>
           </div>
 
-          <dl className="grid grid-cols-2 gap-4 border-t border-text-main/10 pt-4 text-xs">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 border-t border-text-main/10 pt-4 text-xs">
             <div>
               <dt className="font-bold uppercase tracking-wider text-text-muted">Fecha</dt>
               <dd className="mt-1 font-bold text-text-main">{formatDate(next.date)}</dd>

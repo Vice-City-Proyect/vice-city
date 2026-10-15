@@ -83,7 +83,7 @@ export function CancelReservationModal({
       >
         <p className="text-sm text-text-main">
           ¿Confirmas la cancelación de la reserva de{' '}
-          <span className="font-bold">{reservation.clientName}</span>?
+          <span className="font-bold break-words">{reservation.clientName}</span>?
         </p>
 
         <FormField htmlFor="reservation-cancellation-reason" label="Motivo">

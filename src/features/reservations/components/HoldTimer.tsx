@@ -63,9 +63,9 @@ export function HoldTimer({ initialSeconds, onExpire, redirectTo }: HoldTimerPro
           : "border-sky-200 bg-sky-50 text-sky-900"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{isExpired ? "⚠️" : "⏱️"}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-2">
+          <span className="text-xl shrink-0">{isExpired ? "⚠️" : "⏱️"}</span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider">
               {isExpired ? "Tiempo Expirado" : "Tiempo Restante para Pagar (HOLD)"}
@@ -78,7 +78,7 @@ export function HoldTimer({ initialSeconds, onExpire, redirectTo }: HoldTimerPro
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-left sm:text-right shrink-0">
           <span
             className={`font-mono text-2xl font-extrabold ${
               isExpired
