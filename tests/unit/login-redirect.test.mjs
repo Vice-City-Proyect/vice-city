@@ -99,6 +99,14 @@ describe('HU28 / PR #59: Extracción tipada y resiliente del rol de usuario', ()
     assert.equal(extractRoleFromSession({ user: {} }), undefined);
     assert.equal(extractRoleFromSession({ data: {} }), undefined);
   });
+
+  test('5. Normaliza roles en minúsculas y alias legacy (admin -> ADMIN, customer -> CLIENT)', () => {
+    assert.equal(extractRoleFromSession({ user: { role: 'admin' } }), 'ADMIN');
+    assert.equal(extractRoleFromSession({ user: { role: 'client' } }), 'CLIENT');
+    assert.equal(extractRoleFromSession({ data: { role: 'customer' } }), 'CLIENT');
+    assert.equal(extractRoleFromSession({ data: { role: 'ticket_seller' } }), 'TICKET_SELLER');
+    assert.equal(extractRoleFromSession({ user: { role: 'qr_validator' } }), 'QR_VALIDATOR');
+  });
 });
 
 describe('HU28 / PR #59: Redirecciones oficiales por rol (DASHBOARD_BY_ROLE)', () => {
