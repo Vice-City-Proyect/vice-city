@@ -113,8 +113,8 @@ export function Hero() {
           </p>
 
           <div className="mb-10 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="#reservas" size="lg">
-              Book Your Court
+            <ButtonLink href="/auth/login" size="lg">
+              Haz tu reserva
               <ChevronRight className="h-5 w-5" />
             </ButtonLink>
             <ButtonLink href="#instalaciones" size="lg" variant="light">
