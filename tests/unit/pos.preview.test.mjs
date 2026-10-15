@@ -25,6 +25,9 @@ import {
 } from "../../src/features/pos/index.ts";
 
 describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS", () => {
+  // Hora fija: estas pruebas usan franjas del 15/oct/2026 y no deben depender del reloj real.
+  const FIXED_NOW = new Date("2026-10-15T08:00:00-05:00");
+
   const mockSellerId = "a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d";
   const mockServiceId = "b2c3d4e5-f6a1-4b2c-9d3e-4f5a6b7c8d9e";
 
@@ -49,6 +52,7 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
     let ticketCreated = null;
 
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async (id) => (id === mockSellerId ? mockTicketSeller : null),
       findServiceByIdFn: async (id) => (id === mockServiceId ? mockPoolService : null),
       findActiveBookingsFn: async () => [
@@ -136,6 +140,7 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
     let createdTicket = null;
 
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async () => mockTicketSeller,
       findServiceByIdFn: async () => mockPoolService,
       findActiveBookingsFn: async () => [],
@@ -203,6 +208,7 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
     let capacityOccupied = 0;
 
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async () => mockTicketSeller,
       findServiceByIdFn: async () => mockPoolService, // Capacidad 30
       findActiveBookingsFn: async () => [
@@ -253,6 +259,7 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
     let storedBooking = null;
 
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async () => mockTicketSeller,
       findServiceByIdFn: async () => mockPoolService,
       findActiveBookingsFn: async () => [],
