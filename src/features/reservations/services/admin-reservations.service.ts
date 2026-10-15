@@ -23,6 +23,18 @@ import {
   ReservationError,
 } from "../errors/reservations.errors";
 
+/**
+ * Restricciones adicionales del listado (VCP-93): `userId` limita a las reservas de
+ * un usuario (CLIENT); `dateFrom`/`dateTo` (YYYY-MM-DD, Bogotá) acotan el rango; `order`
+ * ordena por fecha de inicio.
+ */
+export interface ReservationsListScope {
+  userId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  order?: "asc" | "desc";
+}
+
 export interface AdminReservationsListResult {
   reservations: AdminReservationDto[];
   pagination: {
@@ -54,7 +66,8 @@ export class AdminReservationsService {
    * 1. Listado paginado con filtros y búsqueda administrativa
    */
   async listReservations(
-    params: AdminReservationsQueryParams
+    params: AdminReservationsQueryParams,
+    scope: ReservationsListScope = {}
   ): Promise<AdminReservationsListResult> {
     const page = params.page || 1;
     const limit = params.limit || 10;
@@ -91,6 +104,21 @@ export class AdminReservationsService {
       where.start_at = {
         gte: startOfDay,
         lte: endOfDay,
+      };
+    }
+
+    // Alcance por usuario y rango de fechas (VCP-93)
+    if (scope.userId) {
+      where.user_id = scope.userId;
+    }
+    if (scope.dateFrom || scope.dateTo) {
+      where.start_at = {
+        ...(scope.dateFrom && {
+          gte: new Date(`${scope.dateFrom}T00:00:00-05:00`),
+        }),
+        ...(scope.dateTo && {
+          lte: new Date(`${scope.dateTo}T23:59:59.999-05:00`),
+        }),
       };
     }
 
@@ -133,7 +161,7 @@ export class AdminReservationsService {
         where,
         skip,
         take: limit,
-        orderBy: { start_at: "desc" },
+        orderBy: { start_at: scope.order ?? "desc" },
         include: {
           services: {
             include: {

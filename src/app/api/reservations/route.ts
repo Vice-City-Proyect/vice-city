@@ -12,10 +12,87 @@ import {
   type SessionAwareRouteContext,
 } from "@/features/auth/utils/session-context";
 
+import {
+  AdminReservationsService,
+  adminReservationsService,
+} from "@/features/reservations/services/admin-reservations.service";
+import { listReservationsQuerySchema } from "@/features/reservations/schemas/list-reservations.schema";
+
 const strictSchema = createReservationSchema.strict();
 
 export interface ReservationsRouteContext extends SessionAwareRouteContext {
   serviceOverride?: ReservationsService;
+  listServiceOverride?: Pick<AdminReservationsService, "listReservations">;
+}
+
+/**
+ * Endpoint GET /api/reservations (VCP-93)
+ * Lista reservas con paginación, filtro por estado/servicio/rango de fechas y orden por fecha.
+ * CLIENT ve únicamente las suyas (el alcance sale de la sesión, nunca de la URL);
+ * ADMIN ve todas. Sin sesión: 401. Otro rol: 403.
+ */
+export async function GET(
+  request: NextRequest,
+  context?: ReservationsRouteContext
+) {
+  try {
+    const session = await resolveSession(context);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED", message: "Se requiere una sesión activa para consultar reservas" },
+        { status: 401 }
+      );
+    }
+    if (!hasAnyRole(session, ["CLIENT", "ADMIN"])) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN", message: "Tu rol no tiene permisos para consultar este listado de reservas" },
+        { status: 403 }
+      );
+    }
+
+    const params = request.nextUrl.searchParams;
+    const parsed = listReservationsQuerySchema.safeParse({
+      page: params.get("page") ?? undefined,
+      limit: params.get("limit") ?? undefined,
+      status: params.get("status") ?? undefined,
+      serviceId: params.get("serviceId") ?? undefined,
+      dateFrom: params.get("dateFrom") ?? undefined,
+      dateTo: params.get("dateTo") ?? undefined,
+      order: params.get("order") ?? undefined,
+    });
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "VALIDATION_ERROR",
+          message: "Parámetros de consulta inválidos",
+          details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+        },
+        { status: 400 }
+      );
+    }
+
+    const { dateFrom, dateTo, order, ...filters } = parsed.data;
+    const isAdmin = session.role.toUpperCase() === "ADMIN";
+    const service = context?.listServiceOverride ?? adminReservationsService;
+    const result = await service.listReservations(filters, {
+      userId: isAdmin ? undefined : session.id,
+      dateFrom,
+      dateTo,
+      order,
+    });
+
+    return NextResponse.json(
+      { success: true, data: result.reservations, pagination: result.pagination },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("[API_RESERVATIONS_LIST_ERROR]", error);
+    return NextResponse.json(
+      { success: false, error: "INTERNAL_SERVER_ERROR", message: "Ocurrió un error al consultar las reservas" },
+      { status: 500 }
+    );
+  }
 }
 
 /**
