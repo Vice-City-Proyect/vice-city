@@ -7,9 +7,56 @@
  * 2. Al confirmar se emite un ticket con QR único.
  * 3. Caso de error: confirmar una previsualización cuya disponibilidad cambió es rechazado con mensaje claro.
  * 4. Caso límite: confirmar dos veces la misma venta no genera dos tickets (idempotencia ante doble clic).
+ *
+ * NOTA: Las fechas se generan dinámicamente para evitar PosPastSlotError cuando los tests
+ * se ejecutan en fechas posteriores a las hardcodeadas en la versión original.
  */
 
 process.env.TZ = process.env.TZ || "America/Bogota";
+
+/**
+ * Devuelve el próximo jueves laborable (nunca lunes de mantenimiento) a las horas
+ * indicadas, en formato ISO con offset de Bogotá (-05:00).
+ *
+ * Estrategia: trabaja en UTC puro y aplica el desplazamiento fijo de Bogotá (UTC-5).
+ * Siempre usa el PRÓXIMO jueves (al menos mañana si hoy es jueves), garantizando que
+ * la franja horaria siempre esté en el futuro cuando se ejecuten los tests.
+ */
+function nextThursdaySlot(startHour = 10, endHour = 11) {
+  // Obtener "ahora" en Bogotá (UTC-5 = UTC - 300 min)
+  const nowUtcMs = Date.now();
+  const bogotaOffsetMs = -5 * 60 * 60 * 1000; // -5h en ms
+  const bogotaNowMs = nowUtcMs + bogotaOffsetMs;
+  const bogotaNow = new Date(bogotaNowMs);
+
+  // Día de semana en Bogotá (0=dom, 1=lun, ..., 4=jue, ..., 6=sáb)
+  const dayOfWeek = bogotaNow.getUTCDay();
+  const currentHour = bogotaNow.getUTCHours();
+
+  // Días hasta el siguiente jueves (al menos 1 día si ya pasó el slot hoy siendo jueves)
+  let daysUntilThursday = (4 - dayOfWeek + 7) % 7;
+  if (daysUntilThursday === 0 && currentHour >= endHour) {
+    // Hoy es jueves pero el slot ya terminó: ir al jueves siguiente
+    daysUntilThursday = 7;
+  }
+  if (daysUntilThursday === 0) {
+    // Hoy es jueves y el slot aún no termina: usar hoy (la franja es futura)
+    daysUntilThursday = 0;
+  }
+
+  // Construir la fecha del jueves objetivo (en UTC, luego formateamos con -05:00)
+  const targetDay = new Date(bogotaNowMs + daysUntilThursday * 24 * 60 * 60 * 1000);
+  const y = targetDay.getUTCFullYear();
+  const mo = String(targetDay.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(targetDay.getUTCDate()).padStart(2, "0");
+  const hS = String(startHour).padStart(2, "0");
+  const hE = String(endHour).padStart(2, "0");
+
+  return {
+    startAt: `${y}-${mo}-${d}T${hS}:00:00-05:00`,
+    endAt: `${y}-${mo}-${d}T${hE}:00:00-05:00`,
+  };
+}
 
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -84,13 +131,14 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
       },
     });
 
+    const { startAt: slot1Start, endAt: slot1End } = nextThursdaySlot(14, 15);
     const saleParams = {
       sellerId: mockSellerId,
       clientName: "Valeria Morales",
       clientId: "1098765432",
       serviceId: mockServiceId,
-      startAt: "2026-10-15T14:00:00-05:00",
-      endAt: "2026-10-15T15:00:00-05:00",
+      startAt: slot1Start,
+      endAt: slot1End,
       quantity: 3,
       paymentMethod: "card",
     };
@@ -165,13 +213,14 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
       },
     });
 
+    const { startAt: slot2Start, endAt: slot2End } = nextThursdaySlot(9, 10);
     const result = await service.processSale({
       sellerId: mockSellerId,
       clientName: "Alejandro Restrepo",
       clientId: "71234567",
       serviceId: mockServiceId,
-      startAt: "2026-10-15T09:00:00-05:00",
-      endAt: "2026-10-15T10:00:00-05:00",
+      startAt: slot2Start,
+      endAt: slot2End,
       quantity: 1,
       paymentMethod: "cash",
     });
@@ -210,13 +259,14 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
       ],
     });
 
+    const { startAt: slot3Start, endAt: slot3End } = nextThursdaySlot(11, 12);
     const saleParams = {
       sellerId: mockSellerId,
       clientName: "Mariana Rios",
       clientId: "1037500000",
       serviceId: mockServiceId,
-      startAt: "2026-10-15T11:00:00-05:00",
-      endAt: "2026-10-15T12:00:00-05:00",
+      startAt: slot3Start,
+      endAt: slot3End,
       quantity: 2,
       paymentMethod: "cash",
     };
@@ -305,13 +355,14 @@ describe("FT-06 / HU26: Previsualización y Emisión del Ticket Digital en POS",
     });
 
     const idempotencyKey = "pos-tx-preview-uuid-999";
+    const { startAt: slot4Start, endAt: slot4End } = nextThursdaySlot(16, 17);
     const salePayload = {
       sellerId: mockSellerId,
       clientName: "David Ochoa",
       clientId: "80901020",
       serviceId: mockServiceId,
-      startAt: "2026-10-15T16:00:00-05:00",
-      endAt: "2026-10-15T17:00:00-05:00",
+      startAt: slot4Start,
+      endAt: slot4End,
       quantity: 1,
       paymentMethod: "card",
       idempotencyKey,
