@@ -32,3 +32,35 @@ export {
   BookingNotFoundError,
 } from "./errors/reservation.errors";
 
+// Módulo de Reservas Administrativas (MR1)
+export {
+  AdminReservationsService,
+  adminReservationsService,
+} from "./services/admin-reservations.service";
+export type {
+  AdminReservationsListResult,
+  AdminReservationsServiceDeps,
+} from "./services/admin-reservations.service";
+
+export {
+  adminReservationsQuerySchema,
+  adminReservationIdSchema,
+  updateAdminReservationSchema,
+} from "./schemas/admin-reservations.schema";
+export type {
+  AdminReservationsQueryParams,
+  UpdateAdminReservationInput,
+} from "./schemas/admin-reservations.schema";
+
+export {
+  mapBookingToAdminDto,
+  mapBookingToAdminDetailDto,
+  toBogotaDateParts,
+  computeOperationalStatus,
+} from "./dto/admin-reservation.dto";
+export type {
+  AdminReservationDto,
+  AdminReservationDetailDto,
+} from "./dto/admin-reservation.dto";
+
+

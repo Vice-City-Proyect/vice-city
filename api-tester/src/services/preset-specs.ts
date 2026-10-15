@@ -28,6 +28,7 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
     { name: 'Auth - Google OAuth', description: 'Federación e inicio de sesión social con Google' },
     { name: 'Auth - Logout', description: 'Cierre de sesión e invalidación de cookies JWT' },
     { name: 'Admin - Roles', description: 'Gestión administrativa de roles de usuarios y auditoría' },
+    { name: 'Admin - Reservations (MR1)', description: 'Gestión administrativa de reservas: consulta, detalle, reprogramación y cancelación' },
     { name: 'Admin - Employees', description: 'Gestión administrativa de cuentas de empleados' },
     { name: 'Admin - Services', description: 'Gestión de servicios deportivos y categorías' },
     { name: 'Reservations & Catalog (FT-04)', description: 'Catálogo público, disponibilidad horaria, HOLD de 10 min y descuentos' },
@@ -282,6 +283,86 @@ export const COMBINED_VICE_CITY_SPEC: OpenApiSpec = {
           '401': { description: 'No autenticado' },
           '403': { description: 'Permisos insuficientes' },
           '404': { description: 'Usuario no encontrado' },
+        },
+      },
+    },
+    '/api/admin/reservations': {
+      get: {
+        tags: ['Admin - Reservations (MR1)'],
+        summary: 'Listar reservas administrativas con filtros y paginación',
+        description: 'Retorna el listado paginado de reservas consolidando clientes, servicios, estado de pagos y tickets. Exclusivo para administradores.',
+        operationId: 'listAdminReservations',
+        parameters: [
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', required: false, schema: { type: 'integer', default: 10 } },
+          { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['ALL', 'PENDING', 'CONFIRMED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED', 'EXPIRED'] } },
+          { name: 'serviceId', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+          { name: 'date', in: 'query', required: false, schema: { type: 'string', example: '2026-10-20' } },
+          { name: 'slot', in: 'query', required: false, schema: { type: 'string', example: '10:00' } },
+          { name: 'search', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': { description: 'Listado de reservas obtenido exitosamente' },
+          '400': { description: 'Parámetros de consulta inválidos' },
+          '401': { description: 'No autenticado' },
+          '403': { description: 'Acceso denegado: se requiere rol ADMIN' },
+          '500': { description: 'Error interno del servidor' },
+        },
+      },
+    },
+    '/api/admin/reservations/{id}': {
+      get: {
+        tags: ['Admin - Reservations (MR1)'],
+        summary: 'Consultar detalle administrativo extendido de una reserva',
+        description: 'Retorna información detallada de una reserva incluyendo desglose de pagos, trazabilidad de tickets y registros de acceso.',
+        operationId: 'getAdminReservationById',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'UUID de la reserva' },
+        ],
+        responses: {
+          '200': { description: 'Detalle de la reserva obtenido exitosamente' },
+          '400': { description: 'Identificador UUID inválido' },
+          '401': { description: 'No autenticado' },
+          '403': { description: 'Acceso denegado: se requiere rol ADMIN' },
+          '404': { description: 'Reserva no encontrada' },
+          '500': { description: 'Error interno del servidor' },
+        },
+      },
+      patch: {
+        tags: ['Admin - Reservations (MR1)'],
+        summary: 'Actualizar, reprogramar o cancelar lógicamente una reserva',
+        description: 'Permite reprogramar horario, modificar aforo/asistentes o cancelar lógicamente la reserva con motivo registrado sin borrar pagos ni tickets.',
+        operationId: 'updateAdminReservation',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'UUID de la reserva a actualizar o cancelar' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  status: { type: 'string', enum: ['CANCELLED', 'CONFIRMED', 'PENDING'] },
+                  cancellationReason: { type: 'string', minLength: 5, maxLength: 500 },
+                  date: { type: 'string', example: '2026-10-20' },
+                  startTime: { type: 'string', example: '10:00' },
+                  endTime: { type: 'string', example: '11:00' },
+                  guests: { type: 'integer', minimum: 1, maximum: 50 },
+                  notes: { type: 'string', maxLength: 1000 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Reserva actualizada o cancelada exitosamente' },
+          '400': { description: 'Cuerpo inválido, campos no permitidos o duración fuera de regla' },
+          '401': { description: 'No autenticado' },
+          '403': { description: 'Acceso denegado: se requiere rol ADMIN' },
+          '404': { description: 'Reserva no encontrada' },
+          '409': { description: 'Conflicto: aforo insuficiente o solapamiento con otra reserva (SLOT_NOT_AVAILABLE)' },
+          '500': { description: 'Error interno del servidor' },
         },
       },
     },
@@ -700,6 +781,20 @@ export const PRESET_SPECS: PresetSpecItem[] = [
       paths: {
         '/api/payments/create-intent': COMBINED_VICE_CITY_SPEC.paths['/api/payments/create-intent'],
         '/api/payments/webhook': COMBINED_VICE_CITY_SPEC.paths['/api/payments/webhook'],
+      },
+    },
+  },
+  {
+    id: 'mr1-reservations',
+    name: 'MR1 — Gestión de Reservas Administrativas',
+    description: 'Endpoints administrativos para listar reservas (/api/admin/reservations), obtener detalle y editar/cancelar (/api/admin/reservations/{id}).',
+    badge: 'MR1',
+    spec: {
+      openapi: '3.0.3',
+      info: { title: 'MR1 — Gestión de Reservas Administrativas', version: '1.0.0' },
+      paths: {
+        '/api/admin/reservations': COMBINED_VICE_CITY_SPEC.paths['/api/admin/reservations'],
+        '/api/admin/reservations/{id}': COMBINED_VICE_CITY_SPEC.paths['/api/admin/reservations/{id}'],
       },
     },
   },
