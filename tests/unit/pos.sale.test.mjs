@@ -90,6 +90,9 @@ import {
 } from "../../src/features/pos/index.ts";
 
 describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
+  // Hora fija: estas pruebas usan franjas del 15/oct/2026 y no deben depender del reloj real.
+  const FIXED_NOW = new Date("2026-10-15T08:00:00-05:00");
+
   const mockSellerId = "11111111-2222-3333-4444-555555555555";
   const mockServiceId = "22222222-3333-4444-5555-666666666666";
 
@@ -115,6 +118,7 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
     let ticketCreated = null;
 
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async (id) => (id === mockSellerId ? mockTicketSeller : null),
       findServiceByIdFn: async (id) => (id === mockServiceId ? mockPoolService : null),
       findActiveBookingsFn: async () => [], // Aforo totalmente disponible
@@ -193,6 +197,7 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
 
   test("Criterio 2: Caso de error - Faltan datos obligatorios, no hay cupo o es lunes de mantenimiento", async () => {
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async () => mockTicketSeller,
       findServiceByIdFn: async () => mockPoolService,
       // Simulamos que ya hay 49 cupos ocupados de 50
@@ -267,6 +272,7 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
     };
 
     const service = new PosSaleService({
+      getCurrentTimeFn: () => FIXED_NOW,
       findSellerByIdFn: async () => nonSellerUser,
       findServiceByIdFn: async () => mockPoolService,
     });
