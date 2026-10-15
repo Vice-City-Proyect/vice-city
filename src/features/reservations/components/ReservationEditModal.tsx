@@ -6,14 +6,19 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { getErrorMessage } from '@/lib/api-client';
 import { formatCOP } from '@/lib/format';
 import type { Reservation, ReservationStatus } from '@/types/reservation';
 import { RESERVATION_STATUS_OPTIONS, TIME_SLOT_OPTIONS } from '../data/reservation-filters';
 
+const EDITABLE_STATUS_OPTIONS = RESERVATION_STATUS_OPTIONS.filter(
+  (option) => option.value === 'PENDING' || option.value === 'CONFIRMED',
+);
+
 interface ReservationEditModalProps {
   reservation: Reservation | null;
   onClose: () => void;
-  onSave: (reservation: Reservation) => void;
+  onSave: (reservation: Reservation) => Promise<void>;
 }
 
 export function ReservationEditModal({
@@ -25,14 +30,27 @@ export function ReservationEditModal({
   const [startTime, setStartTime] = useState(reservation?.startTime ?? '');
   const [guests, setGuests] = useState(reservation?.guests ?? 1);
   const [status, setStatus] = useState<ReservationStatus>(reservation?.status ?? 'PENDING');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!reservation) return null;
 
   const target = reservation;
+  const statusIsEditable = EDITABLE_STATUS_OPTIONS.some(
+    (option) => option.value === reservation.status,
+  );
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSave({ ...target, date, startTime, guests, status });
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({ ...target, date, startTime, guests, status });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -43,11 +61,11 @@ export function ReservationEditModal({
       title="Editar reserva"
       footer={
         <>
-          <Button variant="dark" size="sm" onClick={onClose}>
+          <Button variant="dark" size="sm" onClick={onClose} disabled={saving}>
             Descartar
           </Button>
-          <Button size="sm" type="submit" form="reservation-edit-form">
-            Guardar cambios
+          <Button size="sm" type="submit" form="reservation-edit-form" disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
           </Button>
         </>
       }
@@ -67,6 +85,7 @@ export function ReservationEditModal({
             id="edit-date"
             type="date"
             value={date}
+            disabled={saving}
             onChange={(event) => setDate(event.target.value)}
             required
           />
@@ -77,6 +96,7 @@ export function ReservationEditModal({
             <Select
               id="edit-time"
               value={startTime}
+              disabled={saving}
               onChange={(event) => setStartTime(event.target.value)}
             >
               {TIME_SLOT_OPTIONS.filter((option) => option.value !== '').map((option) => (
@@ -94,6 +114,7 @@ export function ReservationEditModal({
               min={1}
               max={reservation.category === 'POOL' ? 50 : 11}
               value={guests}
+              disabled={saving}
               onChange={(event) => setGuests(Number(event.target.value))}
             />
           </FormField>
@@ -103,9 +124,22 @@ export function ReservationEditModal({
           <Select
             id="edit-status"
             value={status}
-            onChange={(event) => setStatus(event.target.value as ReservationStatus)}
+            disabled={saving || !statusIsEditable}
+            onChange={(event) => {
+              const nextStatus = event.target.value;
+              if (nextStatus === 'PENDING' || nextStatus === 'CONFIRMED') {
+                setStatus(nextStatus);
+              }
+            }}
           >
-            {RESERVATION_STATUS_OPTIONS.filter((option) => option.value !== '').map((option) => (
+            {!statusIsEditable && (
+              <option value={reservation.status}>
+                {RESERVATION_STATUS_OPTIONS.find(
+                  (option) => option.value === reservation.status,
+                )?.label ?? reservation.status}
+              </option>
+            )}
+            {EDITABLE_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -121,6 +155,15 @@ export function ReservationEditModal({
             {formatCOP(reservation.total)}
           </span>
         </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-600"
+          >
+            {error}
+          </p>
+        )}
 
         <p className="text-[11px] leading-relaxed text-text-muted">
           El precio aplicado se conserva en la reserva aunque la tarifa del servicio cambie. La
