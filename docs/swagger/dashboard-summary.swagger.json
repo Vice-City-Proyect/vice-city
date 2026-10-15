@@ -1,0 +1,582 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Resúmenes de dashboard (admin y empleados)",
+    "description": "VCP-93 / HU32-B. Cifras y reservas reales para los paneles de administrador y de empleados, en reemplazo de los datos de ejemplo.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reports",
+      "description": "Resumen del dashboard del administrador"
+    },
+    {
+      "name": "Employee",
+      "description": "Resumen operativo del día para empleados"
+    }
+  ],
+  "paths": {
+    "/api/reports/dashboard-summary": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Resumen del dashboard del administrador",
+        "description": "Reservas pendientes (HOLD de 10 minutos vigente), usuarios activos (todos los roles) y las 6 próximas reservas confirmadas que no han terminado, de la más cercana a la más lejana. Solo ADMIN.",
+        "operationId": "getAdminDashboardSummary",
+        "security": [
+          {
+            "nextAuthSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen obtenido. Sin datos devuelve ceros y lista vacía.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminDashboardSummary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No hay sesión activa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Se requiere rol ADMIN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno al consultar el resumen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employee/summary": {
+      "get": {
+        "tags": [
+          "Employee"
+        ],
+        "summary": "Resumen operativo del día para empleados",
+        "description": "Reservas confirmadas o completadas de hoy (hora de Bogotá), visitantes esperados, ingresos por registrar y servicios activos. No incluye correo, teléfono ni notas internas del cliente. Roles: TICKET_SELLER, QR_VALIDATOR y ADMIN.",
+        "operationId": "getEmployeeSummary",
+        "security": [
+          {
+            "nextAuthSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen obtenido. Un día sin reservas devuelve ceros y lista vacía.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EmployeeDashboardSummary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No hay sesión activa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no puede consultar este resumen (CLIENT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno al consultar el resumen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "nextAuthSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Cookie de sesión JWT emitida por NextAuth"
+      }
+    },
+    "schemas": {
+      "AdminDashboardSummary": {
+        "type": "object",
+        "properties": {
+          "pendingReservations": {
+            "type": "integer",
+            "example": 3,
+            "description": "Reservas pending con el HOLD vigente"
+          },
+          "activeUsers": {
+            "type": "integer",
+            "example": 12,
+            "description": "Cuentas con is_active"
+          },
+          "upcomingReservations": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "$ref": "#/components/schemas/AdminReservation"
+            }
+          }
+        }
+      },
+      "EmployeeDashboardSummary": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-10-20",
+            "description": "Fecha operativa en Bogotá"
+          },
+          "todayReservations": {
+            "type": "integer",
+            "example": 7
+          },
+          "expectedVisitors": {
+            "type": "integer",
+            "example": 41,
+            "description": "Suma de personas de las reservas de hoy"
+          },
+          "pendingEntry": {
+            "type": "integer",
+            "example": 5,
+            "description": "Reservas de hoy con QR vigente y sin ingreso registrado"
+          },
+          "activeServices": {
+            "type": "integer",
+            "example": 6
+          },
+          "reservations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmployeeReservation"
+            }
+          }
+        }
+      },
+      "AdminReservation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "e2a4b860-9114-41d7-b35a-40a256191f4d"
+          },
+          "code": {
+            "type": "string",
+            "example": "TK-7B93F12A"
+          },
+          "clientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clientName": {
+            "type": "string",
+            "example": "Carlos Mendoza"
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "example": "carlos.mendoza@example.com"
+          },
+          "clientPhone": {
+            "type": "string",
+            "nullable": true,
+            "example": "+57 300 123 4567"
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serviceName": {
+            "type": "string",
+            "example": "Cancha Fútbol 5 Sintética"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "POOL",
+              "SOCCER_LARGE",
+              "SOCCER_MICRO",
+              "MULTI_COURT",
+              "GYM",
+              "WET_AREA"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "example": "Cancha Principal A"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-20"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "10:00"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "11:00"
+          },
+          "guests": {
+            "type": "integer",
+            "example": 10
+          },
+          "hours": {
+            "type": "integer",
+            "example": 1
+          },
+          "basePrice": {
+            "type": "number",
+            "example": 80000
+          },
+          "discountType": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "WEDNESDAY",
+              "FULL_POOL"
+            ]
+          },
+          "discountPercent": {
+            "type": "integer",
+            "example": 0
+          },
+          "total": {
+            "type": "number",
+            "example": 80000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "IN_PROGRESS",
+              "FINISHED",
+              "CANCELLED"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED"
+            ]
+          },
+          "holdState": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ACTIVE",
+              "EXPIRED"
+            ]
+          },
+          "holdExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "FULL_POOL"
+            ]
+          },
+          "accessStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_ENTERED",
+              "INSIDE"
+            ]
+          },
+          "qrStatus": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "USED",
+              "EXPIRED",
+              "CANCELLED"
+            ]
+          },
+          "wristbandColor": {
+            "type": "string",
+            "enum": [
+              "BLUE",
+              "PURPLE",
+              "GREEN",
+              "RED"
+            ]
+          },
+          "createdBy": {
+            "type": "string",
+            "enum": [
+              "WEB",
+              "POS"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "cancellationReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EmployeeReservation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "e2a4b860-9114-41d7-b35a-40a256191f4d"
+          },
+          "code": {
+            "type": "string",
+            "example": "TK-7B93F12A"
+          },
+          "clientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clientName": {
+            "type": "string",
+            "example": "Carlos Mendoza"
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serviceName": {
+            "type": "string",
+            "example": "Cancha Fútbol 5 Sintética"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "POOL",
+              "SOCCER_LARGE",
+              "SOCCER_MICRO",
+              "MULTI_COURT",
+              "GYM",
+              "WET_AREA"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "example": "Cancha Principal A"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-20"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "10:00"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "11:00"
+          },
+          "guests": {
+            "type": "integer",
+            "example": 10
+          },
+          "hours": {
+            "type": "integer",
+            "example": 1
+          },
+          "basePrice": {
+            "type": "number",
+            "example": 80000
+          },
+          "discountType": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "WEDNESDAY",
+              "FULL_POOL"
+            ]
+          },
+          "discountPercent": {
+            "type": "integer",
+            "example": 0
+          },
+          "total": {
+            "type": "number",
+            "example": 80000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "IN_PROGRESS",
+              "FINISHED",
+              "CANCELLED"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED"
+            ]
+          },
+          "holdState": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ACTIVE",
+              "EXPIRED"
+            ]
+          },
+          "holdExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "FULL_POOL"
+            ]
+          },
+          "accessStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_ENTERED",
+              "INSIDE"
+            ]
+          },
+          "qrStatus": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "USED",
+              "EXPIRED",
+              "CANCELLED"
+            ]
+          },
+          "wristbandColor": {
+            "type": "string",
+            "enum": [
+              "BLUE",
+              "PURPLE",
+              "GREEN",
+              "RED"
+            ]
+          },
+          "createdBy": {
+            "type": "string",
+            "enum": [
+              "WEB",
+              "POS"
+            ]
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "FORBIDDEN"
+          },
+          "message": {
+            "type": "string",
+            "example": "Tu rol no tiene permisos para consultar este recurso"
+          }
+        }
+      }
+    }
+  }
+}

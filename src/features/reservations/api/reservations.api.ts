@@ -1,5 +1,7 @@
 import { ApiError, apiRequest } from '@/lib/api-client';
 import type {
+  AdminDashboardSummaryData,
+  EmployeeDashboardSummaryData,
   AdminReservation,
   AdminReservationsPage,
   CancelAdminReservationPayload,
@@ -119,6 +121,57 @@ export function fetchAdminReservations(
   const query = searchParams.toString();
   const url = `/api/admin/reservations${query ? `?${query}` : ''}`;
   return fetchAdminReservationsPage(url);
+}
+
+export interface FetchMyReservationsParams {
+  page?: number;
+  limit?: number;
+  status?: AdminReservationStatusFilter;
+  serviceId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  order?: 'asc' | 'desc';
+}
+
+/**
+ * Reservas del usuario con sesión (GET /api/reservations). El backend limita al CLIENT a
+ * sus propias reservas; el ADMIN recibe todas.
+ */
+export function fetchMyReservations(
+  params: FetchMyReservationsParams = {}
+): Promise<AdminReservationsPage> {
+  const searchParams = new URLSearchParams();
+  if (params.page !== undefined) searchParams.set('page', String(params.page));
+  if (params.limit !== undefined) searchParams.set('limit', String(params.limit));
+  if (params.status && params.status !== 'ALL') {
+    searchParams.set('status', params.status);
+  }
+  if (params.serviceId) searchParams.set('serviceId', params.serviceId);
+  if (params.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+  if (params.dateTo) searchParams.set('dateTo', params.dateTo);
+  if (params.order) searchParams.set('order', params.order);
+
+  const query = searchParams.toString();
+  return fetchAdminReservationsPage(`/api/reservations${query ? `?${query}` : ''}`);
+}
+
+/**
+ * Resumen del dashboard del administrador (GET /api/reports/dashboard-summary):
+ * reservas pendientes, usuarios activos y próximas reservas.
+ */
+export function fetchAdminDashboardSummary(): Promise<AdminDashboardSummaryData> {
+  return apiRequest<AdminDashboardSummaryData>('/api/reports/dashboard-summary', {
+    cache: 'no-store',
+  });
+}
+
+/**
+ * Resumen operativo del día para el panel de empleados (GET /api/employee/summary).
+ */
+export function fetchEmployeeSummary(): Promise<EmployeeDashboardSummaryData> {
+  return apiRequest<EmployeeDashboardSummaryData>('/api/employee/summary', {
+    cache: 'no-store',
+  });
 }
 
 export function updateAdminReservation(

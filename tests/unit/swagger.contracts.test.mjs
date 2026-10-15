@@ -35,3 +35,61 @@ describe("Contratos OpenAPI 3.0.3 de los endpoints nuevos", () => {
     assert.ok(doc.paths["/api/auth/confirm-email"].post.responses["410"]);
   });
 });
+
+function collectRefs(node, refs = []) {
+  if (Array.isArray(node)) node.forEach((item) => collectRefs(item, refs));
+  else if (node && typeof node === "object") {
+    for (const [key, value] of Object.entries(node)) {
+      if (key === "$ref" && typeof value === "string") refs.push(value);
+      else collectRefs(value, refs);
+    }
+  }
+  return refs;
+}
+
+function assertRefsResolve(doc, name) {
+  for (const ref of collectRefs(doc)) {
+    const target = ref.replace(/^#\//, "").split("/").reduce((acc, part) => acc?.[part], doc);
+    assert.ok(target, `${name}: la referencia ${ref} no existe`);
+  }
+}
+
+describe("VCP-93: contratos OpenAPI de listados y resúmenes", () => {
+  test("reservas: documenta GET /api/reservations con 200/400/401/403/500 y sus parámetros", () => {
+    const doc = readSwagger("docs/swagger/reservations.swagger.json");
+    const get = doc.paths["/api/reservations"].get;
+    assert.ok(get);
+    assert.ok(doc.paths["/api/reservations"].post, "No se debe perder el POST existente");
+    for (const code of ["200", "400", "401", "403", "500"]) {
+      assert.ok(get.responses[code], `Falta respuesta ${code}`);
+    }
+    const params = get.parameters.map((p) => p.name);
+    for (const name of ["page", "limit", "status", "serviceId", "dateFrom", "dateTo", "order"]) {
+      assert.ok(params.includes(name), `Falta el parámetro ${name}`);
+    }
+    assert.equal(params.includes("userId"), false, "El usuario sale de la sesión, no de la URL");
+    assertRefsResolve(doc, "reservations");
+  });
+
+  test("resúmenes: documentan el dashboard del admin y el de empleados", () => {
+    const doc = readSwagger("docs/swagger/dashboard-summary.swagger.json");
+    assert.equal(doc.openapi, "3.0.3");
+    for (const route of ["/api/reports/dashboard-summary", "/api/employee/summary"]) {
+      const get = doc.paths[route]?.get;
+      assert.ok(get, `Falta GET ${route}`);
+      for (const code of ["200", "401", "403", "500"]) {
+        assert.ok(get.responses[code], `${route}: falta respuesta ${code}`);
+      }
+    }
+    assertRefsResolve(doc, "dashboard-summary");
+  });
+
+  test("resumen de empleados: el esquema no expone datos de contacto del cliente", () => {
+    const doc = readSwagger("docs/swagger/dashboard-summary.swagger.json");
+    const props = Object.keys(doc.components.schemas.EmployeeReservation.properties);
+    for (const field of ["clientEmail", "clientPhone", "notes", "cancellationReason", "cancelledAt"]) {
+      assert.equal(props.includes(field), false, field);
+    }
+    assert.ok(props.includes("clientName"));
+  });
+});

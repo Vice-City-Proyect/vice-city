@@ -7,7 +7,76 @@
  * 2. Caso de error: Faltan datos obligatorios, no hay cupo o es lunes de mantenimiento.
  * 3. Caso de error: Un usuario sin rol TICKET_SELLER recibe 403 (ForbiddenPosAccessError).
  * 4. Caso límite: Venta en una franja ya iniciada cobra la hora completa y el QR vence al final de la franja (RN-010).
+ *
+ * NOTA: Las fechas se generan dinámicamente para evitar PosPastSlotError cuando los tests
+ * se ejecutan en fechas posteriores a las hardcodeadas en la versión original.
  */
+
+/**
+ * Devuelve el próximo jueves laborable a las horas indicadas, en formato ISO -05:00.
+ * Usa UTC puro con offset fijo de Bogotá (UTC-5) para funcionar sin importar la TZ del sistema.
+ */
+function nextThursdaySlot(startHour = 10, endHour = 11) {
+  const bogotaOffsetMs = -5 * 60 * 60 * 1000;
+  const bogotaNowMs = Date.now() + bogotaOffsetMs;
+  const bogotaNow = new Date(bogotaNowMs);
+
+  const dayOfWeek = bogotaNow.getUTCDay(); // 0=dom, 4=jue
+  const currentHour = bogotaNow.getUTCHours();
+
+  let daysUntilThursday = (4 - dayOfWeek + 7) % 7;
+  // Si hoy es jueves pero el slot ya finalizó, saltar a la próxima semana
+  if (daysUntilThursday === 0 && currentHour >= endHour) {
+    daysUntilThursday = 7;
+  }
+
+  const targetMs = bogotaNowMs + daysUntilThursday * 24 * 60 * 60 * 1000;
+  const target = new Date(targetMs);
+  const y = target.getUTCFullYear();
+  const mo = String(target.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(target.getUTCDate()).padStart(2, "0");
+  const hS = String(startHour).padStart(2, "0");
+  const hE = String(endHour).padStart(2, "0");
+
+  return {
+    startAt: `${y}-${mo}-${d}T${hS}:00:00-05:00`,
+    endAt: `${y}-${mo}-${d}T${hE}:00:00-05:00`,
+  };
+}
+
+/**
+ * Devuelve el próximo lunes (día de mantenimiento) a las horas indicadas, en formato ISO -05:00.
+ * Usa UTC puro con offset fijo de Bogotá (UTC-5).
+ */
+function nextMondaySlot(startHour = 10, endHour = 11) {
+  const bogotaOffsetMs = -5 * 60 * 60 * 1000;
+  const bogotaNowMs = Date.now() + bogotaOffsetMs;
+  const bogotaNow = new Date(bogotaNowMs);
+
+  const dayOfWeek = bogotaNow.getUTCDay(); // 0=dom, 1=lun
+  const currentHour = bogotaNow.getUTCHours();
+
+  let daysUntilMonday = (1 - dayOfWeek + 7) % 7;
+  // Si hoy es lunes pero el slot ya finalizó, saltar a la próxima semana
+  if (daysUntilMonday === 0 && currentHour >= endHour) {
+    daysUntilMonday = 7;
+  }
+  // Si hoy es domingo (dayOfWeek=0), daysUntilMonday=1 → mañana lunes
+  // Si hoy es lunes (dayOfWeek=1), daysUntilMonday=0 → mismo día
+
+  const targetMs = bogotaNowMs + daysUntilMonday * 24 * 60 * 60 * 1000;
+  const target = new Date(targetMs);
+  const y = target.getUTCFullYear();
+  const mo = String(target.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(target.getUTCDate()).padStart(2, "0");
+  const hS = String(startHour).padStart(2, "0");
+  const hE = String(endHour).padStart(2, "0");
+
+  return {
+    startAt: `${y}-${mo}-${d}T${hS}:00:00-05:00`,
+    endAt: `${y}-${mo}-${d}T${hE}:00:00-05:00`,
+  };
+}
 
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -82,13 +151,14 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
     });
 
     // Venta en día jueves (permitido)
+    const { startAt: saleStart1, endAt: saleEnd1 } = nextThursdaySlot(10, 11);
     const result = await service.processSale({
       sellerId: mockSellerId,
       clientName: "Carlos Gómez",
       clientId: "1020304050",
       serviceId: mockServiceId,
-      startAt: "2026-10-15T10:00:00-05:00",
-      endAt: "2026-10-15T11:00:00-05:00",
+      startAt: saleStart1,
+      endAt: saleEnd1,
       quantity: 2,
       paymentMethod: "cash",
       notes: "Venta presencial en taquilla",
@@ -141,6 +211,7 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
     assert.equal(invalidPayload.success, false);
 
     // 2. Error de aforo insuficiente (solicita 3 cupos cuando solo queda 1)
+    const { startAt: saleStart2, endAt: saleEnd2 } = nextThursdaySlot(10, 11);
     await assert.rejects(
       async () => {
         await service.processSale({
@@ -148,8 +219,8 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
           clientName: "Laura Pérez",
           clientId: "987654321",
           serviceId: mockServiceId,
-          startAt: "2026-10-15T10:00:00-05:00",
-          endAt: "2026-10-15T11:00:00-05:00",
+          startAt: saleStart2,
+          endAt: saleEnd2,
           quantity: 3,
           paymentMethod: "card",
         });
@@ -162,7 +233,8 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
       }
     );
 
-    // 3. Error por mantenimiento semanal (2026-10-19 es Lunes)
+    // 3. Error por mantenimiento semanal (próximo lunes)
+    const { startAt: mondayStart, endAt: mondayEnd } = nextMondaySlot(10, 11);
     await assert.rejects(
       async () => {
         await service.processSale({
@@ -170,8 +242,8 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
           clientName: "Laura Pérez",
           clientId: "987654321",
           serviceId: mockServiceId,
-          startAt: "2026-10-19T10:00:00-05:00", // Lunes de mantenimiento
-          endAt: "2026-10-19T11:00:00-05:00",
+          startAt: mondayStart, // Lunes de mantenimiento
+          endAt: mondayEnd,
           quantity: 1,
           paymentMethod: "cash",
         });
@@ -201,13 +273,14 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
 
     await assert.rejects(
       async () => {
+        const { startAt: roleCheckStart, endAt: roleCheckEnd } = nextThursdaySlot(10, 11);
         await service.processSale({
           sellerId: "non-seller-uuid-999",
           clientName: "Cliente X",
           clientId: "5555555",
           serviceId: mockServiceId,
-          startAt: "2026-10-15T10:00:00-05:00",
-          endAt: "2026-10-15T11:00:00-05:00",
+          startAt: roleCheckStart,
+          endAt: roleCheckEnd,
           quantity: 1,
           paymentMethod: "cash",
         });
@@ -223,11 +296,12 @@ describe("FT-06 / HU25: Venta Presencial en el POS (Módulo Empleado)", () => {
   });
 
   test("Criterio 4: Caso límite - Venta en una franja ya iniciada cobra la hora completa y el QR vence al final de la franja (RN-010)", async () => {
-    // Franja: 10:00 AM a 11:00 AM
-    // Hora actual simulada: 10:25 AM (ya iniciada)
-    const simulatedCurrentTime = new Date("2026-10-15T10:25:00-05:00");
-    const slotStart = "2026-10-15T10:00:00-05:00";
-    const slotEnd = "2026-10-15T11:00:00-05:00";
+    // Franja: próximo jueves 10:00 AM a 11:00 AM
+    // Hora actual simulada: 10:25 AM (ya iniciada, pero aún no ha terminado)
+    const { startAt: slotStart, endAt: slotEnd } = nextThursdaySlot(10, 11);
+    // Simulamos que estamos 25 minutos después del inicio de la franja
+    const slotStartDate = new Date(slotStart);
+    const simulatedCurrentTime = new Date(slotStartDate.getTime() + 25 * 60 * 1000);
 
     let ticketCreated = null;
 
