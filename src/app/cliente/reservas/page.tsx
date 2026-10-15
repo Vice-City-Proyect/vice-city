@@ -1,19 +1,18 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CalendarX } from 'lucide-react';
+import { AlertTriangle, CalendarX, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StatusBadge, paymentKey } from '@/components/ui/StatusBadge';
-import { formatCOP, formatDate, toISODate } from '@/lib/format';
+import { formatCOP, formatDate } from '@/lib/format';
 import type { Reservation } from '@/types/reservation';
-import { MOCK_CLIENT_SESSION } from '@/features/auth/data/mock-session';
-import { MOCK_RESERVATIONS } from '@/features/reservations/data/mock-reservations';
 import { ReservationDetailModal } from '@/features/reservations/components/ReservationDetailModal';
 import { clientSection } from '@/features/reservations/data/reservation-filters';
+import { useMyReservations } from '@/features/reservations/hooks/use-my-reservations';
 
 type SectionKey = 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
 
@@ -23,14 +22,16 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   CANCELLED: 'Canceladas',
 };
 
+/** Máximo permitido por el backend en una sola consulta. */
+const PAGE_LIMIT = 100;
+
 export default function ClientReservationsPage() {
-  const [reservations, setReservations] = useState<Reservation[]>(MOCK_RESERVATIONS.filter(
-    (reservation) => reservation.clientId === MOCK_CLIENT_SESSION.id,
-  ));
+  const { data, loading, error, reload } = useMyReservations({ limit: PAGE_LIMIT, order: 'desc' });
   const [section, setSection] = useState<SectionKey>('UPCOMING');
   const [selected, setSelected] = useState<Reservation | null>(null);
 
-  const today = toISODate(new Date());
+  const reservations = useMemo(() => data?.items ?? [], [data]);
+  const total = data?.pagination.total ?? 0;
 
   const counts = useMemo(
     () => ({
@@ -45,28 +46,6 @@ export default function ClientReservationsPage() {
     .filter((item) => clientSection(item) === section)
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  function canCancel(reservation: Reservation): boolean {
-    return (
-      reservation.date >= today &&
-      (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED')
-    );
-  }
-
-  function handleCancel(reservation: Reservation) {
-    setReservations((current) =>
-      current.map((item) =>
-        item.id === reservation.id
-          ? { ...item, status: 'CANCELLED', qrStatus: 'CANCELLED' }
-          : item,
-      ),
-    );
-    setSelected((current) =>
-      current && current.id === reservation.id
-        ? { ...current, status: 'CANCELLED', qrStatus: 'CANCELLED' }
-        : current,
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -79,7 +58,7 @@ export default function ClientReservationsPage() {
             ariaLabel="Sección de reservas"
             options={(Object.keys(SECTION_LABELS) as SectionKey[]).map((key) => ({
               value: key,
-              label: `${SECTION_LABELS[key]} (${counts[key]})`,
+              label: loading || error ? SECTION_LABELS[key] : `${SECTION_LABELS[key]} (${counts[key]})`,
             }))}
             value={section}
             onChange={setSection}
@@ -87,14 +66,40 @@ export default function ClientReservationsPage() {
         }
       />
 
-      {visible.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center gap-3 text-text-muted" role="status">
+          <RefreshCw className="h-5 w-5 animate-spin text-club-primary" />
+          <span className="text-xs font-bold uppercase tracking-wider">Cargando tus reservas...</span>
+        </div>
+      ) : error ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <span className="font-bold">{error}</span>
+            <button
+              type="button"
+              onClick={reload}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-400/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:bg-red-500/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reintentar
+            </button>
+          </div>
+        </div>
+      ) : visible.length === 0 ? (
         <EmptyState
-          title="No hay reservas en esta sección"
+          title={
+            reservations.length === 0
+              ? 'Aún no tienes reservas'
+              : 'No hay reservas en esta sección'
+          }
           description="Cuando realices una reserva aparecerá aquí con su estado y tiquete digital."
           action={
-            <Button size="sm" onClick={() => setSection('UPCOMING')}>
-              Ver próximas
-            </Button>
+            section !== 'UPCOMING' && reservations.length > 0 ? (
+              <Button size="sm" onClick={() => setSection('UPCOMING')}>
+                Ver próximas
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -147,25 +152,22 @@ export default function ClientReservationsPage() {
                 <Button variant="dark" size="sm" onClick={() => setSelected(reservation)}>
                   Ver detalle y QR
                 </Button>
-                {canCancel(reservation) && (
-                  <Button
-                    size="sm"
-                    className="border border-red-500/40 bg-red-500/10 text-red-600 hover:bg-red-500/20"
-                    onClick={() => handleCancel(reservation)}
-                  >
-                    Cancelar reserva
-                  </Button>
-                )}
               </div>
             </Card>
           ))}
         </div>
       )}
 
+      {!loading && !error && total > reservations.length && (
+        <p className="mt-4 text-[11px] leading-relaxed text-text-muted">
+          Mostrando tus {reservations.length} reservas más recientes de {total}.
+        </p>
+      )}
+
       <p className="mt-6 flex items-center gap-2 text-[11px] leading-relaxed text-text-muted">
         <CalendarX className="h-4 w-4 shrink-0" />
-        El MVP no aplica reembolsos por cancelación. La reserva cancelada queda registrada con su
-        estado y no genera devolución de dinero.
+        El MVP no contempla cancelaciones ni reembolsos por parte del cliente. Las reservas cuyo
+        pago no se completó en 10 minutos se liberan y aparecen como canceladas.
       </p>
 
       <ReservationDetailModal
@@ -173,19 +175,9 @@ export default function ClientReservationsPage() {
         onClose={() => setSelected(null)}
         showQr
         actions={
-          selected && canCancel(selected) ? (
-            <Button
-              size="sm"
-              className="border border-red-500/40 bg-red-500/10 text-red-600 hover:bg-red-500/20"
-              onClick={() => handleCancel(selected)}
-            >
-              Cancelar reserva
-            </Button>
-          ) : (
-            <Button variant="dark" size="sm" onClick={() => setSelected(null)}>
-              Cerrar
-            </Button>
-          )
+          <Button variant="dark" size="sm" onClick={() => setSelected(null)}>
+            Cerrar
+          </Button>
         }
       />
     </>

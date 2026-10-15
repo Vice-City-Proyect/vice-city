@@ -53,6 +53,18 @@ export function formatLongDate(iso: string): string {
   return LONG_DATE_FORMAT.format(new Date(`${iso}T12:00:00-05:00`));
 }
 
+/**
+ * Fecha (YYYY-MM-DD) en hora de Bogotá, sin depender de la zona horaria del navegador.
+ */
+export function toBogotaISODate(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
 export function toISODate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
