@@ -1,6 +1,7 @@
 import { ApiError, apiRequest } from '@/lib/api-client';
 import type {
   AdminDashboardSummaryData,
+  EmployeeDashboardSummaryData,
   AdminReservation,
   AdminReservationsPage,
   CancelAdminReservationPayload,
@@ -160,6 +161,15 @@ export function fetchMyReservations(
  */
 export function fetchAdminDashboardSummary(): Promise<AdminDashboardSummaryData> {
   return apiRequest<AdminDashboardSummaryData>('/api/reports/dashboard-summary', {
+    cache: 'no-store',
+  });
+}
+
+/**
+ * Resumen operativo del día para el panel de empleados (GET /api/employee/summary).
+ */
+export function fetchEmployeeSummary(): Promise<EmployeeDashboardSummaryData> {
+  return apiRequest<EmployeeDashboardSummaryData>('/api/employee/summary', {
     cache: 'no-store',
   });
 }

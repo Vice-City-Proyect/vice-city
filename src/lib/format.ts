@@ -65,6 +65,18 @@ export function toBogotaISODate(date: Date = new Date()): string {
   }).format(date);
 }
 
+/**
+ * Hora (HH:mm, 24 h) en Bogotá, sin depender de la zona horaria del navegador.
+ */
+export function toBogotaTime(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 export function toISODate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');

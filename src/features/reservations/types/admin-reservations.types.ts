@@ -36,6 +36,18 @@ export interface AdminDashboardSummaryData {
   upcomingReservations: AdminReservation[];
 }
 
+/** Respuesta de GET /api/employee/summary (TICKET_SELLER, QR_VALIDATOR y ADMIN). */
+export interface EmployeeDashboardSummaryData {
+  /** Fecha operativa YYYY-MM-DD (America/Bogota). */
+  date: string;
+  todayReservations: number;
+  expectedVisitors: number;
+  pendingEntry: number;
+  activeServices: number;
+  /** Reservas de hoy, sin datos de contacto del cliente. */
+  reservations: Reservation[];
+}
+
 export interface CancelAdminReservationPayload {
   status: 'CANCELLED';
   cancellationReason?: string;
