@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X } from 'lucide-react';
+import Image from 'next/image';
+import { LogIn, Menu, X } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
 
 const NAV_LINKS = [
@@ -24,9 +25,14 @@ export function Header() {
           onClick={closeMenu}
           className="flex items-center gap-2 font-black uppercase leading-none tracking-tight text-club-accent"
         >
-          <span aria-hidden className="text-2xl lg:text-3xl">
-            🦎
-          </span>
+          <Image
+            src="/logo-iguana-mejorado.png"
+            alt="Logo Vice City Iguana Club"
+            width={48}
+            height={48}
+            className="h-10 w-10 rounded-full object-cover sm:h-11 sm:w-11 lg:h-12 lg:w-12"
+            priority
+          />
           <span className="whitespace-nowrap text-base sm:text-lg lg:text-2xl">
             Vice City <span className="text-club-primary">Iguana</span>
           </span>
@@ -46,8 +52,10 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Botón de inicio de sesión en el nav con su respectivo icono */}
           <ButtonLink href="/login" size="md">
-            Reservar
+            <LogIn className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Login
           </ButtonLink>
 
           <button
