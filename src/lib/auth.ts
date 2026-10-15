@@ -382,7 +382,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        const rawRole = (user as any).role;
+        token.role = typeof rawRole === "string" ? rawRole.trim().toUpperCase() : rawRole;
         if (user.email) token.email = user.email;
         if (user.name) token.name = user.name;
       }
@@ -393,7 +394,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.role = (token.role as SRSRole) || "CLIENT";
+        const rawRole = typeof token.role === "string" ? token.role.trim().toUpperCase() : "";
+        const role = rawRole === "CUSTOMER" ? "CLIENT" : rawRole;
+        session.user.role = (role as SRSRole) || "CLIENT";
         if (token.email) session.user.email = token.email as string;
         if (token.name) session.user.name = token.name as string;
       }

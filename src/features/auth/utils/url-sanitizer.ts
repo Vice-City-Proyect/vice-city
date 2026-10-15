@@ -62,7 +62,8 @@ export function extractRoleFromSession(session: unknown): string | undefined {
   if (s.user && typeof s.user === 'object') {
     const user = s.user as Record<string, unknown>;
     if (typeof user.role === 'string' && user.role.trim() !== '') {
-      return user.role.trim();
+      const upper = user.role.trim().toUpperCase();
+      return upper === 'CUSTOMER' ? 'CLIENT' : upper;
     }
   }
 
@@ -70,7 +71,8 @@ export function extractRoleFromSession(session: unknown): string | undefined {
   if (s.data && typeof s.data === 'object') {
     const data = s.data as Record<string, unknown>;
     if (typeof data.role === 'string' && data.role.trim() !== '') {
-      return data.role.trim();
+      const upper = data.role.trim().toUpperCase();
+      return upper === 'CUSTOMER' ? 'CLIENT' : upper;
     }
   }
 
