@@ -10,7 +10,8 @@ import {
   YAxis,
 } from 'recharts';
 import { formatCOPShort } from '@/lib/format';
-import { AXIS_TICK, CHART_COLORS, ChartTooltip } from './chart-utils';
+import { hasChartData } from '@/features/reports/utils/chart-data';
+import { AXIS_TICK, CHART_COLORS, ChartEmpty, ChartTooltip } from './chart-utils';
 import type { ChartPoint } from './RevenueChart';
 
 interface ServiceBarChartProps {
@@ -20,6 +21,8 @@ interface ServiceBarChartProps {
 }
 
 export function ServiceBarChart({ data, height = 280, currency = false }: ServiceBarChartProps) {
+  if (!hasChartData(data)) return <ChartEmpty height={height} />;
+
   return (
     <div style={{ height }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">

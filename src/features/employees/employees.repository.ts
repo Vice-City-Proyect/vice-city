@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import { ALLOWED_EMPLOYEE_ROLES } from "./types";
 import { hashPassword as bcryptHashPassword } from "@/lib/password";
+import { validateEmployeePassword } from "./employee-validation";
 
 /**
  * Normaliza y valida que un rol corresponda estrictamente a uno de los roles permitidos para empleados.
@@ -145,6 +146,11 @@ export async function createEmployee(
 
   if (!input.full_name || typeof input.full_name !== "string" || !input.full_name.trim()) {
     throw new Error("El nombre completo es obligatorio");
+  }
+
+  const passwordError = validateEmployeePassword(input.password);
+  if (passwordError) {
+    throw new Error(passwordError);
   }
 
   // 3. Caso de error: Verificar si el correo ya existe (sin distinguir mayúsculas)

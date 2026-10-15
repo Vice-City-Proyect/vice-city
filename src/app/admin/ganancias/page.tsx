@@ -10,19 +10,14 @@ import { RevenueChart } from '@/components/common/charts/RevenueChart';
 import { ServiceBarChart } from '@/components/common/charts/ServiceBarChart';
 import { DistributionDonut } from '@/components/common/charts/DistributionDonut';
 import { formatCOP } from '@/lib/format';
-import {
-  MOCK_REVENUE,
-  MOCK_REVENUE_DISTRIBUTION,
-  MOCK_REVENUE_SUMMARY,
-  MOCK_RESERVATIONS_BY_SERVICE,
-  REVENUE_PERIODS,
-  type RevenuePeriod,
-} from '@/features/reports/data/mock-revenue';
+import { REVENUE_PERIODS, type RevenuePeriod } from '@/features/reports/constants';
+import { useMetrics } from '@/features/reports/hooks/use-metrics';
+import { MetricsFallback } from '@/features/reports/components/MetricsFallback';
 
 export default function AdminRevenuePage() {
   const [period, setPeriod] = useState<RevenuePeriod>('month');
-
-  const summary = MOCK_REVENUE_SUMMARY;
+  const metrics = useMetrics(period);
+  const data = metrics.data;
 
   return (
     <>
@@ -41,75 +36,84 @@ export default function AdminRevenuePage() {
         }
       />
 
-      <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard
-            label="Ingresos totales"
-            value={formatCOP(summary.totalRevenue)}
-            icon={<Wallet className="h-5 w-5" />}
-          />
-          <StatCard
-            label="Reservas totales"
-            value={summary.totalReservations}
-            icon={<CalendarCheck className="h-5 w-5" />}
-          />
-          <StatCard
-            label="Servicio top"
-            value={summary.topService}
-            icon={<Crown className="h-5 w-5" />}
-            hint="Mayor facturación"
-          />
-          <StatCard
-            label="Día top"
-            value={summary.topDay}
-            icon={<CalendarDays className="h-5 w-5" />}
-            hint="Mayor volumen de ventas"
-          />
-          <StatCard
-            label="Ocupación promedio"
-            value={`${summary.averageOccupancy}%`}
-            icon={<Percent className="h-5 w-5" />}
-          />
-        </div>
+      <MetricsFallback loading={metrics.loading} error={metrics.error} onRetry={metrics.reload} />
 
-        <Card className="p-5 sm:p-6">
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-lg font-black uppercase tracking-tight text-club-accent">
-                Comportamiento de <span className="text-club-primary">ingresos</span>
-              </h2>
-              <p className="text-xs text-text-muted">
-                Facturación registrada por {REVENUE_PERIODS.find((p) => p.value === period)?.label.toLowerCase()}.
-              </p>
-            </div>
+      {data && (
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard
+              label="Ingresos totales"
+              value={formatCOP(data.summary.totalRevenue)}
+              icon={<Wallet className="h-5 w-5" />}
+              hint={`Web ${formatCOP(data.summary.webRevenue)} · POS ${formatCOP(data.summary.posRevenue)}`}
+            />
+            <StatCard
+              label="Reservas totales"
+              value={data.summary.totalReservations}
+              icon={<CalendarCheck className="h-5 w-5" />}
+              hint={`Web ${data.summary.webReservations} · POS ${data.summary.posReservations}`}
+            />
+            <StatCard
+              label="Servicio top"
+              value={data.summary.topService}
+              icon={<Crown className="h-5 w-5" />}
+              hint="Mayor facturación"
+            />
+            <StatCard
+              label="Día top"
+              value={data.summary.topDay}
+              icon={<CalendarDays className="h-5 w-5" />}
+              hint="Mayor volumen de ventas"
+            />
+            <StatCard
+              label="Ocupación promedio"
+              value={`${data.summary.averageOccupancy}%`}
+              icon={<Percent className="h-5 w-5" />}
+            />
           </div>
-          <RevenueChart data={MOCK_REVENUE[period]} height={300} />
-        </Card>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <Card className="p-5 sm:p-6">
-            <div className="mb-5">
-              <h2 className="text-lg font-black uppercase tracking-tight text-club-accent">
-                Reservas por <span className="text-club-primary">servicio</span>
-              </h2>
-              <p className="text-xs text-text-muted">Comparativo de reservas por instalación.</p>
-            </div>
-            <ServiceBarChart data={MOCK_RESERVATIONS_BY_SERVICE} height={300} />
-          </Card>
 
           <Card className="p-5 sm:p-6">
-            <div className="mb-5">
-              <h2 className="text-lg font-black uppercase tracking-tight text-club-accent">
-                Distribución de <span className="text-club-primary">ingresos</span>
-              </h2>
-              <p className="text-xs text-text-muted">
-                Participación de cada servicio en la facturación total.
-              </p>
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-black uppercase tracking-tight text-club-accent">
+                  Comportamiento de <span className="text-club-primary">ingresos</span>
+                </h2>
+                <p className="text-xs text-text-muted">
+                  Facturación registrada · {data.range.label}.
+                </p>
+              </div>
             </div>
-            <DistributionDonut data={MOCK_REVENUE_DISTRIBUTION} height={300} />
+            <RevenueChart
+              data={data.revenueFlow.map((point) => ({ label: point.label, value: point.value }))}
+              height={300}
+            />
           </Card>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card className="p-5 sm:p-6">
+              <div className="mb-5">
+                <h2 className="text-lg font-black uppercase tracking-tight text-club-accent">
+                  Reservas por <span className="text-club-primary">servicio</span>
+                </h2>
+                <p className="text-xs text-text-muted">Comparativo de reservas por instalación.</p>
+              </div>
+              <ServiceBarChart data={data.reservationsByService} height={300} />
+            </Card>
+
+            <Card className="p-5 sm:p-6">
+              <div className="mb-5">
+                <h2 className="text-lg font-black uppercase tracking-tight text-club-accent">
+                  Distribución de <span className="text-club-primary">ingresos</span>
+                </h2>
+                <p className="text-xs text-text-muted">
+                  Participación de cada servicio en la facturación total.
+                </p>
+              </div>
+              <DistributionDonut data={data.revenueDistribution} height={300} />
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
