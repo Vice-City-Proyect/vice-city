@@ -112,8 +112,8 @@ export function Hero() {
             gimnasio y zona húmeda con sauna. Todo tu entrenamiento en un solo complejo.
           </p>
 
-          <div className="mb-10 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/auth/login" size="lg">
+          <div className="mb-8 sm:mb-10 flex flex-col gap-3 sm:flex-row">
+            <ButtonLink href="/login" size="lg" className="w-full sm:w-auto">
               Haz tu reserva
               <ChevronRight className="h-5 w-5" />
             </ButtonLink>

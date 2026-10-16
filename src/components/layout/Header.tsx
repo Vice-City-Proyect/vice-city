@@ -30,10 +30,10 @@ export function Header() {
             alt="Logo Vice City Iguana Club"
             width={48}
             height={48}
-            className="h-10 w-10 rounded-full object-cover sm:h-11 sm:w-11 lg:h-12 lg:w-12"
+            className="h-10 w-10 shrink-0 rounded-full object-cover sm:h-11 sm:w-11 lg:h-12 lg:w-12"
             priority
           />
-          <span className="whitespace-nowrap text-base sm:text-lg lg:text-2xl">
+          <span className="truncate whitespace-nowrap text-sm sm:text-lg lg:text-2xl">
             Vice City <span className="text-club-primary">Iguana</span>
           </span>
         </Link>
@@ -51,9 +51,9 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* Botón de inicio de sesión en el nav con su respectivo icono */}
-          <ButtonLink href="/login" size="md">
+          <ButtonLink href="/login" size="sm" className="sm:px-5 sm:py-3 sm:text-sm">
             <LogIn className="h-4 w-4 shrink-0" aria-hidden="true" />
             Login
           </ButtonLink>
