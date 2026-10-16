@@ -8,7 +8,7 @@
 export const DASHBOARD_BY_ROLE: Record<string, string> = {
   ADMIN: '/admin',
   CLIENT: '/cliente',
-  TICKET_SELLER: '/employee/pos',
+  TICKET_SELLER: '/empleado/pos',
   QR_VALIDATOR: '/empleado/qr',
 };
 
