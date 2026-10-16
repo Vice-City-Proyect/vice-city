@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { AlertCircle, CheckCircle2, Clock, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
@@ -10,6 +11,66 @@ import { getErrorMessage } from '@/lib/api-client';
 import { formatCOP } from '@/lib/format';
 import type { Reservation, ReservationStatus } from '@/types/reservation';
 import { RESERVATION_STATUS_OPTIONS, TIME_SLOT_OPTIONS } from '../data/reservation-filters';
+
+export interface StatusNotification {
+  id: number;
+  message: string;
+  status: ReservationStatus;
+}
+
+export function createStatusNotification(nextStatus: ReservationStatus): StatusNotification {
+  const statusLabel =
+    RESERVATION_STATUS_OPTIONS.find((option) => option.value === nextStatus)?.label ?? nextStatus;
+  return {
+    id: Date.now(),
+    message: `Estado de la reserva actualizado a: ${statusLabel}`,
+    status: nextStatus,
+  };
+}
+
+const STATUS_NOTIFICATION_STYLES: Record<
+  ReservationStatus,
+  { border: string; bg: string; text: string }
+> = {
+  CONFIRMED: {
+    border: 'border-emerald-500/40',
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-800',
+  },
+  PENDING: {
+    border: 'border-amber-500/40',
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-800',
+  },
+  CANCELLED: {
+    border: 'border-red-500/40',
+    bg: 'bg-red-500/10',
+    text: 'text-red-800',
+  },
+  IN_PROGRESS: {
+    border: 'border-blue-500/40',
+    bg: 'bg-blue-500/10',
+    text: 'text-blue-800',
+  },
+  FINISHED: {
+    border: 'border-text-main/20',
+    bg: 'bg-club-bg/80',
+    text: 'text-text-main',
+  },
+};
+
+function NotificationIcon({ status }: { status: ReservationStatus }) {
+  switch (status) {
+    case 'CONFIRMED':
+      return <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />;
+    case 'CANCELLED':
+      return <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />;
+    case 'PENDING':
+      return <Clock className="h-4 w-4 shrink-0 text-amber-600" />;
+    default:
+      return <CheckCircle2 className="h-4 w-4 shrink-0 text-club-primary" />;
+  }
+}
 
 const EDITABLE_STATUS_OPTIONS = RESERVATION_STATUS_OPTIONS.filter(
   (option) => option.value === 'PENDING' || option.value === 'CONFIRMED',
@@ -32,6 +93,42 @@ export function ReservationEditModal({
   const [status, setStatus] = useState<ReservationStatus>(reservation?.status ?? 'PENDING');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<StatusNotification | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  function handleStatusChange(nextStatus: ReservationStatus) {
+    if (nextStatus === status) return;
+    setStatus(nextStatus);
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    const nextNotification = createStatusNotification(nextStatus);
+    setNotification(nextNotification);
+
+    timerRef.current = setTimeout(() => {
+      setNotification(null);
+      timerRef.current = null;
+    }, 4000);
+  }
+
+  function dismissNotification() {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setNotification(null);
+  }
 
   if (!reservation) return null;
 
@@ -126,9 +223,9 @@ export function ReservationEditModal({
             value={status}
             disabled={saving || !statusIsEditable}
             onChange={(event) => {
-              const nextStatus = event.target.value;
+              const nextStatus = event.target.value as ReservationStatus;
               if (nextStatus === 'PENDING' || nextStatus === 'CONFIRMED') {
-                setStatus(nextStatus);
+                handleStatusChange(nextStatus);
               }
             }}
           >
@@ -146,6 +243,33 @@ export function ReservationEditModal({
             ))}
           </Select>
         </FormField>
+
+        {notification && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-xs shadow-xs transition-all duration-200 ${
+              STATUS_NOTIFICATION_STYLES[notification.status]?.border ?? 'border-club-primary/40'
+            } ${STATUS_NOTIFICATION_STYLES[notification.status]?.bg ?? 'bg-club-primary/15'} ${
+              STATUS_NOTIFICATION_STYLES[notification.status]?.text ?? 'text-club-accent'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <NotificationIcon status={notification.status} />
+              <span className="font-semibold">{notification.message}</span>
+            </div>
+
+            <button
+              type="button"
+              aria-label="Cerrar notificación"
+              title="Cerrar notificación"
+              onClick={dismissNotification}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-black/5 hover:text-club-accent"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl border border-text-main/10 bg-club-bg/60 px-4 py-3">
           <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
