@@ -17,14 +17,8 @@ import {
   sanitizeInternalCallbackUrl,
   extractRoleFromSession,
 } from '../utils/url-sanitizer';
+import { DASHBOARD_BY_ROLE } from '../utils/role-home';
 import { ResendConfirmationModal } from './ResendConfirmationModal';
-
-const DASHBOARD_BY_ROLE: Record<string, string> = {
-  ADMIN: '/admin',
-  CLIENT: '/cliente',
-  TICKET_SELLER: '/employee/pos',
-  QR_VALIDATOR: '/empleado/qr',
-};
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   GoogleEmailNotProvided:

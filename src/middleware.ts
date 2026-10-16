@@ -8,6 +8,10 @@ import {
   normalizeRole,
 } from "@/features/auth/permissions/route-permissions";
 import { allowsMockAuthHeaders } from "@/features/auth/mock-auth";
+import {
+  DASHBOARD_BY_ROLE,
+  GUEST_ONLY_ROUTE,
+} from "@/features/auth/utils/role-home";
 
 function getMiddlewareSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
@@ -68,6 +72,30 @@ export async function middleware(
     pathname.startsWith("/static") ||
     pathname.includes(".")
   ) {
+    return NextResponse.next();
+  }
+
+  // 1b. /login y /register no se muestran con sesión activa (VCP-104): se redirige a la
+  // pantalla del rol. Solo cuenta un token real y vigente (nunca x-mock-role); un token
+  // vencido, manipulado o sin rol válido se trata como sin sesión y deja ver el login.
+  if (GUEST_ONLY_ROUTE.test(pathname)) {
+    let sessionToken: Record<string, unknown> | null = resolvedOverride ?? null;
+    if (resolvedOverride === undefined) {
+      try {
+        sessionToken = await getToken({
+          req: request,
+          secret: getMiddlewareSecret(),
+        });
+      } catch {
+        sessionToken = null;
+      }
+    }
+    const role = normalizeRole(sessionToken?.role as string | undefined);
+    if (role) {
+      return NextResponse.redirect(
+        new URL(DASHBOARD_BY_ROLE[role] ?? "/", request.url)
+      );
+    }
     return NextResponse.next();
   }
 

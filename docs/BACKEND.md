@@ -462,6 +462,7 @@ Tabla consolidada de las 27 rutas API implementadas en el backend:
 ### 1. Autenticación y Autorización RBAC (`src/features/auth`, `src/middleware.ts`)
 * **Sesiones JWT:** NextAuth v4 emite tokens JWT seguros que incluyen el rol del usuario (`ADMIN`, `CLIENT`, `TICKET_SELLER`, `QR_VALIDATOR`).
 * **Protección Perimetral:** El middleware intercepta rutas `/admin/*`, `/cliente/*`, `/empleado/*` y deniega accesos no autorizados con redirección o respuestas `401`/`403`.
+* **Sesión activa en `/login` y `/register` (VCP-104):** con un token real y un rol válido, el middleware redirige a la pantalla del rol (`DASHBOARD_BY_ROLE` en `src/features/auth/utils/role-home.ts`). Sin token, con token vencido o manipulado, o con un rol no válido, se permite ver el formulario. La cabecera `x-mock-role` no activa esta redirección.
 * **Tokens de Un Solo Uso:** Los tokens de recuperación de contraseña expiran a los 60 minutos y se invalidan atómicamente si el usuario solicita un nuevo token.
 
 ### 2. Catálogo y Disponibilidad Deportiva (`src/features/services`)

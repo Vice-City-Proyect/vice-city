@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, type FormEvent } from 'react';
-import { signOut } from 'next-auth/react';
+import { performClientLogout } from '@/lib/logout';
 import { AlertCircle, Check, KeyRound, Loader2, LogOut, Save } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -235,8 +235,8 @@ export default function ClientProfilePage() {
         actions={
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className="inline-flex items-center gap-2 rounded-xl border border-text-main/10 bg-club-surface px-5 py-3 text-xs font-bold uppercase tracking-wider text-text-muted transition-colors hover:border-club-primary hover:text-club-accent"
+            onClick={() => performClientLogout('/login')}
+            className="inline-flex items-center gap-2 rounded-xl border border-text-main/10 bg-club-surface px-5 py-3 text-xs font-bold uppercase tracking-wider text-text-muted transition-colors hover:border-club-primary hover:text-club-accent cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
             Cerrar sesión
