@@ -33,7 +33,8 @@ La aplicación utiliza principalmente:
 * Revisar primero el código existente antes de crear nuevas implementaciones.
 * Evitar duplicar componentes, servicios o lógica.
 * No mover archivos sin una razón clara.
-* No introducir dependencias nuevas innecesariamente.
+* **Dependencias Congeladas:** No instalar nuevas dependencias que no existan en `package-lock.json`. Si una tarea requiere una nueva librería, se DEBE consultar y autorizar con el usuario previamente.
+* **Uso exclusivo de `npm ci`:** Está estrictamente prohibido usar `npm install` o `npm i`. Todas las versiones deben ser exactas (sin `^` ni `~`). Prohibidas las actualizaciones automáticas.
 * No modificar reglas de negocio sin autorización.
 * Mantener los cambios relacionados con la tarea solicitada.
 * Mantener el código simple y consistente con el proyecto.

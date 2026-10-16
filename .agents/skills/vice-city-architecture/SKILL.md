@@ -122,3 +122,21 @@ Before creating a new file:
 * Keep responsibilities separated.
 * Prefer reusing existing components and services.
 * Keep changes focused on the requested task.
+
+## Frozen Dependencies Policy (Strict for AI Agents)
+
+Las dependencias del proyecto están estrictamente **CONGELADAS** y protegidas:
+
+1. **Uso Exclusivo de `npm ci`:**
+   * Es **OBLIGATORIO** usar `npm ci` para instalar dependencias.
+   * Está **TERMINANTEMENTE PROHIBIDO** usar `npm install` o `npm i`. El script de preinstalación y el CI rechazarán cualquier intento.
+2. **Prohibición de Nuevas Dependencias:**
+   * Los agentes de IA **NO deben instalar ninguna dependencia** que no esté registrada en `package-lock.json`.
+   * Si una tarea parece requerir una nueva librería externa, el agente **DEBE CONSULTAR PRIMERO AL USUARIO** y obtener autorización explícita antes de proponer cualquier cambio.
+3. **Sin Actualizaciones Automáticas (Versiones Exactas / Pinned):**
+   * Ninguna dependencia debe usar prefijos de rango flotante (`^` o `~`). Todas las versiones en `package.json` son **fijas y exactas**.
+   * No se permiten actualizaciones automáticas de dependencias ni cambios silenciosos en versiones menores/parches.
+4. **Protección de Archivos Clave:**
+   * Los archivos `package.json`, `package-lock.json`, `.npmrc` y `prisma/schema.prisma` están blindados y protegidos por CI/CD.
+   * Cualquier alteración no autorizada del `package-lock.json` romperá el pipeline de CI/CD (`git diff --exit-code package.json package-lock.json`).
+
