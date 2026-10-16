@@ -34,3 +34,9 @@ export {
   PosOperatingHoursError,
   PosPastSlotError,
 } from "./errors/pos.errors";
+
+// Componentes UI (HU25 & HU26)
+export { PosSaleForm } from "./components/PosSaleForm";
+export type { PosSaleFormProps } from "./components/PosSaleForm";
+export { PosReceiptCard } from "./components/PosReceiptCard";
+export { PosTicketPreviewModal } from "./components/PosTicketPreviewModal";
