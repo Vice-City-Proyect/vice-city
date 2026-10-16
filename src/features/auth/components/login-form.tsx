@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession, getProviders } from 'next-auth/react';
@@ -54,29 +54,49 @@ export function LoginForm() {
     () => searchParams.get('callbackUrl'),
     [searchParams]
   );
+  const readCallbackUrlRef = useRef(readCallbackUrl);
+  useEffect(() => {
+    readCallbackUrlRef.current = readCallbackUrl;
+  }, [readCallbackUrl]);
 
   useEffect(() => {
     let active = true;
+
+    // Timeout de resiliencia defensivo: asegura que bajo ninguna circunstancia
+    // de red o microtarea la UI quede congelada indefinidamente en "Verificando sesión..."
+    const safetyTimer = setTimeout(() => {
+      if (active) setCheckingSession(false);
+    }, 2500);
 
     // 1. Verificación de sesión activa: redirige al dashboard del rol si ya está autenticado
     async function checkExistingSession() {
       try {
         let role: string | undefined;
-        const session = await getSession();
-        role = extractRoleFromSession(session);
 
-        if (!role) {
-          const res = await fetch('/api/auth/session', { cache: 'no-store' });
-          if (res.ok) {
-            const json: unknown = await res.json();
-            role = extractRoleFromSession(json);
+        try {
+          const session = await getSession();
+          role = extractRoleFromSession(session);
+        } catch {
+          // Fallo no bloqueante en getSession
+        }
+
+        if (!role && active) {
+          try {
+            const res = await fetch('/api/auth/session', { cache: 'no-store' });
+            if (res.ok) {
+              const json: unknown = await res.json();
+              role = extractRoleFromSession(json);
+            }
+          } catch {
+            // Fallo no bloqueante en /api/auth/session
           }
         }
 
         if (!active) return;
 
         if (role) {
-          const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
+          const rawCallback = readCallbackUrlRef.current ? readCallbackUrlRef.current() : null;
+          const safeCallback = sanitizeInternalCallbackUrl(rawCallback);
           const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
           const destination = safeCallback || roleDestination;
           if (typeof window !== 'undefined') {
@@ -86,10 +106,12 @@ export function LoginForm() {
           }
           return;
         }
+
+        if (active) setCheckingSession(false);
       } catch {
         // Fallo de verificación de sesión inicial
+        if (active) setCheckingSession(false);
       }
-      if (active) setCheckingSession(false);
     }
 
     void checkExistingSession();
@@ -105,8 +127,9 @@ export function LoginForm() {
 
     return () => {
       active = false;
+      clearTimeout(safetyTimer);
     };
-  }, [router, readCallbackUrl]);
+  }, [router]);
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
