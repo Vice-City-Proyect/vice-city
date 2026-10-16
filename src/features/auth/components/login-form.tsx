@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession, getProviders } from 'next-auth/react';
@@ -47,13 +47,17 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(false);
   const [isResendModalOpen, setIsResendModalOpen] = useState(false);
 
   const readCallbackUrl = useCallback(
     () => searchParams.get('callbackUrl'),
     [searchParams]
   );
+  const readCallbackUrlRef = useRef(readCallbackUrl);
+  useEffect(() => {
+    readCallbackUrlRef.current = readCallbackUrl;
+  }, [readCallbackUrl]);
 
   useEffect(() => {
     let active = true;
@@ -62,21 +66,32 @@ export function LoginForm() {
     async function checkExistingSession() {
       try {
         let role: string | undefined;
-        const session = await getSession();
-        role = extractRoleFromSession(session);
 
-        if (!role) {
-          const res = await fetch('/api/auth/session', { cache: 'no-store' });
-          if (res.ok) {
-            const json: unknown = await res.json();
-            role = extractRoleFromSession(json);
+        try {
+          const session = await getSession();
+          role = extractRoleFromSession(session);
+        } catch {
+          // Fallo no bloqueante en getSession
+        }
+
+        if (!role && active) {
+          try {
+            const res = await fetch('/api/auth/session', { cache: 'no-store' });
+            if (res.ok) {
+              const json: unknown = await res.json();
+              role = extractRoleFromSession(json);
+            }
+          } catch {
+            // Fallo no bloqueante en /api/auth/session
           }
         }
 
         if (!active) return;
 
         if (role) {
-          const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
+          setCheckingSession(true);
+          const rawCallback = readCallbackUrlRef.current ? readCallbackUrlRef.current() : null;
+          const safeCallback = sanitizeInternalCallbackUrl(rawCallback);
           const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
           const destination = safeCallback || roleDestination;
           if (typeof window !== 'undefined') {
@@ -89,7 +104,6 @@ export function LoginForm() {
       } catch {
         // Fallo de verificación de sesión inicial
       }
-      if (active) setCheckingSession(false);
     }
 
     void checkExistingSession();
@@ -106,7 +120,7 @@ export function LoginForm() {
     return () => {
       active = false;
     };
-  }, [router, readCallbackUrl]);
+  }, [router]);
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
