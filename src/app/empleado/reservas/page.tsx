@@ -82,7 +82,7 @@ export default function EmployeeReservationsPage() {
             title="Sin reservas"
             description={
               reservations.length === 0
-                ? 'No hay reservas confirmadas para hoy.'
+                ? 'No hay reservas confirmadas programadas para la jornada de hoy.'
                 : 'No hay reservas que coincidan con los filtros seleccionados.'
             }
           />

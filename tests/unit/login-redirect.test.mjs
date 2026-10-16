@@ -5,13 +5,7 @@ import {
   sanitizeInternalCallbackUrl,
   extractRoleFromSession,
 } from '../../src/features/auth/utils/url-sanitizer.ts';
-
-const DASHBOARD_BY_ROLE = {
-  ADMIN: '/admin',
-  CLIENT: '/cliente',
-  TICKET_SELLER: '/employee/pos',
-  QR_VALIDATOR: '/empleado/qr',
-};
+import { DASHBOARD_BY_ROLE } from '../../src/features/auth/utils/role-home.ts';
 
 function resolveRedirectDestination(role, callbackUrl) {
   const safeCallback = sanitizeInternalCallbackUrl(callbackUrl);
@@ -49,10 +43,18 @@ describe('HU28 / PR #59: Sanitización de callbackUrl y Prevención de Redirecci
     assert.equal(sanitizeInternalCallbackUrl('/\\/evil.com'), null);
   });
 
-  test('5. Permite y preserva rutas internas relativas legítimas', () => {
+  test('5. Bloquea redirecciones hacia endpoints REST internos (/api/)', () => {
+    assert.equal(sanitizeInternalCallbackUrl('/api'), null);
+    assert.equal(sanitizeInternalCallbackUrl('/api/pos/preview'), null);
+    assert.equal(sanitizeInternalCallbackUrl('/api/employee/summary'), null);
+    assert.equal(sanitizeInternalCallbackUrl('/api/users/me'), null);
+    assert.equal(sanitizeInternalCallbackUrl('/api/services'), null);
+  });
+
+  test('6. Permite y preserva rutas internas relativas legítimas', () => {
     assert.equal(sanitizeInternalCallbackUrl('/admin/reports'), '/admin/reports');
     assert.equal(sanitizeInternalCallbackUrl('/cliente/reservas'), '/cliente/reservas');
-    assert.equal(sanitizeInternalCallbackUrl('/employee/pos?filter=active'), '/employee/pos?filter=active');
+    assert.equal(sanitizeInternalCallbackUrl('/empleado/pos?filter=active'), '/empleado/pos?filter=active');
     assert.equal(sanitizeInternalCallbackUrl('/empleado/qr'), '/empleado/qr');
     assert.equal(sanitizeInternalCallbackUrl('/cliente/perfil#seguridad'), '/cliente/perfil#seguridad');
   });
@@ -118,8 +120,8 @@ describe('HU28 / PR #59: Redirecciones oficiales por rol (DASHBOARD_BY_ROLE)', (
     assert.equal(resolveRedirectDestination('CLIENT', null), '/cliente');
   });
 
-  test('TICKET_SELLER redirige a /employee/pos', () => {
-    assert.equal(resolveRedirectDestination('TICKET_SELLER', null), '/employee/pos');
+  test('TICKET_SELLER redirige a /empleado/pos', () => {
+    assert.equal(resolveRedirectDestination('TICKET_SELLER', null), '/empleado/pos');
   });
 
   test('QR_VALIDATOR redirige a /empleado/qr', () => {
@@ -152,7 +154,7 @@ describe('HU28 / PR #59: Guardián de sesión y protección integrada contra Ope
     const session = { user: { role: 'TICKET_SELLER' } };
     const role = extractRoleFromSession(session);
     const destination = resolveRedirectDestination(role, null);
-    assert.equal(destination, '/employee/pos');
+    assert.equal(destination, '/empleado/pos');
   });
 
   test('Usuario con sesión activa entrando a /login con ataque Open Redirect va a su rol', () => {

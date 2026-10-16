@@ -152,7 +152,7 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
   const HOME_BY_ROLE = {
     ADMIN: "/admin",
     CLIENT: "/cliente",
-    TICKET_SELLER: "/employee/pos",
+    TICKET_SELLER: "/empleado/pos",
     QR_VALIDATOR: "/empleado/qr",
   };
 
