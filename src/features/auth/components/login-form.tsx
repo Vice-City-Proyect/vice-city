@@ -47,7 +47,7 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(false);
   const [isResendModalOpen, setIsResendModalOpen] = useState(false);
 
   const readCallbackUrl = useCallback(
@@ -61,12 +61,6 @@ export function LoginForm() {
 
   useEffect(() => {
     let active = true;
-
-    // Timeout de resiliencia defensivo: asegura que bajo ninguna circunstancia
-    // de red o microtarea la UI quede congelada indefinidamente en "Verificando sesión..."
-    const safetyTimer = setTimeout(() => {
-      if (active) setCheckingSession(false);
-    }, 2500);
 
     // 1. Verificación de sesión activa: redirige al dashboard del rol si ya está autenticado
     async function checkExistingSession() {
@@ -95,6 +89,7 @@ export function LoginForm() {
         if (!active) return;
 
         if (role) {
+          setCheckingSession(true);
           const rawCallback = readCallbackUrlRef.current ? readCallbackUrlRef.current() : null;
           const safeCallback = sanitizeInternalCallbackUrl(rawCallback);
           const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
@@ -106,11 +101,8 @@ export function LoginForm() {
           }
           return;
         }
-
-        if (active) setCheckingSession(false);
       } catch {
         // Fallo de verificación de sesión inicial
-        if (active) setCheckingSession(false);
       }
     }
 
@@ -127,7 +119,6 @@ export function LoginForm() {
 
     return () => {
       active = false;
-      clearTimeout(safetyTimer);
     };
   }, [router]);
 
