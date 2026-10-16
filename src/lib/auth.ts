@@ -1,4 +1,5 @@
 import type { NextAuthOptions, User as NextAuthUser } from "next-auth";
+import { encode } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import type { PrismaClient } from "@prisma/client";
@@ -10,6 +11,7 @@ import {
   GoogleEmailNotProvidedError,
   GoogleEmailNotVerifiedError,
   UserInactiveError,
+  EmailNotVerifiedError,
   GoogleAuthConfigError,
   type GoogleProfile,
 } from "@/features/auth";
@@ -87,7 +89,18 @@ export async function authenticateUser(
     throw new Error("Credenciales incorrectas: correo o contraseña no válidos");
   }
 
-  // 4. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
+  // 4. Caso de error: Validar que el correo del usuario esté verificado (H-AUTH-02)
+  const isEmailVerified =
+    user.email_verified === true ||
+    (typeof user.metadata === "object" &&
+      user.metadata !== null &&
+      (user.metadata as Record<string, any>).email_verified === true);
+
+  if (!isEmailVerified) {
+    throw new EmailNotVerifiedError();
+  }
+
+  // 5. Caso de error: Validar que el rol del usuario pertenezca estrictamente al SRS
   const roleName = user.roles?.name ? user.roles.name.toUpperCase() : "";
 
   // Normalización para compatibilidad si el rol en BD es legacy "CUSTOMER" -> "CLIENT"
@@ -119,7 +132,15 @@ export async function authenticateUser(
  * @param env Entorno de variables (opcional para pruebas unitarias)
  */
 export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
-  const secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  let secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  if (!secret && env === process.env && typeof process.loadEnvFile === "function") {
+    try {
+      process.loadEnvFile();
+      secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+    } catch {
+      // Si .env no existe, continuar con la validación estricta
+    }
+  }
   if (!secret) {
     if (env.NODE_ENV === "test" || env.npm_lifecycle_event === "test") {
       return "vice-city-unit-tests-isolated-secret-key-32chars";
@@ -129,6 +150,161 @@ export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
     );
   }
   return secret;
+}
+
+export interface SessionCookieConfig {
+  name: string;
+  options: {
+    httpOnly: boolean;
+    sameSite: "lax" | "strict" | "none";
+    path: string;
+    secure: boolean;
+    maxAge: number;
+  };
+}
+
+/**
+ * Determina si el contexto actual exige cookies seguras (HTTPS).
+ * Coincide con la resolución nativa de cookies de NextAuth v4.
+ */
+export function isSecureAuthContext(request?: Request): boolean {
+  if (process.env.NEXTAUTH_URL?.startsWith("https://")) {
+    return true;
+  }
+  if (process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL)) {
+    return true;
+  }
+  if (request) {
+    const url = request.url || "";
+    if (url.startsWith("https://")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Obtiene la configuración y nombre estándar de la cookie de sesión de NextAuth
+ * según el entorno (HTTP vs HTTPS) y el tiempo de expiración configurado.
+ */
+export function getSessionCookieConfig(options?: {
+  isSecure?: boolean;
+  maxAge?: number;
+}): SessionCookieConfig {
+  const isSecure = options?.isSecure ?? isSecureAuthContext();
+  const maxAge = options?.maxAge ?? (authOptions.session?.maxAge || 8 * 60 * 60);
+
+  return {
+    name: isSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+    options: {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: Boolean(isSecure),
+      maxAge,
+    },
+  };
+}
+
+/**
+ * Emite un token de sesión NextAuth (JWE) firmado y cifrado para un usuario autenticado.
+ * Utiliza encode de next-auth/jwt y getAuthSecret() garantizando total compatibilidad
+ * con getToken(), getServerSession() y el middleware perimetral.
+ *
+ * @param user Datos del usuario autenticado (id, email, name, role)
+ * @param customSecret Clave secreta opcional para pruebas
+ * @param customMaxAge Tiempo de vida opcional en segundos
+ */
+export async function createSessionToken(
+  user: {
+    id: string;
+    email: string;
+    name?: string | null;
+    role: SRSRole | string;
+  },
+  customSecret?: string,
+  customMaxAge?: number
+): Promise<string> {
+  const secret = customSecret || getAuthSecret();
+  const maxAge = customMaxAge ?? (authOptions.session?.maxAge || 8 * 60 * 60);
+
+  return await encode({
+    token: {
+      sub: user.id,
+      id: user.id,
+      email: user.email,
+      name: user.name ?? undefined,
+      role: user.role as SRSRole,
+    },
+    secret,
+    maxAge,
+  });
+}
+
+/**
+ * Lee y valida las credenciales del proveedor Google OAuth desde el entorno.
+ * Devuelve `null` cuando no están configuradas, evitando enviar `client_id`
+ * falsos a Google (que producen errores opacos como `invalid_client`).
+ *
+ * Variables esperadas (Google Cloud Console → Credenciales OAuth 2.0):
+ * - GOOGLE_CLIENT_ID
+ * - GOOGLE_CLIENT_SECRET
+ *
+ * @param env Entorno de variables (opcional para pruebas unitarias)
+ */
+export function getGoogleCredentials(env: NodeJS.ProcessEnv = process.env): {
+  clientId: string;
+  clientSecret: string;
+} | null {
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
+/**
+ * Construye la lista de proveedores de NextAuth.
+ *
+ * El proveedor de Google solo se registra cuando GOOGLE_CLIENT_ID y
+ * GOOGLE_CLIENT_SECRET están configurados. Así, la ausencia de credenciales no
+ * rompe el login por credenciales ni envía un `client_id` ficticio a Google.
+ * La UI consulta /api/auth/providers para mostrar el botón solo si está activo.
+ */
+export function buildAuthProviders(): NextAuthOptions["providers"] {
+  const providers: NextAuthOptions["providers"] = [
+    // Proveedor por credenciales locales (HU02-B)
+    CredentialsProvider({
+      id: "credentials",
+      name: "Credenciales",
+      credentials: {
+        email: { label: "Correo", type: "email", placeholder: "correo@ejemplo.com" },
+        password: { label: "Contraseña", type: "password" },
+      },
+      async authorize(credentials) {
+        return authenticateUser(credentials, defaultPrisma);
+      },
+    }),
+  ];
+
+  // Proveedor Google OAuth (HU05-B): solo si hay credenciales reales.
+  const googleCredentials = getGoogleCredentials();
+  if (googleCredentials) {
+    providers.unshift(
+      GoogleProvider({
+        clientId: googleCredentials.clientId,
+        clientSecret: googleCredentials.clientSecret,
+        authorization: {
+          params: {
+            prompt: "select_account",
+            access_type: "offline",
+            response_type: "code",
+          },
+        },
+      })
+    );
+  }
+
+  return providers;
 }
 
 /**
@@ -186,54 +362,17 @@ export const authOptions: NextAuthOptions = {
     maxAge: 8 * 60 * 60, // 8 horas según .env.example
   },
   secret: getAuthSecret(),
-  providers: [
-    // Proveedor Google OAuth (HU05-B) - Solo se registra con credenciales verificadas o en entorno de tests
-    ...(isGoogleOAuthConfigured()
-      ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!.trim(),
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!.trim(),
-            authorization: {
-              params: {
-                prompt: "consent",
-                access_type: "offline",
-                response_type: "code",
-              },
-            },
-          }),
-        ]
-      : process.env.NODE_ENV === "test" || process.env.npm_lifecycle_event === "test"
-      ? [
-          GoogleProvider({
-            clientId: "mock-google-client-id-for-unit-tests",
-            clientSecret: "mock-google-client-secret-for-unit-tests",
-            authorization: {
-              params: {
-                prompt: "consent",
-                access_type: "offline",
-                response_type: "code",
-              },
-            },
-          }),
-        ]
-      : []),
-    // Proveedor por credenciales locales (HU02-B)
-    CredentialsProvider({
-      id: "credentials",
-      name: "Credenciales",
-      credentials: {
-        email: { label: "Correo", type: "email", placeholder: "correo@ejemplo.com" },
-        password: { label: "Contraseña", type: "password" },
-      },
-      async authorize(credentials) {
-        return authenticateUser(credentials, defaultPrisma);
-      },
-    }),
-  ],
+  providers: buildAuthProviders(),
   callbacks: {
     // 1. Delegación a la lógica de negocio al iniciar sesión (HU05-B)
     async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
+        // VCP-84: solo se vincula o crea la cuenta si Google confirma el correo
+        // (email_verified === true). Si el claim viene en false o no viene, se rechaza.
+        const googleClaims = profile as { email_verified?: boolean } | undefined;
+        if (googleClaims?.email_verified !== true) {
+          return false;
+        }
         try {
           const googleProfile: GoogleProfile = {
             id:
@@ -244,7 +383,7 @@ export const authOptions: NextAuthOptions = {
             email: profile?.email || user.email,
             name: profile?.name || user.name,
             picture: (profile as any)?.picture || (profile as any)?.image || user.image,
-            email_verified: (profile as any)?.email_verified ?? true,
+            email_verified: true,
           };
 
           // Delegación estricta a la capa de lógica de negocio (HU05-B LN)
@@ -311,7 +450,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        const rawRole = (user as any).role;
+        token.role = typeof rawRole === "string" ? rawRole.trim().toUpperCase() : rawRole;
         if (user.email) token.email = user.email;
         if (user.name) token.name = user.name;
       }
@@ -322,7 +462,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.role = (token.role as SRSRole) || "CLIENT";
+        const rawRole = typeof token.role === "string" ? token.role.trim().toUpperCase() : "";
+        const role = rawRole === "CUSTOMER" ? "CLIENT" : rawRole;
+        session.user.role = (role as SRSRole) || "CLIENT";
         if (token.email) session.user.email = token.email as string;
         if (token.name) session.user.name = token.name as string;
       }

@@ -9,6 +9,19 @@ export const CHART_COLORS = {
   grid: 'var(--color-text-main)',
 } as const;
 
+/** Estado vacío de una gráfica: un período sin datos se muestra así, no como una gráfica rota. */
+export function ChartEmpty({ height }: { height: number }) {
+  return (
+    <div
+      role="status"
+      style={{ height }}
+      className="flex w-full items-center justify-center rounded-xl border border-dashed border-text-main/15 px-4 text-center text-xs font-semibold text-text-muted"
+    >
+      Sin datos en este período
+    </div>
+  );
+}
+
 export const AXIS_TICK = {
   fill: 'var(--color-text-muted)',
   fontSize: 11,

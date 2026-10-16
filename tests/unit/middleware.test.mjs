@@ -146,14 +146,85 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
     assert.equal(resRegister.headers.get("Location"), null);
   });
 
+  // -------------------------------------------------------------------------
+  // VCP-104: /login y /register no se muestran con sesión activa
+  // -------------------------------------------------------------------------
+  const HOME_BY_ROLE = {
+    ADMIN: "/admin",
+    CLIENT: "/cliente",
+    TICKET_SELLER: "/empleado/pos",
+    QR_VALIDATOR: "/empleado/qr",
+  };
+
+  for (const [role, home] of Object.entries(HOME_BY_ROLE)) {
+    for (const path of ["/login", "/register"]) {
+      test(`VCP-104: ${role} con sesión activa que entra a ${path} es redirigido a ${home}`, async () => {
+        const request = createMockRequest(`http://localhost:3000${path}`);
+        const response = await middleware(request, { id: "u-1", role });
+
+        assert.ok(response.status === 307 || response.status === 302);
+        assert.equal(new URL(response.headers.get("Location")).pathname, home);
+      });
+    }
+  }
+
+  test("VCP-104: el rol CUSTOMER se normaliza a CLIENT al redirigir", async () => {
+    const request = createMockRequest("http://localhost:3000/login");
+    const response = await middleware(request, { id: "u-1", role: "CUSTOMER" });
+    assert.equal(new URL(response.headers.get("Location")).pathname, "/cliente");
+  });
+
+  test("VCP-104: /login/ con barra final también redirige con sesión activa", async () => {
+    const request = createMockRequest("http://localhost:3000/login/");
+    const response = await middleware(request, { id: "u-1", role: "ADMIN" });
+    assert.equal(new URL(response.headers.get("Location")).pathname, "/admin");
+  });
+
+  test("VCP-104: token sin rol válido no redirige (se permite ver el login, sin bucle)", async () => {
+    for (const token of [{ id: "u-1" }, { id: "u-1", role: "HACKER" }, { id: "u-1", role: "" }]) {
+      const request = createMockRequest("http://localhost:3000/login");
+      const response = await middleware(request, token);
+      assert.equal(response.headers.get("Location"), null);
+    }
+  });
+
+  test("VCP-104: cookie de sesión inválida o manipulada deja ver /login y /register", async () => {
+    for (const path of ["/login", "/register"]) {
+      const request = createMockRequest(`http://localhost:3000${path}`, {
+        headers: { cookie: "next-auth.session-token=token.manipulado.invalido" },
+      });
+      const response = await middleware(request);
+      assert.equal(response.headers.get("Location"), null);
+    }
+  });
+
+  test("VCP-104: la cabecera x-mock-role no activa la redirección de /login", async () => {
+    const previous = process.env.ENABLE_MOCK_AUTH_HEADERS;
+    process.env.ENABLE_MOCK_AUTH_HEADERS = "true";
+    try {
+      const request = createMockRequest("http://localhost:3000/login", {
+        headers: { "x-mock-role": "ADMIN" },
+      });
+      const response = await middleware(request);
+      assert.equal(response.headers.get("Location"), null);
+    } finally {
+      if (previous === undefined) delete process.env.ENABLE_MOCK_AUTH_HEADERS;
+      else process.env.ENABLE_MOCK_AUTH_HEADERS = previous;
+    }
+  });
+
+  test("VCP-104: otras rutas públicas (/forgot-password) no redirigen aunque haya sesión", async () => {
+    const request = createMockRequest("http://localhost:3000/forgot-password");
+    const response = await middleware(request, { id: "u-1", role: "ADMIN" });
+    assert.equal(response.headers.get("Location"), null);
+  });
+
   test("Rutas públicas (HU20 - HU24): Endpoints de negocio y webhook de Stripe pasan sin sesión activa (200 / sin redirección)", async () => {
     const publicEndpoints = [
       "http://localhost:3000/api/catalog",
       "http://localhost:3000/api/availability?serviceId=abc&date=2026-10-15",
       "http://localhost:3000/api/pricing/calculate",
-      "http://localhost:3000/api/reservations/hold",
       "http://localhost:3000/api/reservations/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
-      "http://localhost:3000/api/payments/create-intent",
       "http://localhost:3000/api/payments/webhook",
       "http://localhost:3000/catalog",
       "http://localhost:3000/checkout/c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
@@ -179,22 +250,27 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
   // COMPATIBILIDAD NEXT.JS: Invocación con NextFetchEvent (Hallazgo 2)
   // -------------------------------------------------------------------------
   test("Compatibilidad Next.js: NextFetchEvent no es interpretado como token y no produce 403 con sesión válida", async () => {
-    const mockNextFetchEvent = {
-      waitUntil: () => {},
-      sourcePage: "/employee/qr-scanner",
-    };
+    process.env.ENABLE_MOCK_AUTH_HEADERS = "true";
+    try {
+      const mockNextFetchEvent = {
+        waitUntil: () => {},
+        sourcePage: "/employee/qr-scanner",
+      };
 
-    // Petición autenticada con rol QR_VALIDATOR vía mock header
-    const req = createMockRequest("http://localhost:3000/employee/qr-scanner", {
-      headers: { "x-mock-role": "QR_VALIDATOR" },
-    });
+      // Petición autenticada con rol QR_VALIDATOR vía mock header
+      const req = createMockRequest("http://localhost:3000/employee/qr-scanner", {
+        headers: { "x-mock-role": "QR_VALIDATOR" },
+      });
 
-    // Invocado como lo hace Next.js: middleware(request, event)
-    const res = await middleware(req, mockNextFetchEvent);
+      // Invocado como lo hace Next.js: middleware(request, event)
+      const res = await middleware(req, mockNextFetchEvent);
 
-    // Debe permitir el acceso (no 403 ni redirección)
-    assert.equal(res.status, 200);
-    assert.equal(res.headers.get("Location"), null);
+      // Debe permitir el acceso (no 403 ni redirección)
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("Location"), null);
+    } finally {
+      delete process.env.ENABLE_MOCK_AUTH_HEADERS;
+    }
   });
 
   test("Ruta protegida sin sesión sigue respondiendo 401 UNAUTHORIZED en API", async () => {
@@ -202,6 +278,9 @@ describe("HU08-B: API Middleware - Protección de Rutas y Permisos", () => {
       "http://localhost:3000/api/admin/users",
       "http://localhost:3000/api/employee/pos",
       "http://localhost:3000/api/client/tickets",
+      "http://localhost:3000/api/payments/checkout",
+      "http://localhost:3000/api/payments/create-intent",
+      "http://localhost:3000/api/reservations/hold",
     ];
 
     for (const url of protectedApis) {

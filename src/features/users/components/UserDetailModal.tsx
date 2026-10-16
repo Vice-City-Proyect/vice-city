@@ -22,7 +22,7 @@ export function UserDetailModal({ user, onClose }: UserDetailModalProps) {
       title={user.name}
       footer={
         <span className="text-[11px] text-text-muted">
-          ID interno: <span className="font-mono">{user.id}</span>
+          ID interno: <span className="font-mono break-all">{user.id}</span>
         </span>
       }
     >
@@ -46,16 +46,17 @@ export function UserDetailModal({ user, onClose }: UserDetailModalProps) {
         <dl className="flex flex-col gap-3 rounded-2xl border border-text-main/10 bg-club-bg/60 p-4">
           <div className="flex items-center gap-3 text-sm">
             <Mail className="h-4 w-4 shrink-0 text-brand-blue" />
-            <span className="font-bold">{user.email}</span>
+            <span className="font-bold break-all">{user.email}</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Phone className="h-4 w-4 shrink-0 text-brand-blue" />
-            <span className="font-bold">{user.phone}</span>
+            <span className="font-bold">{user.phone || 'No registrado'}</span>
           </div>
         </dl>
 
         <p className="text-[11px] leading-relaxed text-text-muted">
-          La gestión real de usuarios y empleados se conectará al backend en una fase posterior.
+          El rol se actualiza mediante la API de gestión de roles. El nombre, teléfono y estado
+          solo pueden modificarse para empleados (Vendedor / Validador QR).
         </p>
       </div>
     </Modal>

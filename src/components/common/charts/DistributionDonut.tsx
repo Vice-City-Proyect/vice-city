@@ -2,7 +2,8 @@
 
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCOP } from '@/lib/format';
-import { CHART_COLORS, ChartTooltip } from './chart-utils';
+import { hasChartData } from '@/features/reports/utils/chart-data';
+import { CHART_COLORS, ChartEmpty, ChartTooltip } from './chart-utils';
 
 export interface DistributionPoint {
   label: string;
@@ -29,6 +30,8 @@ export function DistributionDonut({
   currency = true,
 }: DistributionDonutProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  if (!hasChartData(data)) return <ChartEmpty height={height} />;
 
   return (
     <div style={{ height }} className="w-full">

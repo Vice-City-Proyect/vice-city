@@ -12,6 +12,7 @@
 
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
+import { getStripeSecretKey } from "../lib/stripe.config";
 import type {
   CreatePaymentIntentParams,
   CreatePaymentIntentResult,
@@ -23,6 +24,13 @@ import {
   BookingCancelledError,
   StripePaymentError,
 } from "../errors/payment.errors";
+import { ForbiddenBookingAccessError } from "../errors/payments.errors";
+import { toStripeMinorUnits } from "../lib/stripe.config";
+
+export interface PaymentRequester {
+  id: string;
+  role: string;
+}
 
 export interface StripePaymentServiceDependencies {
   findBookingByIdFn?: (id: string) => Promise<any | null>;
@@ -36,7 +44,7 @@ export interface StripePaymentServiceDependencies {
 }
 
 export class StripePaymentService {
-  private readonly stripe: {
+  private stripe?: {
     paymentIntents: {
       create: (params: any, options?: any) => Promise<any>;
       retrieve: (id: string) => Promise<any>;
@@ -49,19 +57,29 @@ export class StripePaymentService {
 
     if (dependencies?.stripeClient) {
       this.stripe = dependencies.stripeClient;
-    } else {
-      const apiKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_key_vice_city";
-      this.stripe = new Stripe(apiKey, {
+    }
+  }
+
+  private getStripe(): {
+    paymentIntents: {
+      create: (params: any, options?: any) => Promise<any>;
+      retrieve: (id: string) => Promise<any>;
+    };
+  } {
+    if (!this.stripe) {
+      this.stripe = new Stripe(getStripeSecretKey(), {
         typescript: true,
       });
     }
+    return this.stripe;
   }
 
   /**
    * Crea o reutiliza un PaymentIntent de Stripe para una reserva en estado HOLD (pending)
    */
   async createPaymentIntent(
-    params: CreatePaymentIntentParams
+    params: CreatePaymentIntentParams,
+    requester?: PaymentRequester
   ): Promise<CreatePaymentIntentResult> {
     const { bookingId } = params;
 
@@ -83,6 +101,14 @@ export class StripePaymentService {
 
     if (!booking) {
       throw new BookingNotFoundError(`La reserva con id '${bookingId}' no existe.`);
+    }
+
+    // 1.1 Autorización a nivel de recurso: dueño de la reserva o ADMIN.
+    if (requester) {
+      const isAdmin = requester.role?.toUpperCase() === "ADMIN";
+      if (!isAdmin && booking.user_id !== requester.id) {
+        throw new ForbiddenBookingAccessError();
+      }
     }
 
     // 2. Validar que la reserva no esté cancelada ni ya pagada
@@ -115,7 +141,7 @@ export class StripePaymentService {
 
     if (existingPendingPayment) {
       try {
-        const existingIntent = await this.stripe.paymentIntents.retrieve(
+        const existingIntent = await this.getStripe().paymentIntents.retrieve(
           existingPendingPayment.provider_reference
         );
 
@@ -148,15 +174,17 @@ export class StripePaymentService {
     const currency = (booking.services?.currency || "COP").toLowerCase();
 
     // En Stripe, el monto se envía en la unidad mínima (centavos para monedas de 2 decimales como COP / USD)
-    const amountInCents = Math.round(totalAmount * 100);
+    const amountInCents = toStripeMinorUnits(totalAmount);
 
     let paymentIntent: any;
     try {
-      paymentIntent = await this.stripe.paymentIntents.create(
+      paymentIntent = await this.getStripe().paymentIntents.create(
         {
           amount: amountInCents,
           currency,
-          payment_method_types: ["card"], // Acepta tarjetas de crédito y débito
+          automatic_payment_methods: {
+            enabled: true,
+          },
           metadata: {
             bookingId: booking.id,
             serviceId: booking.service_id,

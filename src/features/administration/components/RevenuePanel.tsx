@@ -4,14 +4,13 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { RevenueChart } from '@/components/common/charts/RevenueChart';
-import {
-  MOCK_REVENUE,
-  REVENUE_PERIODS,
-  type RevenuePeriod,
-} from '@/features/reports/data/mock-revenue';
+import { REVENUE_PERIODS, type RevenuePeriod } from '@/features/reports/constants';
+import { useMetrics } from '@/features/reports/hooks/use-metrics';
+import { MetricsFallback } from '@/features/reports/components/MetricsFallback';
 
 export function RevenuePanel() {
   const [period, setPeriod] = useState<RevenuePeriod>('week');
+  const metrics = useMetrics(period);
 
   return (
     <Card className="p-5 sm:p-6">
@@ -31,7 +30,13 @@ export function RevenuePanel() {
         />
       </div>
 
-      <RevenueChart data={MOCK_REVENUE[period]} />
+      <MetricsFallback loading={metrics.loading} error={metrics.error} onRetry={metrics.reload} />
+
+      {metrics.data && (
+        <RevenueChart
+          data={metrics.data.revenueFlow.map((point) => ({ label: point.label, value: point.value }))}
+        />
+      )}
     </Card>
   );
 }

@@ -90,7 +90,7 @@ npm run db:generate
 # Probar la conectividad activa contra PostgreSQL en Supabase
 npm run db:test
 
-# Crear el superadministrador inicial (admin@vicecity.com / vicecity123*)
+# Crear el superadministrador inicial (requiere ADMIN_SEED_PASSWORD en tu .env, mín. 12 caracteres)
 npm run db:seed:admin
 ```
 
@@ -289,7 +289,7 @@ Configura las siguientes variables en `.env.local` y `.env`:
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | No | `pk_test_your_stripe_publishable_key` | Clave pública de Stripe para inicializar Stripe Elements en el frontend. |
 | `ADMIN_SEED_EMAIL` | No | `admin@vicecity.com` | Correo del superadministrador para `npm run db:seed:admin`. |
 | `ADMIN_SEED_NAME` | No | `Administrador Principal` | Nombre del superadministrador para `npm run db:seed:admin`. |
-| `ADMIN_SEED_PASSWORD` | No* | `vicecity123*` | Contraseña del superadministrador (*obligatoria en producción para seed). |
+| `ADMIN_SEED_PASSWORD` | Sí (para el seed) | — (sin valor por defecto) | Contraseña del superadministrador, mínimo 12 caracteres. Solo en tu `.env` local. |
 
 > [!WARNING]
 > No dupliques el nombre de la variable en el valor (ej. `DATABASE_URL="DATABASE_URL=..."`). Asegúrate de que no haya espacios alrededor del signo igual `=`.
@@ -367,7 +367,7 @@ curl -X POST "http://localhost:3000/api/pricing/calculate" \
 
 ## 8. Swagger / OpenAPI y Herramientas DX
 
-El proyecto proporciona **12 especificaciones OpenAPI 3.0 oficiales** organizadas en `docs/swagger/` y dos formas complementarias de visualizarlas y probarlas:
+El proyecto proporciona **21 especificaciones OpenAPI 3.0 oficiales** organizadas en `docs/swagger/` y dos formas complementarias de visualizarlas y probarlas:
 
 ### 1. Vice-City API Tester (Recomendado para el equipo de Frontend)
 El repositorio incluye una aplicación local interactiva basada en React + Vite que embebe **Swagger UI** oficial (`swagger-ui-dist`) y un constructor de solicitudes HTTP en vivo.
@@ -401,7 +401,7 @@ Para importar en herramientas como [editor.swagger.io](https://editor.swagger.io
 | [`docs/swagger/auth-register.swagger.json`](./docs/swagger/auth-register.swagger.json) | Registro de Usuarios | `POST /api/auth/register` |
 | [`docs/swagger/auth-login.swagger.json`](./docs/swagger/auth-login.swagger.json) | Login y Sesión | `POST /api/auth/login`, `GET /api/auth/session` |
 | [`docs/swagger/auth-password-reset.swagger.json`](./docs/swagger/auth-password-reset.swagger.json) | Recuperación de Contraseña | `POST /api/auth/forgot-password`, `GET/POST /api/auth/reset-password` |
-| [`docs/swagger/auth-google.swagger.json`](./docs/swagger/auth-google.swagger.json) | Login Social con Google | `GET /api/auth/google`, `POST /api/auth/google` |
+| [`docs/swagger/auth-google.swagger.json`](./docs/swagger/auth-google.swagger.json) | Login Social con Google | `GET /api/auth/google`, `POST /api/auth/google` (retirado: 410 `ENDPOINT_RETIRED`) |
 | [`docs/swagger/auth-logout.swagger.json`](./docs/swagger/auth-logout.swagger.json) | Cierre de Sesión | `POST /api/auth/logout` |
 | [`docs/swagger/admin-roles.swagger.json`](./docs/swagger/admin-roles.swagger.json) | Gestión Administrativa de Roles | `GET /api/admin/users`, `PATCH /api/admin/users/{id}/role` |
 | [`docs/swagger/employees.swagger.json`](./docs/swagger/employees.swagger.json) | Gestión de Empleados | `GET/POST /api/employees`, `GET/PATCH/DELETE /api/employees/{id}` |
@@ -410,12 +410,17 @@ Para importar en herramientas como [editor.swagger.io](https://editor.swagger.io
 | [`docs/swagger/hu22-discounts.swagger.json`](./docs/swagger/hu22-discounts.swagger.json) | Cálculo de Tarifas y Descuentos | `POST /api/pricing/calculate` |
 | [`docs/swagger/hu23-stripe-checkout.swagger.json`](./docs/swagger/hu23-stripe-checkout.swagger.json) | Checkout con Stripe Test | `POST /api/payments/create-intent` |
 | [`docs/swagger/hu24-stripe-webhook.swagger.json`](./docs/swagger/hu24-stripe-webhook.swagger.json) | Webhook y Emisión de Tickets | `POST /api/payments/webhook` |
+| [`docs/swagger/hu25-pos-sale.swagger.json`](./docs/swagger/hu25-pos-sale.swagger.json) | Venta Presencial POS (HU25) | `POST /api/pos/sale` |
+| [`docs/swagger/hu26-pos-preview-ticket.swagger.json`](./docs/swagger/hu26-pos-preview-ticket.swagger.json) | Previsualización y Emisión del Ticket POS (HU26) | `POST /api/pos/preview` |
+| [`docs/swagger/qr-scanner.swagger.json`](./docs/swagger/qr-scanner.swagger.json) | Escáner QR y Control de Acceso (HU13) | `GET /api/qr/{code}`, `POST /api/qr/{code}/entry` |
+| [`docs/swagger/reservations.swagger.json`](./docs/swagger/reservations.swagger.json) | Reservas Web: creación y listado del usuario (VCP-93) | `POST /api/reservations`, `GET /api/reservations` |
+| [`docs/swagger/dashboard-summary.swagger.json`](./docs/swagger/dashboard-summary.swagger.json) | Resúmenes de dashboard para admin y empleados (VCP-93) | `GET /api/reports/dashboard-summary`, `GET /api/employee/summary` |
 
 ---
 
 ## 9. Catálogo de Endpoints REST
 
-Tabla consolidada de las 23 rutas API implementadas en el backend:
+Tabla consolidada de las 27 rutas API implementadas en el backend:
 
 | Método | Endpoint | Módulo / Historia | Autenticación / Rol | Estado |
 | :---: | :--- | :--- | :---: | :---: |
@@ -426,7 +431,7 @@ Tabla consolidada de las 23 rutas API implementadas en el backend:
 | `GET` | `/api/auth/reset-password` | Validación de token de reset (HU04) | Público | ✅ Implementado y Documentado |
 | `POST` | `/api/auth/reset-password` | Restablecimiento de contraseña con token (HU04) | Público | ✅ Implementado y Documentado |
 | `GET` | `/api/auth/google` | Inicio de flujo Google OAuth (HU05) | Público | ✅ Implementado y Documentado |
-| `POST` | `/api/auth/google` | Procesamiento de credenciales Google (HU05) | Público | ✅ Implementado y Documentado |
+| `POST` | `/api/auth/google` | **Retirado (VCP-84):** responde `410 ENDPOINT_RETIRED`. El login con Google es solo por NextAuth (`/api/auth/signin/google`), que exige `email_verified === true` | Público | ⛔ Retirado |
 | `POST` | `/api/auth/logout` | Cierre de sesión y revocación JWT (HU06) | Público / Sesión | ✅ Implementado y Documentado |
 | `GET` | `/api/admin/users` | Listado general de usuarios (HU07) | `ADMIN` | ✅ Implementado y Documentado |
 | `PATCH` | `/api/admin/users/[id]/role` | Actualización de rol con auditoría (HU07) | `ADMIN` | ✅ Implementado y Documentado |
@@ -439,9 +444,16 @@ Tabla consolidada de las 23 rutas API implementadas en el backend:
 | `GET` | `/api/availability` | Consulta de aforo y cupos por fecha (HU20) | Público / POS | ✅ Implementado y Documentado |
 | `POST` | `/api/reservations/hold` | Creación de reserva con HOLD 10 min (HU21) | Público / Cliente | ✅ Implementado y Documentado |
 | `GET` | `/api/reservations/[id]` | Consulta de estado y tiempo de HOLD (HU21) | Público / Cliente | ✅ Implementado y Documentado |
+| `GET` | `/api/reservations` | Listado de reservas del usuario con filtros, fechas y paginación; el CLIENT ve solo las suyas (VCP-93) | `CLIENT`, `ADMIN` | ✅ Implementado y Documentado |
+| `GET` | `/api/reports/dashboard-summary` | Reservas pendientes, usuarios activos y próximas reservas del dashboard admin (VCP-93) | `ADMIN` | ✅ Implementado y Documentado |
+| `GET` | `/api/employee/summary` | Resumen operativo del día y reservas de hoy para empleados, sin datos de contacto (VCP-93) | `TICKET_SELLER`, `QR_VALIDATOR`, `ADMIN` | ✅ Implementado y Documentado |
 | `POST` | `/api/pricing/calculate` | Cálculo de tarifas con promociones (HU22) | Público | ✅ Implementado y Documentado |
 | `POST` | `/api/payments/create-intent` | Creación de PaymentIntent en Stripe (HU23) | Público / Cliente | ✅ Implementado y Documentado |
 | `POST` | `/api/payments/webhook` | Webhook de confirmación y tickets QR (HU24) | Firma Stripe | ✅ Implementado y Documentado |
+| `POST` | `/api/pos/preview` | Previsualización del ticket antes de confirmar la venta (HU26) | `TICKET_SELLER` / `ADMIN` | ✅ Implementado y Documentado |
+| `POST` | `/api/pos/sale` | Venta presencial en el POS y emisión de ticket (HU25) | `TICKET_SELLER` / `ADMIN` | ✅ Implementado y Documentado |
+| `GET` | `/api/qr/[code]` | Consulta y validación de un ticket por QR (HU13) | `QR_VALIDATOR` | ✅ Implementado y Documentado |
+| `POST` | `/api/qr/[code]/entry` | Permitir ingreso: marca el ticket `used` y audita (HU13) | `QR_VALIDATOR` | ✅ Implementado y Documentado |
 
 ---
 
@@ -450,6 +462,7 @@ Tabla consolidada de las 23 rutas API implementadas en el backend:
 ### 1. Autenticación y Autorización RBAC (`src/features/auth`, `src/middleware.ts`)
 * **Sesiones JWT:** NextAuth v4 emite tokens JWT seguros que incluyen el rol del usuario (`ADMIN`, `CLIENT`, `TICKET_SELLER`, `QR_VALIDATOR`).
 * **Protección Perimetral:** El middleware intercepta rutas `/admin/*`, `/cliente/*`, `/empleado/*` y deniega accesos no autorizados con redirección o respuestas `401`/`403`.
+* **Sesión activa en `/login` y `/register` (VCP-104):** con un token real y un rol válido, el middleware redirige a la pantalla del rol (`DASHBOARD_BY_ROLE` en `src/features/auth/utils/role-home.ts`). Sin token, con token vencido o manipulado, o con un rol no válido, se permite ver el formulario. La cabecera `x-mock-role` no activa esta redirección.
 * **Tokens de Un Solo Uso:** Los tokens de recuperación de contraseña expiran a los 60 minutos y se invalidan atómicamente si el usuario solicita un nuevo token.
 
 ### 2. Catálogo y Disponibilidad Deportiva (`src/features/services`)
@@ -471,6 +484,14 @@ Tabla consolidada de las 23 rutas API implementadas en el backend:
 * **Validación Previa:** Antes de llamar al SDK de Stripe, se verifica que la reserva exista, esté en estado `PENDING` y que su ventana de 10 minutos no haya expirado.
 * **Idempotencia:** Se previene cobro doble si el usuario hace clic repetido mediante el registro del identificador de intento de pago.
 * **Confirmación Atómica:** Al recibir el webhook `payment_intent.succeeded` con firma criptográfica válida, se actualiza la reserva a `CONFIRMED`, el pago a `SUCCEEDED` y se genera un registro en la tabla `tickets` con código alfanumérico único para renderizar el código QR de ingreso.
+
+### 6. Escáner QR y Control de Acceso (`src/features/qr`, `src/app/api/qr`) — HU13
+* **Acceso exclusivo `QR_VALIDATOR`:** el validador se identifica por la **sesión JWT** de NextAuth (`features/qr/auth/qr-validator.guard.ts`). Sin sesión → `401`; cualquier otro rol, incluido `ADMIN` → `403`. No se aceptan cabeceras `x-user-role` / `x-user-id`. La ruta `/api/qr` está registrada en la matriz de `route-permissions.ts`.
+* **Consulta (`GET /api/qr/{code}`):** devuelve cliente, fecha y hora, servicio y estado, y evalúa si el acceso procede ahora. El QR es al portador: se valida la reserva, no a quien lo presenta. Una decisión negativa (fuera de franja, ya usado) responde `200` con `accessValidation.canEnter = false` y su `reasonCode`.
+* **Reglas de vigencia (RN-003, RN-021, RN-022):** fecha del ticket = hoy; franja con **inicio inclusivo y fin exclusivo**; ingreso tardío permitido mientras el cliente esté dentro de su franja (se marca `isLateEntry` pasados 5 minutos); bloqueo en mantenimiento semanal (lunes, o martes si el lunes es festivo).
+* **Zona horaria:** todo se evalúa en `America/Bogota` (UTC-5) comparando instantes completos; los horarios se guardan en UTC en la base.
+* **Confirmación (`POST /api/qr/{code}/entry`):** `UPDATE ... WHERE status = 'valid'` dentro de una transacción marca el ticket `used`, escribe `audit_logs` (`TICKET_ENTRY_CONFIRMED`) y `access_logs`. Si dos escaneos llegan a la vez solo uno gana; el otro recibe `409 ALREADY_USED`. Los intentos denegados también quedan en `access_logs`.
+* **Estados en la base:** `tickets.status` ∈ `valid | used | cancelled | expired` y `access_logs.result` ∈ `granted | denied` (CHECK constraints de Supabase, **en minúscula**). La API los expone en mayúscula (`USED`).
 
 ---
 
@@ -541,7 +562,7 @@ El proyecto utiliza **Node.js Test Runner nativo con TSX** para ejecutar pruebas
 
 ### Comandos de Pruebas
 ```bash
-# Ejecutar la suite completa de pruebas unitarias (20 suites, 153 tests)
+# Ejecutar la suite completa de pruebas unitarias (24 suites, 184 tests)
 npm test
 
 # Ejecutar únicamente pruebas de disponibilidad y aforo (HU20)
@@ -561,21 +582,32 @@ npm run test:webhook
 
 # Ejecutar ambas suites de pagos (Stripe + Webhooks)
 npm run test:payments
+
+# Ejecutar pruebas del escáner QR y su guard de acceso (HU13, 18 tests)
+npm run test:qr
+
+# Prueba de punta a punta del escáner QR contra el servidor y la base REALES (HU13).
+# Requiere `npm run dev` corriendo en otra terminal. Crea sus propios datos de prueba
+# (etiqueta TEST-HU13-E2E-xxxxxx), inicia sesión de verdad, imprime cada petición y
+# respuesta, verifica lo escrito en la base y borra sus datos al terminar (--keep los conserva).
+npm run test:qr:e2e
 ```
 
 ### Resultados de Calidad Verificados
 
 ```text
-✔ tests 153
-✔ suites 20
-✔ pass 153
+✔ tests 184
+✔ suites 24
+✔ pass 184
 ✔ fail 0
 ✔ cancelled 0
 ✔ skipped 0
 ✔ duration: ~9s
 ```
 
-* **Next.js Production Build (`npm run build`):** ✅ Exitoso con código 0 (36 rutas compiladas y optimizadas en producción).
+> Las pruebas unitarias del escáner QR usan una base simulada que **hace cumplir los CHECK constraints reales de Supabase** (p. ej. `tickets.status` en minúscula), de modo que un valor inválido falla en las pruebas igual que fallaría en la base real. La HU13 además se validó de punta a punta contra el servidor y la base reales con sesión de un usuario `QR_VALIDATOR` (`npm run test:qr:e2e`, 22 comprobaciones).
+
+* **Next.js Production Build (`npm run build`):** ✅ Exitoso con código 0 (39 rutas compiladas y optimizadas en producción).
 * **API Tester Vite Build (`npm --prefix api-tester run build`):** ✅ Exitoso con código 0.
 
 ---
@@ -592,6 +624,9 @@ npm run test:payments
 | `Port 3000 is already in use` | Otra instancia de Next.js u otro proceso está ocupando el puerto. | Detén el proceso anterior o inicia en otro puerto (`npm run dev -- -p 3001`). |
 | `SLOT_FULL_CONFLICT (409)` | Se intenta reservar una franja horaria cuyos cupos ya fueron agotados o están en HOLD activo. | Selecciona otra franja horaria o espera 10 minutos a que expire el HOLD previo si no se pagó. |
 | `HOLD_EXPIRED (410)` | El usuario intentó pagar una reserva cuyo tiempo límite de 10 minutos ya caducó. | El cliente debe iniciar un nuevo proceso de reserva desde el catálogo. |
+| `/api/qr/...` responde `401` o `403` | El escáner QR exige una **sesión real** con rol `QR_VALIDATOR`; no acepta cabeceras `x-user-role`. `ADMIN` también recibe `403`. | Inicia sesión con un usuario de rol `qr_validator` (`POST /api/auth/callback/credentials`) y envía la cookie de sesión. |
+| Una ruta nueva responde `403` a todos los roles | El middleware niega por defecto toda ruta que no esté en `route-permissions.ts` (ni pública ni con regla de rol). | Registra la ruta en `PUBLIC_ROUTE_PATTERNS` o en `ROUTE_PERMISSION_RULES` con sus roles. |
+| Los formularios se envían como `GET /login?` y no hacen nada | Entrar al servidor de desarrollo por `127.0.0.1` bloquea la hidratación de React (Next.js lo trata como origen cruzado). | Abre la app con `http://localhost:3000`. |
 
 ---
 

@@ -13,14 +13,19 @@ import { logoutService, LogoutService } from "@/features/auth/services/logout.se
  * - Criterio 3 (Caso límite): Después de cerrar sesión, las cookies quedan eliminadas (Max-Age=0)
  *   y las rutas protegidas dejan de ser accesibles.
  */
+export interface LogoutRouteContext {
+  params?: Promise<Record<string, string | string[]>>;
+  serviceOverride?: LogoutService;
+}
+
 export async function POST(
   request: NextRequest,
-  serviceOverride?: any
+  context?: LogoutRouteContext
 ) {
   try {
     const service: LogoutService =
-      serviceOverride && typeof serviceOverride.invalidateSession === "function"
-        ? serviceOverride
+      context?.serviceOverride && typeof context.serviceOverride.invalidateSession === "function"
+        ? context.serviceOverride
         : logoutService;
 
     // Obtener token opcional de los headers de cookies o Authorization
@@ -42,6 +47,7 @@ export async function POST(
       {
         success: true,
         message: result.message,
+        url: result.redirectTo,
         data: {
           loggedOut: true,
           redirectTo: result.redirectTo,
@@ -71,12 +77,12 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  serviceOverride?: any
+  context?: LogoutRouteContext
 ) {
   try {
     const service: LogoutService =
-      serviceOverride && typeof serviceOverride.invalidateSession === "function"
-        ? serviceOverride
+      context?.serviceOverride && typeof context.serviceOverride.invalidateSession === "function"
+        ? context.serviceOverride
         : logoutService;
     const isSecure = request.nextUrl.protocol === "https:";
 

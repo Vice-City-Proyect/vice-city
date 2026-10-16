@@ -95,7 +95,7 @@ describe("FT-05 / HU24: Webhook de Stripe y Confirmación de Tickets", () => {
 
     // 3. Verificación de actualización del pago
     assert.ok(paymentUpdatedData);
-    assert.equal(paymentUpdatedData.status, "paid");
+    assert.equal(paymentUpdatedData.status, "approved");
     assert.ok(paymentUpdatedData.paid_at);
 
     // 4. Verificación de creación del ticket con QR seguro (RN-019)
@@ -155,7 +155,7 @@ describe("FT-05 / HU24: Webhook de Stripe y Confirmación de Tickets", () => {
       status: "confirmed",
       total_amount: 140000,
       tickets: [existingTicket],
-      payments: [{ id: "pay_001", status: "paid" }],
+      payments: [{ id: "pay_001", status: "approved" }],
     };
 
     const service = new StripeWebhookService({

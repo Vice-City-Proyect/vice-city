@@ -15,9 +15,12 @@ import {
 } from '@/components/ui/StatusBadge';
 import { formatDate } from '@/lib/format';
 import type { Reservation } from '@/types/reservation';
-import { MOCK_RESERVATIONS } from '@/features/reservations/data/mock-reservations';
 
-export function AccessControl() {
+/**
+ * Búsqueda de una reserva de hoy por código o cliente. Recibe las reservas del día del backend
+ * (GET /api/employee/summary); la validación del acceso se hace en la pantalla de QR.
+ */
+export function AccessControl({ reservations }: { reservations: Reservation[] }) {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<Reservation | null>(null);
   const [searched, setSearched] = useState(false);
@@ -26,7 +29,7 @@ export function AccessControl() {
     event.preventDefault();
     const term = query.trim().toLowerCase();
     const found = term
-      ? MOCK_RESERVATIONS.find(
+      ? reservations.find(
           (reservation) =>
             reservation.code.toLowerCase() === term ||
             reservation.clientName.toLowerCase().includes(term),
@@ -43,7 +46,7 @@ export function AccessControl() {
           Control de <span className="text-club-primary">acceso</span>
         </h2>
         <p className="text-xs text-text-muted">
-          Busca una reserva por código o cliente para consultar su estado de tiquete y acceso.
+          Busca una reserva de hoy por código o cliente para consultar su estado de tiquete y acceso.
         </p>
       </div>
 
@@ -58,7 +61,7 @@ export function AccessControl() {
             <Input
               id="access-search"
               type="search"
-              placeholder="VC-2401 o Laura Mendoza"
+              placeholder="Código de la reserva o nombre del cliente"
               className="pl-10"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -76,7 +79,7 @@ export function AccessControl() {
           <EmptyState
             icon={<Search className="h-5 w-5" />}
             title="Ingresa un criterio de búsqueda"
-            description="Escribe el código de la reserva o el nombre del cliente para ver la información de acceso."
+            description="Escribe el código de la reserva o el nombre del cliente para ver la información de acceso de hoy."
           />
         ) : !result ? (
           <EmptyState
@@ -104,7 +107,7 @@ export function AccessControl() {
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <Link
-                href="/empleado/qr"
+                href={result?.code ? `/empleado/qr?code=${encodeURIComponent(result.code)}` : '/empleado/qr'}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-club-primary px-5 py-3 text-xs font-bold uppercase tracking-wider text-btn-text shadow-sm transition-colors hover:bg-club-primary-hover"
               >
                 <QrCode className="h-4 w-4" />

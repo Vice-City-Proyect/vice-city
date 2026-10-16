@@ -3,13 +3,15 @@
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { ADMIN_NAV, ROLE_LABELS } from '@/components/layout/app-nav';
-import { MOCK_ADMIN_SESSION } from '@/features/auth/data/mock-session';
+import { useCurrentUser } from '@/features/users/hooks/use-current-user';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  const currentUser = useCurrentUser();
+
   return (
     <AppShell
       nav={ADMIN_NAV}
-      user={{ name: MOCK_ADMIN_SESSION.name, roleLabel: ROLE_LABELS.ADMIN }}
+      user={{ name: currentUser?.fullName ?? 'Administrador', roleLabel: ROLE_LABELS.ADMIN }}
     >
       {children}
     </AppShell>

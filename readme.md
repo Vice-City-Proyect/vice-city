@@ -284,6 +284,31 @@ La estructura debe mantenerse organizada para que cualquier integrante pueda enc
 
 ---
 
+# 🔒 Política de Dependencias Congeladas y Seguridad
+
+Para garantizar la estabilidad absoluta, reproducibilidad de entornos y prevenir vulnerabilidades o rupturas por actualizaciones automáticas no deseadas, el proyecto opera bajo una **política de dependencias congeladas**:
+
+1. **Uso Obligatorio de `npm ci`:**
+   * La instalación de dependencias debe realizarse única y exclusivamente mediante:
+     ```bash
+     npm ci
+     ```
+   * El uso de `npm install` o `npm i` está **estrictamente bloqueado** por un script de preinstalación (`scripts/verify-npm-ci.mjs`).
+
+2. **Prohibición de Actualizaciones Automáticas:**
+   * Todas las versiones en `package.json` están **fijadas a versiones exactas** (pinned versions sin prefijos `^` ni `~`).
+   * No se permiten actualizaciones automáticas de dependencias ni cambios silenciosos entre builds.
+
+3. **Inclusión de Nuevas Dependencias Bajo Consulta Previa:**
+   * Tanto desarrolladores como agentes de IA tienen **prohibido instalar nuevas dependencias** que no se encuentren ya registradas en `package-lock.json`.
+   * Si una funcionalidad o requerimiento pareciera exigir una nueva librería, se debe **consultar y obtener aprobación explícita** antes de incorporarla.
+
+4. **Blindaje de Archivos Clave mediante Git y CI/CD:**
+   * Los archivos críticos del stack (`package.json`, `package-lock.json`, `.npmrc` y `prisma/schema.prisma`) están protegidos.
+   * El pipeline de CI/CD (`.github/workflows/ci.yml`) verifica en cada Pull Request que `package-lock.json` permanezca inalterado y sincronizado (`git diff --exit-code package.json package-lock.json`).
+
+---
+
 # 🚀 Guía de Configuración Local y Base de Datos (Rama `backend`)
 
 Esta sección detalla el paso a paso para configurar el entorno local, conectar a Supabase e interactuar con la base de datos PostgreSQL mediante Prisma ORM.
@@ -326,13 +351,16 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
 
 ---
 
-### 2. Instalación de Dependencias
+### 2. Instalación de Dependencias (Uso Obligatorio de `npm ci`)
 
-Ejecuta en la terminal para instalar los paquetes base de Next.js y React:
+Ejecuta en la terminal para instalar de forma reproducible y exacta las dependencias congeladas del proyecto:
 
 ```bash
-npm install
+npm ci
 ```
+
+> [!NOTE]
+> Recuerda que el uso de `npm install` está bloqueado por política de dependencias congeladas. Siempre utiliza `npm ci`.
 
 ---
 
@@ -340,14 +368,8 @@ npm install
 
 > [!IMPORTANT]
 > **¿Por qué Prisma 6 y no Prisma 8?**  
-> Actualmente `npm install prisma` o `npx prisma` sin versión instala **Prisma 8 (Release Candidate)**, la cual tiene una CLI experimental rediseñada donde los comandos `prisma db pull` y `prisma generate` no están disponibles en la raíz.  
-> Por estabilidad del equipo, utilizamos **Prisma 6.x**.
-
-#### A. Instalar Prisma 6:
-```bash
-npm install -D prisma@6
-npm install @prisma/client@6
-```
+> Actualmente `npx prisma` sin versión instala **Prisma 8 (Release Candidate)**, la cual tiene una CLI experimental rediseñada donde los comandos `prisma db pull` y `prisma generate` no están disponibles en la raíz.  
+> Por estabilidad del equipo, utilizamos **Prisma 6.19.3** fijada exactamente en `package.json`. Las dependencias ya están instaladas mediante `npm ci`.
 
 #### B. Si existe `prisma.config.ts`, eliminarlo:
 Prisma 8 genera un archivo `prisma.config.ts` que entra en conflicto con Prisma 6. Si existe, bórralo:

@@ -12,7 +12,7 @@ import { formatCOP, toISODate } from '@/lib/format';
 import type { Service } from '@/types/service';
 import { MOCK_SERVICES } from '@/features/services/data/mock-services';
 import { TicketPreview } from '@/features/pos/components/TicketPreview';
-import { isWednesday, MAX_DURATION_HOURS, OPERATING_CLOSE, addHours, isWithinOperatingHours, WEDNESDAY_DISCOUNT } from '@/lib/schedule';
+import { isWednesday, MAX_DURATION_HOURS, OPERATING_CLOSE, WEDNESDAY_DISCOUNT } from '@/lib/schedule';
 
 type PaymentMethod = 'CASH' | 'CARD';
 
@@ -40,7 +40,7 @@ export default function EmployeePosPage() {
   const [date, setDate] = useState(() => toISODate(new Date()));
   const [startTime, setStartTime] = useState('08:00');
   const [hours, setHours] = useState(1);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | ''>(1);
   const [payment, setPayment] = useState<PaymentMethod>('CASH');
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState('');
@@ -49,12 +49,18 @@ export default function EmployeePosPage() {
   const allowedHours = maxHoursFor(startTime);
   const effectiveHours = Math.min(hours, allowedHours);
 
+  const numericQuantity = typeof quantity === 'number' ? quantity : 0;
   const basePrice =
     service.modality === 'PER_PERSON_HOUR'
-      ? service.price * quantity * effectiveHours
+      ? service.price * numericQuantity * effectiveHours
       : service.price * effectiveHours;
   const discountPercent = isWednesday(date) ? WEDNESDAY_DISCOUNT : 0;
   const total = Math.round(basePrice * (1 - discountPercent / 100));
+
+  const todayStr = toISODate(new Date());
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 15);
+  const maxDateStr = toISODate(maxDate);
 
   function resetForm() {
     setName('');
@@ -71,17 +77,65 @@ export default function EmployeePosPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
+
     if (!name.trim() || !idNumber.trim()) {
       setError('Ingresa el nombre y la cédula del cliente.');
       return;
     }
-    if (
-      !isWithinOperatingHours({ start: startTime, end: addHours(startTime, effectiveHours) })
-    ) {
-      setError('La franja debe estar dentro del horario de operación (8:00 AM – 5:00 PM).');
+
+    const parsedQuantity = typeof quantity === 'number' ? quantity : parseInt(String(quantity), 10);
+    if (Number.isNaN(parsedQuantity) || parsedQuantity < 1) {
+      setError('La cantidad de personas debe ser un número entero mayor o igual a 1.');
       return;
     }
-    setError('');
+    if (parsedQuantity > service.capacity) {
+      setError(`La cantidad excede la capacidad máxima del servicio (${service.capacity} personas).`);
+      return;
+    }
+
+    const now = new Date();
+    const todayStr = toISODate(now);
+
+    // 1. Regla: Fechas pasadas
+    if (date < todayStr) {
+      setError('No se pueden crear reservas en fechas pasadas.');
+      return;
+    }
+
+    // 2. Regla: Anticipación máxima (15 días)
+    const maxAllowed = new Date();
+    maxAllowed.setDate(maxAllowed.getDate() + 15);
+    if (new Date(`${date}T23:59:59`) > maxAllowed) {
+      setError('Las reservas solo se pueden realizar con un máximo de 15 días de anticipación.');
+      return;
+    }
+
+    // 3. Regla: Mantenimiento (Lunes de mantenimiento)
+    const [year, month, day] = date.split('-').map(Number);
+    const selectedDateObj = new Date(year, month - 1, day);
+    const dayOfWeek = selectedDateObj.getDay(); // 1 = Lunes
+    if (dayOfWeek === 1) {
+      setError('El complejo deportivo se encuentra cerrado los lunes por mantenimiento.');
+      return;
+    }
+
+    // 4. Regla: Horario operativo (8:00 AM - 5:00 PM)
+    const endHour = Number(startTime.slice(0, 2)) + effectiveHours;
+    if (Number(startTime.slice(0, 2)) < 8 || endHour > 17) {
+      setError('La reserva debe estar dentro del horario de operación (8:00 AM a 5:00 PM).');
+      return;
+    }
+
+    // 5. Regla: Franja horaria ya culminada en el día en curso
+    if (date === todayStr) {
+      const endSlotTime = new Date(`${date}T${String(endHour).padStart(2, '0')}:${startTime.slice(3, 5)}:00-05:00`);
+      if (now >= endSlotTime) {
+        setError('La franja horaria seleccionada ya finalizó.');
+        return;
+      }
+    }
+
     setConfirmed(true);
   }
 
@@ -105,7 +159,7 @@ export default function EmployeePosPage() {
                 Tiquete generado
               </h2>
               <p className="max-w-md text-sm leading-relaxed text-text-muted">
-                {quantity} × {service.name} para {name} (Cédula {idNumber}) · {payment === 'CASH' ? 'Efectivo' : 'Tarjeta'}.
+                {quantity || 1} × {service.name} para {name} (Cédula {idNumber}) · {payment === 'CASH' ? 'Efectivo' : 'Tarjeta'}.
               </p>
             </div>
             <span className="text-3xl font-black text-club-accent">{formatCOP(total)}</span>
@@ -153,8 +207,12 @@ export default function EmployeePosPage() {
                 <Input
                   id="pos-id"
                   value={idNumber}
-                  onChange={(event) => setIdNumber(event.target.value)}
-                  placeholder="Documento"
+                  onChange={(event) => {
+                    const onlyNumbers = event.target.value.replace(/\D/g, '');
+                    setIdNumber(onlyNumbers);
+                  }}
+                  placeholder="Ej: 1020304050"
+                  maxLength={12}
                   inputMode="numeric"
                   required
                 />
@@ -218,6 +276,8 @@ export default function EmployeePosPage() {
                 <Input
                   id="pos-date"
                   type="date"
+                  min={todayStr}
+                  max={maxDateStr}
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
                   required
@@ -261,11 +321,18 @@ export default function EmployeePosPage() {
               >
                 <Input
                   id="pos-quantity"
-                  type="number"
-                  min={1}
-                  max={service.capacity}
+                  type="text"
+                  inputMode="numeric"
                   value={quantity}
-                  onChange={(event) => setQuantity(Number(event.target.value))}
+                  onChange={(event) => {
+                    const val = event.target.value.replace(/\D/g, ''); // Solo dígitos
+                    if (val === '') {
+                      setQuantity('');
+                    } else {
+                      const num = parseInt(val, 10);
+                      setQuantity(Number.isNaN(num) ? '' : num);
+                    }
+                  }}
                 />
               </FormField>
             </div>
@@ -307,7 +374,7 @@ export default function EmployeePosPage() {
             date={date}
             startTime={startTime}
             hours={effectiveHours}
-            quantity={quantity}
+            quantity={typeof quantity === 'number' ? quantity : 0}
             payment={payment}
             basePrice={basePrice}
             discountPercent={discountPercent}

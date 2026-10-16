@@ -7,11 +7,21 @@ import {
   RoleNotFoundError,
   AuthValidationError,
 } from "@/features/auth/errors/auth.errors";
+import {
+  EmailConfirmationService,
+  emailConfirmationService,
+} from "@/features/auth/services/email-confirmation.service";
 
 // Esquema estricto para rechazar campos extra no reconocidos
 const strictRegisterSchema = registerSchema.strict();
 
-export async function POST(request: NextRequest) {
+export interface RegisterRouteContext {
+  params?: unknown;
+  emailServiceOverride?: EmailConfirmationService;
+  registerServiceOverride?: typeof registerUser;
+}
+
+export async function POST(request: NextRequest, context?: RegisterRouteContext) {
   try {
     // 1. Validar Content-Type
     const contentType = request.headers.get("content-type");
@@ -73,13 +83,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Delegación a la capa de lógica de negocio (sin acceso directo a la BD)
-    const newUser = await registerUser(validationResult.data);
+    const registerFn = context?.registerServiceOverride ?? registerUser;
+    const newUser = await registerFn(validationResult.data);
+
+    // 4.b Despacho del correo de verificación (HU03-B). Un fallo de correo no
+    //     debe impedir el registro: se registra y el usuario puede reenviar luego.
+    try {
+      const emailService = context?.emailServiceOverride ?? emailConfirmationService;
+      await emailService.sendVerificationEmail(newUser.id, newUser.email);
+    } catch (mailError) {
+      console.error("[API_AUTH_REGISTER_EMAIL_ERROR]", mailError);
+    }
 
     // 5. Respuesta exitosa (201 Created)
     return NextResponse.json(
       {
         success: true,
-        message: "Usuario registrado exitosamente",
+        message:
+          "Usuario registrado exitosamente. Revisa tu correo para confirmar tu cuenta.",
         data: newUser,
       },
       { status: 201 }

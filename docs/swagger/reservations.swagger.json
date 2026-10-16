@@ -1,0 +1,561 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Reservas Web",
+    "description": "Especificación OpenAPI 3.0.3 para la creación de reservas web con HOLD de 10 minutos. El precio y el aforo se calculan exclusivamente en el servidor.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reservations",
+      "description": "Reservas web de servicios del complejo"
+    }
+  ],
+  "paths": {
+    "/api/reservations": {
+      "post": {
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Crear una reserva web (estado PENDING con HOLD de 10 minutos)",
+        "description": "Crea una reserva en estado pending. El precio y la disponibilidad se validan en el servidor aplicando las reglas de negocio (horario 8:00–17:00, ventana de anticipación, duración 1–9 horas, aforo por modalidad y descuentos de miércoles/piscina completa). Requiere sesión activa con rol CLIENT o ADMIN.",
+        "operationId": "createReservation",
+        "security": [
+          {
+            "nextAuthSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReservationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reserva creada (pendiente de pago)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Content-Type inválido, JSON malformado, campos extra (.strict()) o reglas de negocio de ventana/duración incumplidas"
+          },
+          "401": {
+            "description": "No hay sesión activa"
+          },
+          "403": {
+            "description": "El rol del usuario no puede crear reservas"
+          },
+          "404": {
+            "description": "El servicio solicitado no existe"
+          },
+          "409": {
+            "description": "Servicio inactivo, fuera del horario permitido, día de mantenimiento, aforo excedido o franja no disponible"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Listar las reservas del usuario con sesión",
+        "description": "El CLIENT recibe únicamente sus propias reservas; el ADMIN recibe todas. El usuario sale de la sesión: cualquier userId o clientId en la URL se ignora. Las fechas se interpretan en hora de Bogotá (America/Bogota). Un usuario sin reservas recibe una lista vacía (200). Sin cancelaciones de cliente en el MVP (RN).",
+        "operationId": "listMyReservations",
+        "security": [
+          {
+            "nextAuthSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Número de página (inicia en 1)",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Registros por página (máximo 100)",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por estado",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ALL",
+                "PENDING",
+                "CONFIRMED",
+                "IN_PROGRESS",
+                "FINISHED",
+                "CANCELLED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "serviceId",
+            "in": "query",
+            "required": false,
+            "description": "UUID del servicio",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "description": "Inicio del rango (inclusive), YYYY-MM-DD en Bogotá",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "description": "Fin del rango (inclusive), YYYY-MM-DD en Bogotá. No puede ser anterior a dateFrom",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-31"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "description": "Orden por fecha de inicio",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado obtenido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ReservationListItem"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros de consulta inválidos (estado, fechas, orden, límite o UUID)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No hay sesión activa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol no puede consultar este listado (solo CLIENT y ADMIN)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno al consultar las reservas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "nextAuthSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Cookie de sesión JWT emitida por NextAuth"
+      }
+    },
+    "schemas": {
+      "CreateReservationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "serviceId",
+          "startAt",
+          "endAt",
+          "quantity"
+        ],
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "example": "srv_piscina_adultos_1"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2099-06-02T15:00:00.000Z"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2099-06-02T16:00:00.000Z"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 2
+          },
+          "scheduleId": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ReservationSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Reserva creada. Tienes 10 minutos para completar el pago."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "bk_123"
+              },
+              "status": {
+                "type": "string",
+                "example": "pending"
+              },
+              "totalAmount": {
+                "type": "number",
+                "example": 4000
+              },
+              "discountPercent": {
+                "type": "integer",
+                "example": 0
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "ReservationListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "e2a4b860-9114-41d7-b35a-40a256191f4d"
+          },
+          "code": {
+            "type": "string",
+            "example": "TK-7B93F12A"
+          },
+          "clientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clientName": {
+            "type": "string",
+            "example": "Carlos Mendoza"
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "example": "carlos.mendoza@example.com"
+          },
+          "clientPhone": {
+            "type": "string",
+            "nullable": true,
+            "example": "+57 300 123 4567"
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serviceName": {
+            "type": "string",
+            "example": "Cancha Fútbol 5 Sintética"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "POOL",
+              "SOCCER_LARGE",
+              "SOCCER_MICRO",
+              "MULTI_COURT",
+              "GYM",
+              "WET_AREA"
+            ]
+          },
+          "resource": {
+            "type": "string",
+            "example": "Cancha Principal A"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-20"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "10:00"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "11:00"
+          },
+          "guests": {
+            "type": "integer",
+            "example": 10
+          },
+          "hours": {
+            "type": "integer",
+            "example": 1
+          },
+          "basePrice": {
+            "type": "number",
+            "example": 80000
+          },
+          "discountType": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "WEDNESDAY",
+              "FULL_POOL"
+            ]
+          },
+          "discountPercent": {
+            "type": "integer",
+            "example": 0
+          },
+          "total": {
+            "type": "number",
+            "example": 80000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "IN_PROGRESS",
+              "FINISHED",
+              "CANCELLED"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED"
+            ]
+          },
+          "holdState": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "ACTIVE",
+              "EXPIRED"
+            ]
+          },
+          "holdExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "FULL_POOL"
+            ]
+          },
+          "accessStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_ENTERED",
+              "INSIDE"
+            ]
+          },
+          "qrStatus": {
+            "type": "string",
+            "enum": [
+              "VALID",
+              "USED",
+              "EXPIRED",
+              "CANCELLED"
+            ]
+          },
+          "wristbandColor": {
+            "type": "string",
+            "enum": [
+              "BLUE",
+              "PURPLE",
+              "GREEN",
+              "RED"
+            ]
+          },
+          "createdBy": {
+            "type": "string",
+            "enum": [
+              "WEB",
+              "POS"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "cancellationReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "example": 45
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 5
+          }
+        }
+      }
+    }
+  }
+}

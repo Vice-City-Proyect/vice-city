@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, Menu, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
+import { performClientLogout } from '@/lib/logout';
 import type { NavItem } from './app-nav';
 
 interface AppShellProps {
@@ -81,36 +82,39 @@ export function AppShell({ nav, user, children }: AppShellProps) {
         </nav>
 
         <div className="border-t border-white/10 px-3 py-4">
-          <Link
-            href="/login"
-            onClick={() => setIsMenuOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 transition-colors duration-200 hover:bg-white/10 hover:text-white"
+          <button
+            type="button"
+            onClick={async () => {
+              setIsMenuOpen(false);
+              await performClientLogout('/login');
+            }}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-white/70 transition-colors duration-200 hover:bg-white/10 hover:text-white"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             Cerrar sesión
-          </Link>
+          </button>
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-col lg:pl-64">
+      <div className="flex min-h-screen min-w-0 flex-col lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-text-main/10 bg-club-bg/90 backdrop-blur">
-          <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:h-20 lg:px-8">
-            <div className="flex items-center gap-3">
+          <div className="flex h-16 items-center justify-between gap-3 px-3 sm:gap-4 sm:px-6 lg:h-20 lg:px-8">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 aria-label="Abrir menú"
                 onClick={() => setIsMenuOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-text-main/10 bg-club-surface text-text-main lg:hidden"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-text-main/10 bg-club-surface text-text-main sm:h-10 sm:w-10 lg:hidden"
               >
                 <Menu className="h-4 w-4" />
               </button>
 
-              <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+              <span className="truncate text-xs font-bold uppercase tracking-wider text-text-muted">
                 {user.roleLabel}
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <div className="hidden flex-col items-end sm:flex">
                 <span className="text-xs font-bold uppercase tracking-wider text-text-main">
                   {user.name}
@@ -124,8 +128,8 @@ export function AppShell({ nav, user, children }: AppShellProps) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-7xl">{children}</div>
+        <main className="flex-1 min-w-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="mx-auto w-full max-w-7xl min-w-0">{children}</div>
         </main>
       </div>
     </div>

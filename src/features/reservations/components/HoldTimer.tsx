@@ -1,22 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface HoldTimerProps {
   initialSeconds: number;
   onExpire?: () => void;
+  redirectTo?: string;
 }
 
-export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
+export function HoldTimer({ initialSeconds, onExpire, redirectTo }: HoldTimerProps) {
+  const router = useRouter();
   const [secondsLeft, setSecondsLeft] = useState<number>(initialSeconds);
+  const [previousInitialSeconds, setPreviousInitialSeconds] =
+    useState<number>(initialSeconds);
 
-  useEffect(() => {
+  if (initialSeconds !== previousInitialSeconds) {
+    setPreviousInitialSeconds(initialSeconds);
     setSecondsLeft(initialSeconds);
-  }, [initialSeconds]);
+  }
 
   useEffect(() => {
     if (secondsLeft <= 0) {
       onExpire?.();
+      if (redirectTo) {
+        router.push(redirectTo);
+      }
       return;
     }
 
@@ -32,7 +41,7 @@ export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [secondsLeft, onExpire]);
+  }, [secondsLeft, onExpire, redirectTo, router]);
 
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
@@ -54,22 +63,22 @@ export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
           : "border-sky-200 bg-sky-50 text-sky-900"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{isExpired ? "⚠️" : "⏱️"}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-2">
+          <span className="text-xl shrink-0">{isExpired ? "⚠️" : "⏱️"}</span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider">
               {isExpired ? "Tiempo Expirado" : "Tiempo Restante para Pagar (HOLD)"}
             </p>
             <p className="text-xs opacity-80">
               {isExpired
-                ? "El cupo ha sido liberado automáticamente para otros clientes."
+                ? "Tu reserva venció. El cupo ha sido liberado automáticamente para otros clientes."
                 : "Tu cupo está retenido de forma exclusiva mientras completas el pago."}
             </p>
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-left sm:text-right shrink-0">
           <span
             className={`font-mono text-2xl font-extrabold ${
               isExpired
@@ -97,4 +106,3 @@ export function HoldTimer({ initialSeconds, onExpire }: HoldTimerProps) {
     </div>
   );
 }
-

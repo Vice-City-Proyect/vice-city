@@ -14,11 +14,58 @@ import {
   BookingNotFoundError,
   BookingCancelledError,
   StripePaymentError,
+  StripeNotConfiguredError,
 } from "@/features/payments";
+import { ForbiddenBookingAccessError } from "@/features/payments/errors/payments.errors";
+import {
+  resolveSession,
+  hasAnyRole,
+  type SessionAwareRouteContext,
+} from "@/features/auth/utils/session-context";
 
-export async function POST(request: NextRequest) {
+export interface CreateIntentRouteContext extends SessionAwareRouteContext {
+  serviceOverride?: Pick<typeof stripePaymentService, "createPaymentIntent">;
+}
+
+export async function POST(request: NextRequest, context?: CreateIntentRouteContext) {
   try {
-    const body = await request.json();
+    // Solo el dueño de la reserva (o un ADMIN) puede iniciar su pago.
+    const session = await resolveSession(context);
+    if (!session) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Se requiere una sesión activa para pagar",
+          error: { code: "UNAUTHORIZED" },
+        },
+        { status: 401 }
+      );
+    }
+    if (!hasAnyRole(session, ["CLIENT", "ADMIN"])) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tu rol no tiene permisos para iniciar pagos",
+          error: { code: "FORBIDDEN" },
+        },
+        { status: 403 }
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "El cuerpo de la solicitud no es un JSON válido o está vacío",
+          error: { code: "MALFORMED_JSON" },
+        },
+        { status: 400 }
+      );
+    }
+
     const parseResult = createPaymentIntentSchema.safeParse(body);
 
     if (!parseResult.success) {
@@ -32,7 +79,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await stripePaymentService.createPaymentIntent(parseResult.data);
+    const service = context?.serviceOverride ?? stripePaymentService;
+    const result = await service.createPaymentIntent(parseResult.data, {
+      id: session.id,
+      role: session.role,
+    });
 
     return NextResponse.json(
       {
@@ -67,6 +118,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      error instanceof ForbiddenBookingAccessError ||
+      (Boolean(error) && typeof error === "object" && (error as any).code === "FORBIDDEN_BOOKING_ACCESS")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          error: { code: error.code || "FORBIDDEN_BOOKING_ACCESS" },
+        },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof BookingNotFoundError) {
       return NextResponse.json(
         {
@@ -97,6 +162,17 @@ export async function POST(request: NextRequest) {
           error: { code: error.code },
         },
         { status: 502 }
+      );
+    }
+
+    if (error instanceof StripeNotConfiguredError || (error as any)?.code === "STRIPE_NOT_CONFIGURED") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: (error as any)?.message || "La pasarela de pagos no está configurada.",
+          error: { code: "STRIPE_NOT_CONFIGURED" },
+        },
+        { status: 503 }
       );
     }
 

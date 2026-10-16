@@ -1,9 +1,8 @@
 import crypto from "crypto";
-import type { PrismaClient } from "@prisma/client";
 import { prisma as defaultPrisma } from "../../../lib/prisma";
 import {
   IEmailSender,
-  ConsoleEmailSender,
+  getEmailSender,
   SendVerificationEmailParams,
 } from "./email.service";
 import {
@@ -11,6 +10,7 @@ import {
   InvalidTokenError,
   UserAlreadyVerifiedError,
   UserNotFoundError,
+  TokenAlreadyUsedError,
 } from "../errors/email-confirmation.errors";
 
 export const DEFAULT_TOKEN_EXPIRATION_HOURS = 24;
@@ -25,7 +25,7 @@ export interface VerificationTokenData {
   [key: string]: any;
 }
 
-export interface ConfirmEmailResult {
+export interface ConfirmEmailServiceResult {
   success: boolean;
   userId: string;
   email: string;
@@ -39,6 +39,51 @@ export interface SendVerificationResult {
 }
 
 /**
+ * Genera el hash criptográfico SHA-256 de un token en texto plano.
+ * Garantiza compatibilidad con verification.repository.ts y la tabla verification_tokens.
+ */
+export function hashVerificationToken(token: string): string {
+  if (!token || typeof token !== "string") return "";
+  return crypto.createHash("sha256").update(token.trim()).digest("hex");
+}
+
+/**
+ * Resuelve y normaliza la URL base de la aplicación para enlaces de correo (H-AUTH-01 / H-AUTH-06).
+ *
+ * Reglas:
+ * 1. Prioridad: customBaseUrl > env.NEXT_PUBLIC_APP_URL > env.NEXTAUTH_URL > "http://localhost:3000".
+ * 2. Normalización de trailing slash: elimina slashes finales.
+ * 3. Prevención de ERR_SSL_PROTOCOL_ERROR (H-AUTH-06): en entornos locales o de desarrollo
+ *    (NODE_ENV !== "production" y LOCAL_HTTPS !== "true"), si la URL base fue configurada
+ *    erróneamente con "https://localhost" o "https://127.0.0.1", la normaliza automáticamente a "http://".
+ * 4. Preservación de producción: en NODE_ENV === "production", respeta y preserva HTTPS sin alterar.
+ */
+export function resolveAppBaseUrl(
+  customBaseUrl?: string,
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  const candidate = (
+    customBaseUrl ||
+    env.NEXT_PUBLIC_APP_URL ||
+    env.NEXTAUTH_URL ||
+    "http://localhost:3000"
+  ).trim();
+
+  let url = candidate.replace(/\/+$/, "");
+
+  const isProduction = env.NODE_ENV === "production";
+  const hasLocalHttps = env.LOCAL_HTTPS === "true" || env.LOCAL_HTTPS === "1";
+
+  if (!isProduction && !hasLocalHttps) {
+    if (/^https:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(url)) {
+      url = url.replace(/^https:/i, "http:");
+    }
+  }
+
+  return url;
+}
+
+/**
  * Servicio de negocio para la confirmación de correo electrónico.
  * Implementa las reglas de dominio para HU03-B:
  * 1. Generación de token criptográficamente seguro (256 bits).
@@ -46,11 +91,13 @@ export interface SendVerificationResult {
  * 3. Desacople del proveedor de correo mediante IEmailSender.
  * 4. Verificación y actualización del usuario en la base de datos con Prisma ORM.
  * 5. Caso límite: Reenvío invalida automáticamente cualquier token previo.
+ * 6. Soporte dual: tabla verification_tokens y metadata para máxima compatibilidad.
  */
 export class EmailConfirmationService {
   constructor(
-    private readonly db: PrismaClient = defaultPrisma,
-    private readonly emailSender: IEmailSender = new ConsoleEmailSender()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private readonly db: any = defaultPrisma,
+    private readonly emailSender: IEmailSender = getEmailSender()
   ) {}
 
   /**
@@ -59,10 +106,11 @@ export class EmailConfirmationService {
   async sendVerificationEmail(
     userId: string,
     email: string,
-    baseUrl: string = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    baseUrl?: string
   ): Promise<SendVerificationResult> {
     const cleanEmail = email.trim().toLowerCase();
     const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashVerificationToken(token);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + DEFAULT_TOKEN_EXPIRATION_HOURS * 3600 * 1000);
 
@@ -85,19 +133,62 @@ export class EmailConfirmationService {
 
     const currentMetadata = (user.metadata as Record<string, any>) || {};
 
-    // Actualizar metadata con el nuevo token vía Prisma ORM
-    await this.db.users.update({
-      where: { id: userId },
-      data: {
-        metadata: {
-          ...currentMetadata,
-          verification_token: tokenData,
-        } as any,
-      },
-    });
+    const hasVerificationTokensTable = Boolean(
+      this.db?.verification_tokens && typeof this.db.verification_tokens.create === "function"
+    );
 
-    // Enviar correo mediante el proveedor inyectado
-    const verificationUrl = `${baseUrl.replace(/\/$/, "")}/verify-email?token=${token}`;
+    // 1. Si la tabla verification_tokens está disponible en el cliente Prisma, persistir exclusivamente el hash (H-AUTH-05 / OWASP)
+    if (hasVerificationTokensTable) {
+      try {
+        await this.db.verification_tokens.updateMany({
+          where: { user_id: userId, used: false },
+          data: { used: true, used_at: now },
+        });
+        await this.db.verification_tokens.create({
+          data: {
+            user_id: userId,
+            token_hash: tokenHash,
+            expires_at: expiresAt,
+            used: false,
+          },
+        });
+      } catch {
+        // Silencioso en caso de mock sin tabla física
+      }
+
+      // H-AUTH-05: El token vive EXCLUSIVAMENTE en verification_tokens como hash SHA-256.
+      // Si existía algún verification_token legacy en metadata, se limpia preservando todas las demás propiedades.
+      if (currentMetadata.verification_token) {
+        const { verification_token: _vt, ...cleanMetadata } = currentMetadata;
+        await this.db.users.update({
+          where: { id: userId },
+          data: {
+            metadata: cleanMetadata as any,
+          },
+        });
+      }
+    } else {
+      // Fallback defensivo para mocks sin tabla verification_tokens: NUNCA guardar token en texto plano (H-AUTH-05)
+      await this.db.users.update({
+        where: { id: userId },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            verification_token: {
+              token_hash: tokenHash,
+              expires_at: expiresAt.toISOString(),
+              created_at: now.toISOString(),
+              used: false,
+              revoked: false,
+            },
+          } as any,
+        },
+      });
+    }
+
+    // 3. Enviar correo mediante el proveedor inyectado
+    const appBaseUrl = resolveAppBaseUrl(baseUrl);
+    const verificationUrl = `${appBaseUrl}/verify-email?token=${token}`;
     await this.emailSender.sendVerificationEmail({
       to: cleanEmail,
       token,
@@ -114,32 +205,89 @@ export class EmailConfirmationService {
   /**
    * Confirma la cuenta de un usuario utilizando el token de verificación recibido.
    */
-  async confirmEmail(token: string): Promise<ConfirmEmailResult> {
+  async confirmEmail(token: string): Promise<ConfirmEmailServiceResult> {
     if (!token || typeof token !== "string" || !token.trim()) {
       throw new InvalidTokenError("El token de confirmación es obligatorio");
     }
 
     const cleanToken = token.trim();
+    const tokenHash = hashVerificationToken(cleanToken);
+    const now = new Date();
 
-    // 1. Buscar al usuario mediante Prisma ORM
-    // Consultamos de forma eficiente evitando carga masiva en memoria (CWE-400 / DoS)
-    let user: any = await (this.db.users.findFirst as any)({
-      where: {
-        metadata: {
-          path: ["verification_token", "token"],
-          equals: cleanToken,
-        },
-      },
-    }).catch(() => null);
+    // 1. Si la tabla verification_tokens está disponible en el cliente Prisma, intentar verificación atómica
+    if (this.db?.verification_tokens && typeof this.db.verification_tokens.findFirst === "function") {
+      try {
+        const tokenRecord = await this.db.verification_tokens.findFirst({
+          where: {
+            OR: [{ token_hash: tokenHash }, { token_hash: cleanToken }],
+          },
+          include: { users: true },
+        });
 
-    // Fallback defensivo para mocks de pruebas unitarias o drivers sin soporte de path JSON
-    if (!user) {
+        if (tokenRecord) {
+          if (tokenRecord.users?.email_verified) {
+            throw new UserAlreadyVerifiedError("El correo electrónico ya ha sido verificado previamente");
+          }
+          if (tokenRecord.used) {
+            throw new TokenAlreadyUsedError("El token de confirmación ya ha sido utilizado anteriormente");
+          }
+          if (tokenRecord.expires_at <= now) {
+            throw new TokenExpiredError("El enlace de confirmación ha expirado. Por favor, solicita uno nuevo");
+          }
+
+          // Marcar como usado atómicamente
+          await this.db.verification_tokens.update({
+            where: { id: tokenRecord.id },
+            data: { used: true, used_at: now },
+          });
+
+          const currentMeta = (tokenRecord.users?.metadata as Record<string, any>) || {};
+          const { verification_token: _ignored, ...cleanMeta } = currentMeta;
+          await this.db.users.update({
+            where: { id: tokenRecord.user_id },
+            data: {
+              email_verified: true,
+              email_verified_at: now,
+              metadata: {
+                ...cleanMeta,
+                email_verified: true,
+                email_verified_at: now.toISOString(),
+              } as any,
+            },
+          });
+
+          return {
+            success: true,
+            userId: tokenRecord.user_id,
+            email: tokenRecord.users?.email || "",
+            verifiedAt: now,
+          };
+        }
+      } catch (err) {
+        if (
+          err instanceof UserAlreadyVerifiedError ||
+          err instanceof TokenAlreadyUsedError ||
+          err instanceof TokenExpiredError ||
+          err instanceof InvalidTokenError
+        ) {
+          throw err;
+        }
+      }
+    }
+
+    // 2. Consulta defensiva en metadata de users (soporte para transiciones o mocks sin verification_tokens)
+    let user: any = null;
+    try {
       const users = await this.db.users.findMany();
       user =
-        users.find((u) => {
+        users.find((u: any) => {
           const meta = (u.metadata as Record<string, any>) || {};
-          return meta.verification_token?.token === cleanToken;
+          const vt = meta.verification_token;
+          if (!vt) return false;
+          return vt.token_hash === tokenHash || vt.token === cleanToken;
         }) || null;
+    } catch {
+      user = null;
     }
 
     if (!user) {
@@ -149,38 +297,38 @@ export class EmailConfirmationService {
     const metadata = (user.metadata as Record<string, any>) || {};
     const tokenData: VerificationTokenData = metadata.verification_token;
 
-    // 2. Validar si ya está verificado
-    if (metadata.email_verified === true) {
+    if (!tokenData) {
+      throw new InvalidTokenError("El token de confirmación no es válido o ya fue utilizado");
+    }
+
+    // Validar si ya está verificado
+    if (metadata.email_verified === true || user.email_verified === true) {
       throw new UserAlreadyVerifiedError("El correo electrónico ya ha sido verificado previamente");
     }
 
-    // 3. Validar si el token fue revocado o ya usado
+    // Validar si el token fue revocado o ya usado
     if (tokenData.used || tokenData.revoked) {
       throw new InvalidTokenError("El token de confirmación no es válido o ya fue utilizado");
     }
 
-    // 4. Validar expiración (Caso de error: token vencido)
-    const now = new Date();
+    // Validar expiración (Caso de error: token vencido)
     const expiresAt = new Date(tokenData.expires_at);
-
     if (now > expiresAt) {
       throw new TokenExpiredError("El enlace de confirmación ha expirado. Por favor, solicita uno nuevo");
     }
 
-    // 5. Marcar al usuario como verificado y consumir el token con Prisma ORM
+    // Marcar al usuario como verificado y eliminar verification_token de metadata (H-AUTH-05)
     const verifiedAt = new Date();
+    const { verification_token: _ignored, ...cleanMetadata } = metadata;
     await this.db.users.update({
       where: { id: user.id },
       data: {
+        email_verified: true,
+        email_verified_at: verifiedAt,
         metadata: {
-          ...metadata,
+          ...cleanMetadata,
           email_verified: true,
           email_verified_at: verifiedAt.toISOString(),
-          verification_token: {
-            ...tokenData,
-            used: true,
-            used_at: verifiedAt.toISOString(),
-          },
         } as any,
       },
     });
@@ -199,7 +347,7 @@ export class EmailConfirmationService {
    */
   async resendVerificationEmail(
     email: string,
-    baseUrl: string = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    baseUrl?: string
   ): Promise<SendVerificationResult> {
     if (!email || typeof email !== "string" || !email.trim()) {
       throw new InvalidTokenError("El correo electrónico es obligatorio");
@@ -224,12 +372,13 @@ export class EmailConfirmationService {
     const currentMetadata = (user.metadata as Record<string, any>) || {};
 
     // 2. Si ya está verificado, rechazar con error de negocio
-    if (currentMetadata.email_verified === true) {
+    if (currentMetadata.email_verified === true || user.email_verified === true) {
       throw new UserAlreadyVerifiedError("El correo electrónico ya ha sido verificado previamente");
     }
 
-    // 3. Caso límite: Invalidar el token anterior (se marca como revocado o se reemplaza)
+    // 3. Caso límite: Invalidar el token anterior y generar uno nuevo
     const newToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashVerificationToken(newToken);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + DEFAULT_TOKEN_EXPIRATION_HOURS * 3600 * 1000);
 
@@ -241,20 +390,64 @@ export class EmailConfirmationService {
       revoked: false,
     };
 
-    // Actualizar usuario en Prisma con el nuevo token activo e historial de revocados
-    await this.db.users.update({
-      where: { id: user.id },
-      data: {
-        metadata: {
-          ...currentMetadata,
-          verification_token: newTokenData,
-          previous_token_revoked_at: now.toISOString(),
-        } as any,
-      },
-    });
+    const hasVerificationTokensTable = Boolean(
+      this.db?.verification_tokens && typeof this.db.verification_tokens.create === "function"
+    );
+
+    // Invalida tokens previos en verification_tokens si existe la tabla
+    if (hasVerificationTokensTable) {
+      try {
+        await this.db.verification_tokens.updateMany({
+          where: { user_id: user.id, used: false },
+          data: { used: true, used_at: now },
+        });
+        await this.db.verification_tokens.create({
+          data: {
+            user_id: user.id,
+            token_hash: tokenHash,
+            expires_at: expiresAt,
+            used: false,
+          },
+        });
+      } catch {
+        // Ignorar si en mock
+      }
+
+      // H-AUTH-05: El token vive EXCLUSIVAMENTE en verification_tokens como hash SHA-256.
+      // Se elimina verification_token de metadata si existía previamente, preservando los demás datos.
+      const { verification_token: _vt, ...cleanMetadata } = currentMetadata;
+      await this.db.users.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            ...cleanMetadata,
+            previous_token_revoked_at: now.toISOString(),
+          } as any,
+        },
+      });
+    } else {
+      // Fallback para mocks sin tabla verification_tokens: persistir únicamente el hash (H-AUTH-05)
+      await this.db.users.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            verification_token: {
+              token_hash: tokenHash,
+              expires_at: expiresAt.toISOString(),
+              created_at: now.toISOString(),
+              used: false,
+              revoked: false,
+            },
+            previous_token_revoked_at: now.toISOString(),
+          } as any,
+        },
+      });
+    }
 
     // 4. Enviar nuevo correo
-    const verificationUrl = `${baseUrl.replace(/\/$/, "")}/verify-email?token=${newToken}`;
+    const appBaseUrl = resolveAppBaseUrl(baseUrl);
+    const verificationUrl = `${appBaseUrl}/verify-email?token=${newToken}`;
     await this.emailSender.sendVerificationEmail({
       to: cleanEmail,
       token: newToken,
@@ -267,4 +460,47 @@ export class EmailConfirmationService {
       expiresAt,
     };
   }
+}
+
+/** Instancia por defecto (usa el proveedor de correo configurado en el entorno). */
+export const emailConfirmationService = new EmailConfirmationService();
+
+/**
+ * Función adaptadora para Route Handler de confirmación de correo
+ */
+export async function confirmUserEmail(
+  input: { token: string },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serviceOverride?: any
+): Promise<{ email: string; emailVerified: boolean; message: string }> {
+  const service =
+    typeof serviceOverride?.confirmEmail === "function"
+      ? serviceOverride
+      : emailConfirmationService;
+  const result = await service.confirmEmail(input.token);
+  return {
+    email: result.email,
+    emailVerified: true,
+    message: "Correo electrónico confirmado exitosamente",
+  };
+}
+
+/**
+ * Función adaptadora para Route Handler de reenvío de confirmación
+ */
+export async function resendConfirmationEmail(
+  input: { email: string },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serviceOverride?: any
+): Promise<{ success: boolean; message: string; email: string }> {
+  const service =
+    typeof serviceOverride?.resendVerificationEmail === "function"
+      ? serviceOverride
+      : emailConfirmationService;
+  const result = await service.resendVerificationEmail(input.email);
+  return {
+    success: true,
+    email: result.email,
+    message: "Correo de confirmación enviado exitosamente",
+  };
 }

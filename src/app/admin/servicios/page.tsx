@@ -1,14 +1,28 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { getErrorMessage } from '@/lib/api-client';
 import type { Service } from '@/types/service';
-import { MOCK_SERVICES } from '@/features/services/data/mock-services';
 import { ServiceCard } from '@/features/services/components/ServiceCard';
 import { ServiceFormModal } from '@/features/services/components/ServiceFormModal';
+import {
+  buildServiceMutationPayload,
+  mapServiceRecordToUi,
+  type BackendCategoryRecord,
+} from '@/features/services/api/service-mappers';
+import {
+  createServiceRecord,
+  deleteServiceRecord,
+  fetchCategories,
+  fetchServices,
+  setServiceActive,
+  updateServiceRecord,
+} from '@/features/services/api/services.api';
 
 const EMPTY_SERVICE: Service = {
   id: 'srv-new',
@@ -26,31 +40,78 @@ const EMPTY_SERVICE: Service = {
 };
 
 export default function AdminServicesPage() {
-  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
+  const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<BackendCategoryRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Service | null>(null);
 
-  function handleSave(updated: Service) {
-    setServices((current) => {
+  const loadData = useCallback(async () => {
+    try {
+      const [serviceRecords, categoryRecords] = await Promise.all([
+        fetchServices(),
+        fetchCategories(),
+      ]);
+      setCategories(categoryRecords);
+      setServices(serviceRecords.map(mapServiceRecordToUi));
+      setError(null);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadData);
+  }, [loadData]);
+
+  function retry() {
+    setLoading(true);
+    void loadData();
+  }
+
+  async function handleSave(updated: Service) {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = buildServiceMutationPayload(updated, categories);
       if (updated.id === 'srv-new') {
-        return [...current, { ...updated, id: `srv-${Date.now()}` }];
+        await createServiceRecord(payload);
+      } else {
+        await updateServiceRecord(updated.id, {
+          ...payload,
+          is_active: updated.status === 'ACTIVE',
+        });
       }
-      return current.map((item) => (item.id === updated.id ? updated : item));
-    });
-    setEditing(null);
+      setEditing(null);
+      await loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleToggle(service: Service) {
-    setServices((current) =>
-      current.map((item) =>
-        item.id === service.id
-          ? { ...item, status: item.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
-          : item,
-      ),
-    );
+  async function handleToggle(service: Service) {
+    setError(null);
+    try {
+      await setServiceActive(service.id, service.status !== 'ACTIVE');
+      await loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   }
 
-  function handleDelete(service: Service) {
-    setServices((current) => current.filter((item) => item.id !== service.id));
+  async function handleDelete(service: Service) {
+    setError(null);
+    try {
+      await deleteServiceRecord(service.id);
+      await loadData();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
   }
 
   const activeCount = services.filter((service) => service.status === 'ACTIVE').length;
@@ -67,7 +128,7 @@ export default function AdminServicesPage() {
             <span className="rounded-xl border border-text-main/10 bg-club-surface px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
               {activeCount} activo(s) · {services.length - activeCount} inactivo(s)
             </span>
-            <Button size="sm" onClick={() => setEditing({ ...EMPTY_SERVICE })}>
+            <Button size="sm" onClick={() => setEditing({ ...EMPTY_SERVICE })} disabled={loading}>
               <Plus className="h-4 w-4" />
               Nuevo servicio
             </Button>
@@ -75,7 +136,31 @@ export default function AdminServicesPage() {
         }
       />
 
-      {services.length === 0 ? (
+      {error && (
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <span className="font-bold">{error}</span>
+            <button
+              type="button"
+              onClick={retry}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-400/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:bg-red-500/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reintentar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <Card className="items-center justify-center p-12 text-center">
+          <RefreshCw className="h-6 w-6 animate-spin text-club-primary" />
+          <p className="mt-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+            Cargando servicios...
+          </p>
+        </Card>
+      ) : services.length === 0 ? (
         <EmptyState
           title="Sin servicios"
           description="Crea el primer servicio del complejo para comenzar a operar."
@@ -103,6 +188,7 @@ export default function AdminServicesPage() {
       {editing && (
         <ServiceFormModal
           service={editing}
+          saving={saving}
           onClose={() => setEditing(null)}
           onSave={handleSave}
         />

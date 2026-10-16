@@ -1,69 +1,79 @@
-/**
- * API Route Handler: Webhook Oficial de Stripe (HU24 / RN-016, RN-018, RN-019)
- * POST /api/payments/webhook
- *
- * Contrato de Respuesta Unificado: { success, message, data?, error? }
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import {
+  StripeWebhookService,
   stripeWebhookService,
-  InvalidWebhookSignatureError,
-  WebhookBookingNotFoundError,
-} from "@/features/payments";
+} from "@/features/payments/services/webhook.service";
+import {
+  InvalidStripeSignatureError,
+  StripeNotConfiguredError,
+} from "@/features/payments/errors/payments.errors";
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Obtener el cuerpo crudo (RAW) y la firma de Stripe
-    const rawBody = await request.text();
-    const signature = request.headers.get("stripe-signature") || "";
+export interface WebhookRouteContext {
+  params?: unknown;
+  serviceOverride?: StripeWebhookService;
+}
 
-    // 2. Criterio 2: Validar la firma criptográfica del webhook
-    const event = stripeWebhookService.verifyWebhookSignature(rawBody, signature);
-
-    // 3. Criterios 1, 3 y 4: Procesar confirmación atómica e idempotente
-    const result = await stripeWebhookService.handleWebhookEvent(event);
-
+/**
+ * Endpoint POST /api/payments/webhook
+ * Recibe los eventos de Stripe, verifica la firma y confirma/expira reservas.
+ *
+ * IMPORTANTE: se lee el cuerpo CRUDO (request.text()) porque la verificación de
+ * firma de Stripe requiere los bytes exactos enviados por Stripe.
+ */
+export async function POST(
+  request: NextRequest,
+  context?: WebhookRouteContext
+) {
+  const signature = request.headers.get("stripe-signature");
+  if (!signature) {
     return NextResponse.json(
-      {
-        success: true,
-        message: result.isAlreadyProcessed
-          ? "Evento de webhook ya procesado previamente (idempotente)"
-          : "Evento de pago procesado exitosamente y ticket generado",
-        data: result,
-      },
-      { status: 200 }
+      { success: false, error: "MISSING_SIGNATURE", message: "Falta el encabezado stripe-signature" },
+      { status: 400 }
     );
-  } catch (error: any) {
-    if (error instanceof InvalidWebhookSignatureError) {
+  }
+
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "INVALID_BODY", message: "No se pudo leer el cuerpo de la solicitud" },
+      { status: 400 }
+    );
+  }
+
+  if (!rawBody) {
+    return NextResponse.json(
+      { success: false, error: "EMPTY_BODY", message: "El cuerpo de la solicitud está vacío" },
+      { status: 400 }
+    );
+  }
+
+  const service = context?.serviceOverride ?? stripeWebhookService;
+
+  try {
+    const result = await service.handleRaw(rawBody, signature);
+    return NextResponse.json({ success: true, ...result }, { status: 200 });
+  } catch (error: unknown) {
+    const errCode = (error && typeof error === "object" && "code" in error) ? (error as any).code : undefined;
+    if (error instanceof InvalidStripeSignatureError || errCode === "INVALID_STRIPE_SIGNATURE") {
+      const err = error as InvalidStripeSignatureError;
       return NextResponse.json(
-        {
-          success: false,
-          message: error.message,
-          error: { code: error.code },
-        },
+        { success: false, error: err.code || "INVALID_STRIPE_SIGNATURE", message: err.message },
         { status: 400 }
       );
     }
-
-    if (error instanceof WebhookBookingNotFoundError) {
+    if (error instanceof StripeNotConfiguredError || errCode === "STRIPE_NOT_CONFIGURED") {
+      const err = error as StripeNotConfiguredError;
       return NextResponse.json(
-        {
-          success: false,
-          message: error.message,
-          error: { code: error.code },
-        },
-        { status: 404 }
+        { success: false, error: err.code || "STRIPE_NOT_CONFIGURED", message: err.message },
+        { status: 503 }
       );
     }
 
-    console.error("Error no controlado en POST /api/payments/webhook:", error);
+    console.error("[API_PAYMENTS_WEBHOOK_ERROR]", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Error interno al procesar el webhook de Stripe",
-        error: { code: "INTERNAL_SERVER_ERROR" },
-      },
+      { success: false, error: "INTERNAL_SERVER_ERROR", message: "Error procesando el webhook de pagos" },
       { status: 500 }
     );
   }

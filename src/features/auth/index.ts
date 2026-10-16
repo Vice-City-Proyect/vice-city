@@ -12,18 +12,30 @@ export * from "./services/register.service";
 export {
   ConsoleEmailSender,
   MockEmailSender,
+  ResendEmailSender,
+  SmtpEmailSender,
+  getEmailSender,
+  DEFAULT_RESEND_FROM,
+  isValidFromAddress,
+  normalizeFromAddress,
 } from "./services/email.service";
 export type {
   IEmailSender,
   SendEmailOptions,
   SendVerificationEmailParams,
 } from "./services/email.service";
+export * from "./schemas/confirm-email.schema";
+export * from "./schemas/resend-confirmation.schema";
 export * from "./services/email-confirmation.service";
 export {
   TokenExpiredError,
   InvalidTokenError,
   UserAlreadyVerifiedError,
+  TokenAlreadyUsedError,
+  EmailAlreadyConfirmedError,
+  EmailNotVerifiedError,
 } from "./errors/email-confirmation.errors";
+export { ResendConfirmationModal } from "./components/ResendConfirmationModal";
 
 // Servicios de Recuperación de Contraseña (HU04-B)
 export {
@@ -115,3 +127,10 @@ export {
   type SRSRole,
   type RoutePermissionRule,
 } from "./permissions/route-permissions";
+
+// Utilidades de Redirección Segura y Extracción de Rol (HU28)
+export {
+  sanitizeInternalCallbackUrl,
+  extractRoleFromSession,
+} from "./utils/url-sanitizer";
+

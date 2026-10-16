@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
+import { getServerSession } from 'next-auth/next';
 import { CalendarDays, Sparkles, User, Waves } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { QuickLinks } from '@/components/common/QuickLinks';
-import { ClientServiceCard } from '@/features/services/components/ClientServiceCard';
-import { CLIENT_CATALOG } from '@/features/services/data/client-catalog';
+import { ClientCatalog } from '@/features/services/components/ClientCatalog';
 import { ClientNextReservation } from '@/features/reservations/components/ClientNextReservation';
-import { MOCK_CLIENT_SESSION } from '@/features/auth/data/mock-session';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { TIME_ZONE } from '@/lib/schedule';
 
 export const metadata: Metadata = {
@@ -15,12 +16,36 @@ export const metadata: Metadata = {
 };
 
 const QUICK_ACTIONS = [
-  { href: '/cliente#servicios', label: 'Reservar servicio', icon: Waves },
+  { href: '/cliente/reservar', label: 'Reservar servicio', icon: Waves },
   { href: '/cliente/reservas', label: 'Mis reservas', icon: CalendarDays },
   { href: '/cliente/perfil', label: 'Mi perfil', icon: User },
 ];
 
-export default function ClientHomePage() {
+export default async function ClientHomePage() {
+  let session = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch {
+    session = null;
+  }
+
+  const clientId = session?.user?.id || '';
+
+  // El nombre de la sesión (JWT) queda desactualizado al editar el perfil:
+  // se lee el valor vigente desde la base de datos en cada visita.
+  let userName = 'Cliente';
+  if (clientId) {
+    try {
+      const user = await prisma.users.findUnique({
+        where: { id: clientId },
+        select: { full_name: true },
+      });
+      if (user?.full_name) userName = user.full_name;
+    } catch {
+      // Sin datos frescos: saludo genérico, nunca un nombre desactualizado.
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <Card tone="dark" className="p-6 sm:p-8">
@@ -31,8 +56,8 @@ export default function ClientHomePage() {
               Bienvenida de nuevo
             </span>
 
-            <h1 className="text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl">
-              Hola, <span className="text-club-primary">{MOCK_CLIENT_SESSION.name}</span>
+            <h1 className="text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl break-words">
+              Hola, <span className="text-club-primary break-words">{userName}</span>
             </h1>
 
             <p className="text-sm leading-relaxed text-white/70 sm:text-base">
@@ -41,7 +66,7 @@ export default function ClientHomePage() {
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <ButtonLink href="/cliente#servicios" size="lg" className="w-full sm:w-auto">
+              <ButtonLink href="/cliente/reservar" size="lg" className="w-full sm:w-auto">
                 Reservar un servicio
               </ButtonLink>
               <ButtonLink
@@ -55,7 +80,7 @@ export default function ClientHomePage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <InfoChip label="Horario" value="8:00 AM – 5:00 PM" />
             <InfoChip label="Zona horaria" value={TIME_ZONE} />
             <InfoChip label="Descuento miércoles" value="20%" />
@@ -74,16 +99,12 @@ export default function ClientHomePage() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {CLIENT_CATALOG.map((item) => (
-            <ClientServiceCard key={item.id} item={item} />
-          ))}
-        </div>
+        <ClientCatalog />
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <ClientNextReservation clientId={MOCK_CLIENT_SESSION.id} />
+          <ClientNextReservation />
         </div>
         <QuickLinks
           title={
@@ -101,9 +122,9 @@ export default function ClientHomePage() {
 
 function InfoChip({ label, value }: { label: string; value: string }) {
   return (
-    <span className="flex flex-col gap-0.5 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+    <span className="flex flex-col gap-0.5 rounded-2xl border border-white/15 bg-white/5 px-3 sm:px-4 py-2 sm:py-3 min-w-0">
       <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{label}</span>
-      <span className="text-xs font-bold text-white">{value}</span>
+      <span className="text-xs font-bold text-white break-words">{value}</span>
     </span>
   );
 }

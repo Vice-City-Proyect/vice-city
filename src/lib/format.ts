@@ -38,8 +38,43 @@ export function formatDate(iso: string): string {
   return DATE_FORMAT.format(new Date(`${iso}T12:00:00-05:00`));
 }
 
+/**
+ * Formatea una marca de tiempo ISO completa (p. ej. "2025-01-15T10:00:00.000Z")
+ * como fecha corta en hora de Bogotá. Devuelve null si el valor no es una fecha
+ * válida, para que la pantalla muestre un guion en vez de romperse.
+ */
+export function formatTimestampDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : DATE_FORMAT.format(date);
+}
+
 export function formatLongDate(iso: string): string {
   return LONG_DATE_FORMAT.format(new Date(`${iso}T12:00:00-05:00`));
+}
+
+/**
+ * Fecha (YYYY-MM-DD) en hora de Bogotá, sin depender de la zona horaria del navegador.
+ */
+export function toBogotaISODate(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+/**
+ * Hora (HH:mm, 24 h) en Bogotá, sin depender de la zona horaria del navegador.
+ */
+export function toBogotaTime(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
 }
 
 export function toISODate(date: Date): string {

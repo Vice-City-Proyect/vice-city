@@ -1,0 +1,309 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Auth Module (Email Confirmation & Resend)",
+    "version": "1.0.0",
+    "description": "Especificación Swagger/OpenAPI para los endpoints de confirmación de correo electrónico y reenvío de confirmación (HU03-B / VCP-38)."
+  },
+  "paths": {
+    "/api/auth/confirm-email": {
+      "post": {
+        "summary": "Confirmar correo electrónico mediante token (JSON Body)",
+        "description": "Recibe el token de verificación en el cuerpo JSON, valida su estructura con esquema estricto, delega la validación de vigencia y persistencia a la lógica de negocio y confirma la cuenta del usuario.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "additionalProperties": false,
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Token de confirmación recibido por el usuario",
+                    "example": "vcp_token_abc123xyz789"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Correo electrónico confirmado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Correo electrónico confirmado exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "email": { "type": "string", "format": "email", "example": "usuario@ejemplo.com" },
+                        "emailVerified": { "type": "boolean", "example": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token inválido, token ya utilizado, campos extra no permitidos o cuerpo JSON malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INVALID_TOKEN" },
+                    "message": { "type": "string", "example": "El token de confirmación no es válido" }
+                  }
+                },
+                "examples": {
+                  "invalidToken": {
+                    "summary": "Token inválido",
+                    "value": {
+                      "success": false,
+                      "error": "INVALID_TOKEN",
+                      "message": "El token de confirmación no es válido"
+                    }
+                  },
+                  "alreadyUsed": {
+                    "summary": "Token ya utilizado",
+                    "value": {
+                      "success": false,
+                      "error": "TOKEN_ALREADY_USED",
+                      "message": "El token de confirmación ya ha sido utilizado anteriormente"
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Error de validación de campos",
+                    "value": {
+                      "success": false,
+                      "error": "VALIDATION_ERROR",
+                      "message": "Datos de confirmación inválidos",
+                      "details": [{ "field": "token", "message": "El token de confirmación es obligatorio y no puede estar vacío" }]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Token de confirmación expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "TOKEN_EXPIRED" },
+                    "message": { "type": "string", "example": "El token de confirmación ha expirado" }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+                    "message": { "type": "string", "example": "Ocurrió un error interno en el servidor" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Confirmar correo electrónico mediante token en URL (Query Parameter)",
+        "description": "Permite procesar la confirmación cuando el usuario hace clic directo en el enlace recibido en su bandeja de entrada (?token=...).",
+        "tags": ["Auth"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token de confirmación generado para el usuario",
+            "example": "vcp_token_abc123xyz789"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Correo electrónico confirmado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Correo electrónico confirmado exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "email": { "type": "string", "format": "email", "example": "usuario@ejemplo.com" },
+                        "emailVerified": { "type": "boolean", "example": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token inválido, token ya utilizado o parámetro faltante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INVALID_TOKEN" },
+                    "message": { "type": "string", "example": "El token de confirmación no es válido" }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Token de confirmación expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "TOKEN_EXPIRED" },
+                    "message": { "type": "string", "example": "El token de confirmación ha expirado" }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+                    "message": { "type": "string", "example": "Ocurrió un error interno en el servidor" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/resend-confirmation": {
+      "post": {
+        "summary": "Reenviar correo de confirmación",
+        "description": "Permite reenviar el enlace/token de confirmación de correo a una cuenta registrada que aún no ha sido verificada.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "additionalProperties": false,
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "usuario@ejemplo.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Correo de confirmación reenviado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Correo de confirmación reenviado exitosamente" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "email": { "type": "string", "format": "email", "example": "usuario@ejemplo.com" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Correo con formato inválido, ya confirmado previamente o payload malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "EMAIL_ALREADY_CONFIRMED" },
+                    "message": { "type": "string", "example": "El correo electrónico ya ha sido confirmado previamente" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuario no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "USER_NOT_FOUND" },
+                    "message": { "type": "string", "example": "No se encontró ningún usuario con el correo electrónico proporcionado" }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "INTERNAL_SERVER_ERROR" },
+                    "message": { "type": "string", "example": "Ocurrió un error interno en el servidor" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
