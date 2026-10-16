@@ -17,7 +17,7 @@ import {
   UserNotFoundError,
   WeakPasswordError,
 } from "../errors/password-reset.errors";
-import { IEmailSender, ConsoleEmailSender } from "./email.service";
+import { IEmailSender, getEmailSender } from "./email.service";
 import {
   findUserByEmail,
   createPasswordResetToken,
@@ -41,7 +41,7 @@ export class PasswordResetService {
   private getTokenFn: typeof getPasswordResetToken;
 
   constructor(dependencies: PasswordResetServiceDependencies = {}) {
-    this.emailSender = dependencies.emailSender ?? new ConsoleEmailSender();
+    this.emailSender = dependencies.emailSender ?? getEmailSender();
     this.findUserByEmailFn = dependencies.findUserByEmailFn ?? findUserByEmail;
     this.createTokenFn = dependencies.createTokenFn ?? createPasswordResetToken;
     this.resetPasswordFn = dependencies.resetPasswordFn ?? repoResetPassword;
@@ -57,7 +57,7 @@ export class PasswordResetService {
    */
   async requestPasswordReset(
     email: string,
-    clientBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    clientBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
   ): Promise<{ success: boolean; message: string; token?: string }> {
     if (!email || typeof email !== "string" || !email.trim()) {
       throw new UserNotFoundError("El correo electrónico es obligatorio.");

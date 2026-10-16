@@ -19,7 +19,7 @@ export function AdminReservationPagination({
   return (
     <nav
       aria-label="Paginación de reservas"
-      className="mt-5 flex items-center justify-center gap-4"
+      className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:gap-4"
     >
       <Button
         type="button"

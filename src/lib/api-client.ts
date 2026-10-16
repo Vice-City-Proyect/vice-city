@@ -19,6 +19,15 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return (
+      instance !== null &&
+      typeof instance === "object" &&
+      (instance instanceof Error || "message" in instance) &&
+      typeof (instance as any).status === "number"
+    );
+  }
 }
 
 interface ApiEnvelope<T> {

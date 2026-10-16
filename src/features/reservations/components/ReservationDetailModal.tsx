@@ -31,7 +31,7 @@ function InfoGrid({ rows }: { rows: DetailRow[] }) {
           <dt className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             {row.label}
           </dt>
-          <dd className="text-sm font-bold text-text-main">{row.value}</dd>
+          <dd className="text-sm font-bold text-text-main break-words">{row.value}</dd>
         </div>
       ))}
     </dl>
@@ -172,7 +172,7 @@ export function ReservationDetailModal({
             <h3 className="text-xs font-black uppercase tracking-wider text-club-accent">
               Tiquete digital
             </h3>
-            <div className="flex items-center gap-4 rounded-2xl border border-text-main/10 bg-club-bg/60 p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-text-main/10 bg-club-bg/60 p-4">
               <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-club-surface text-club-accent">
                 <QrCode className="h-12 w-12" />
               </span>

@@ -64,12 +64,12 @@ export function Location() {
                 {href ? (
                   <a
                     href={href}
-                    className="block  text-sm font-bold text-club-accent transition-colors hover:text-club-primary"
+                    className="block text-sm font-bold text-club-accent transition-colors hover:text-club-primary break-all"
                   >
                     {value}
                   </a>
                 ) : (
-                  <p className="text-sm font-bold leading-snug text-club-accent">{value}</p>
+                  <p className="text-sm font-bold leading-snug text-club-accent break-words">{value}</p>
                 )}
               </div>
             ))}
@@ -89,7 +89,7 @@ export function Location() {
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-text-main/10 bg-club-surface p-3 shadow-md">
-          <div className="relative h-90 overflow-hidden rounded-2xl sm:h-110">
+          <div className="relative h-72 overflow-hidden rounded-2xl sm:h-90 lg:h-110">
             <iframe
               title="Ubicación de Vice City Iguana Club en Barranquilla"
               src={MAPS_EMBED_URL}

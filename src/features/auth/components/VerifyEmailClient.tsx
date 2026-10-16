@@ -132,17 +132,17 @@ export function VerifyEmailClient() {
           <>
             <h1 className="text-2xl font-bold text-club-accent">Enlace expirado</h1>
             <p className="text-text-muted text-sm">{message}</p>
-            <div className="flex flex-col sm:flex-row gap-2 mt-4 items-center justify-center">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4 items-center justify-center w-full">
               <button
                 type="button"
                 onClick={() => setIsResendModalOpen(true)}
-                className="px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer text-center"
               >
                 Solicitar nuevo enlace
               </button>
               <Link
                 href="/login"
-                className="px-6 py-2.5 border border-club-primary/30 text-text-main rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-surface transition-colors"
+                className="w-full sm:w-auto px-6 py-2.5 border border-club-primary/30 text-text-main rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-surface transition-colors text-center"
               >
                 Volver a Iniciar Sesión
               </Link>
@@ -157,7 +157,7 @@ export function VerifyEmailClient() {
             <button
               type="button"
               onClick={handleRetry}
-              className="inline-block mt-2 px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer"
+              className="w-full sm:w-auto inline-block mt-2 px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer text-center"
             >
               Reintentar verificación
             </button>
@@ -172,17 +172,17 @@ export function VerifyEmailClient() {
             <p className="text-text-muted text-sm">
               {message || "El enlace de confirmación está incompleto o no es válido."}
             </p>
-            <div className="flex flex-col sm:flex-row gap-2 mt-4 items-center justify-center">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4 items-center justify-center w-full">
               <button
                 type="button"
                 onClick={() => setIsResendModalOpen(true)}
-                className="px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors cursor-pointer text-center"
               >
                 Reenviar enlace
               </button>
               <Link
                 href="/register"
-                className="px-6 py-2.5 border border-club-primary/30 text-text-main rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-surface transition-colors"
+                className="w-full sm:w-auto px-6 py-2.5 border border-club-primary/30 text-text-main rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-surface transition-colors text-center"
               >
                 Registrarme de nuevo
               </Link>
@@ -195,7 +195,7 @@ export function VerifyEmailClient() {
   return (
     <>
       <div
-        className="w-full max-w-md p-8 rounded-3xl bg-club-surface text-center flex flex-col items-center justify-center space-y-4"
+        className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface text-center flex flex-col items-center justify-center space-y-4"
         style={cardStyle}
       >
         {renderContent()}

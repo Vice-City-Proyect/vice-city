@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession, getProviders } from 'next-auth/react';
@@ -17,14 +17,8 @@ import {
   sanitizeInternalCallbackUrl,
   extractRoleFromSession,
 } from '../utils/url-sanitizer';
+import { DASHBOARD_BY_ROLE } from '../utils/role-home';
 import { ResendConfirmationModal } from './ResendConfirmationModal';
-
-const DASHBOARD_BY_ROLE: Record<string, string> = {
-  ADMIN: '/admin',
-  CLIENT: '/cliente',
-  TICKET_SELLER: '/employee/pos',
-  QR_VALIDATOR: '/empleado/qr',
-};
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   GoogleEmailNotProvided:
@@ -53,13 +47,17 @@ export function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   // null = consultando; true/false = proveedor Google disponible según el servidor.
   const [googleAvailable, setGoogleAvailable] = useState<boolean | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(false);
   const [isResendModalOpen, setIsResendModalOpen] = useState(false);
 
   const readCallbackUrl = useCallback(
     () => searchParams.get('callbackUrl'),
     [searchParams]
   );
+  const readCallbackUrlRef = useRef(readCallbackUrl);
+  useEffect(() => {
+    readCallbackUrlRef.current = readCallbackUrl;
+  }, [readCallbackUrl]);
 
   useEffect(() => {
     let active = true;
@@ -68,21 +66,32 @@ export function LoginForm() {
     async function checkExistingSession() {
       try {
         let role: string | undefined;
-        const session = await getSession();
-        role = extractRoleFromSession(session);
 
-        if (!role) {
-          const res = await fetch('/api/auth/session', { cache: 'no-store' });
-          if (res.ok) {
-            const json: unknown = await res.json();
-            role = extractRoleFromSession(json);
+        try {
+          const session = await getSession();
+          role = extractRoleFromSession(session);
+        } catch {
+          // Fallo no bloqueante en getSession
+        }
+
+        if (!role && active) {
+          try {
+            const res = await fetch('/api/auth/session', { cache: 'no-store' });
+            if (res.ok) {
+              const json: unknown = await res.json();
+              role = extractRoleFromSession(json);
+            }
+          } catch {
+            // Fallo no bloqueante en /api/auth/session
           }
         }
 
         if (!active) return;
 
         if (role) {
-          const safeCallback = sanitizeInternalCallbackUrl(readCallbackUrl());
+          setCheckingSession(true);
+          const rawCallback = readCallbackUrlRef.current ? readCallbackUrlRef.current() : null;
+          const safeCallback = sanitizeInternalCallbackUrl(rawCallback);
           const roleDestination = DASHBOARD_BY_ROLE[role] || '/';
           const destination = safeCallback || roleDestination;
           if (typeof window !== 'undefined') {
@@ -95,7 +104,6 @@ export function LoginForm() {
       } catch {
         // Fallo de verificación de sesión inicial
       }
-      if (active) setCheckingSession(false);
     }
 
     void checkExistingSession();
@@ -112,7 +120,7 @@ export function LoginForm() {
     return () => {
       active = false;
     };
-  }, [router, readCallbackUrl]);
+  }, [router]);
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
@@ -280,7 +288,7 @@ export function LoginForm() {
       }}
     >
       {/* ── COLUMNA IZQUIERDA: Branding ────────────────────────────────────── */}
-      <div className="bg-club-surface flex items-center justify-center p-10 md:p-14 border-b md:border-b-0 md:border-r border-club-primary/30">
+      <div className="bg-club-surface flex items-center justify-center p-6 sm:p-10 md:p-14 border-b md:border-b-0 md:border-r border-club-primary/30">
         <div className="flex flex-col items-center gap-3 select-none">
           {/*
            * Logo Vice City — representación tipográfica.
@@ -314,7 +322,7 @@ export function LoginForm() {
       </div>
 
       {/* ── COLUMNA DERECHA: Formulario ────────────────────────────────────── */}
-      <div className="bg-club-surface p-8 md:p-12 flex flex-col relative">
+      <div className="bg-club-surface p-6 sm:p-8 md:p-12 flex flex-col relative">
         {/* Badge de marca — esquina superior derecha */}
         <div className="absolute top-5 right-5 border border-club-accent/25 rounded px-1.5 py-1 flex flex-col items-center leading-none">
           <span className="text-[9px] font-black text-club-accent tracking-widest">VC</span>
@@ -414,7 +422,7 @@ export function LoginForm() {
             </div>
 
             {/* ── Enlaces secundarios: reenvío y recuperación ──────────────── */}
-            <div className="flex justify-between items-center -mt-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 -mt-2 text-center sm:text-left">
               <button
                 type="button"
                 onClick={() => setIsResendModalOpen(true)}

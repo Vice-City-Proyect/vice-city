@@ -4,8 +4,7 @@ import { CalendarDays, Sparkles, User, Waves } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { QuickLinks } from '@/components/common/QuickLinks';
-import { ClientServiceCard } from '@/features/services/components/ClientServiceCard';
-import { CLIENT_CATALOG } from '@/features/services/data/client-catalog';
+import { ClientCatalog } from '@/features/services/components/ClientCatalog';
 import { ClientNextReservation } from '@/features/reservations/components/ClientNextReservation';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -57,8 +56,8 @@ export default async function ClientHomePage() {
               Bienvenida de nuevo
             </span>
 
-            <h1 className="text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl">
-              Hola, <span className="text-club-primary">{userName}</span>
+            <h1 className="text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl break-words">
+              Hola, <span className="text-club-primary break-words">{userName}</span>
             </h1>
 
             <p className="text-sm leading-relaxed text-white/70 sm:text-base">
@@ -81,7 +80,7 @@ export default async function ClientHomePage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <InfoChip label="Horario" value="8:00 AM – 5:00 PM" />
             <InfoChip label="Zona horaria" value={TIME_ZONE} />
             <InfoChip label="Descuento miércoles" value="20%" />
@@ -100,16 +99,12 @@ export default async function ClientHomePage() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {CLIENT_CATALOG.map((item) => (
-            <ClientServiceCard key={item.id} item={item} />
-          ))}
-        </div>
+        <ClientCatalog />
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <ClientNextReservation clientId={clientId} />
+          <ClientNextReservation />
         </div>
         <QuickLinks
           title={
@@ -127,9 +122,9 @@ export default async function ClientHomePage() {
 
 function InfoChip({ label, value }: { label: string; value: string }) {
   return (
-    <span className="flex flex-col gap-0.5 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+    <span className="flex flex-col gap-0.5 rounded-2xl border border-white/15 bg-white/5 px-3 sm:px-4 py-2 sm:py-3 min-w-0">
       <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{label}</span>
-      <span className="text-xs font-bold text-white">{value}</span>
+      <span className="text-xs font-bold text-white break-words">{value}</span>
     </span>
   );
 }

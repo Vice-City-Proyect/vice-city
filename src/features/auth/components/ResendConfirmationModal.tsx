@@ -109,7 +109,7 @@ export function ResendConfirmationModal({
       title="Reenviar Confirmación"
       eyebrow="Activación de Cuenta"
     >
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <p className="text-sm text-text-muted">
           Ingresa el correo electrónico asociado a tu cuenta para recibir un nuevo enlace de confirmación válido por 24 horas.
         </p>
@@ -162,16 +162,16 @@ export function ResendConfirmationModal({
               />
             </FormField>
 
-            <div className="flex gap-2 pt-2 justify-end">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2 sm:justify-end">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 text-xs rounded-xl font-bold uppercase tracking-wider border border-club-primary/30 text-text-main hover:bg-club-bg transition-colors disabled:opacity-50 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 text-xs rounded-xl font-bold uppercase tracking-wider border border-club-primary/30 text-text-main hover:bg-club-bg transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancelar
               </button>
-              <Button type="submit" size="sm" disabled={loading}>
+              <Button type="submit" size="sm" disabled={loading} className="w-full sm:w-auto">
                 {loading ? "Enviando..." : "Enviar Enlace"}
               </Button>
             </div>

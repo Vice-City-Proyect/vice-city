@@ -318,9 +318,9 @@ export default function AdminUsersPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={row.name} size="sm" />
-                      <div>
-                        <p className="text-sm font-black uppercase text-club-accent">{row.name}</p>
-                        <p className="text-[11px] text-text-muted">{row.email}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black uppercase text-club-accent break-words">{row.name}</p>
+                        <p className="text-[11px] text-text-muted break-all">{row.email}</p>
                       </div>
                     </div>
                     <StatusBadge status={row.status} />

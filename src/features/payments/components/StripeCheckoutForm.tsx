@@ -78,9 +78,9 @@ export function StripeCheckoutForm({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl max-w-lg w-full text-white">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl max-w-lg w-full text-white">
       {/* Encabezado */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800 mb-6">
         <div>
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <span>💳 Pago con Tarjeta</span>
@@ -90,7 +90,7 @@ export function StripeCheckoutForm({
           </h3>
           <p className="text-xs text-slate-400 mt-1">Crédito o débito nacional e internacional</p>
         </div>
-        <div className="text-right">
+        <div className="text-left sm:text-right">
           <span className="text-xs text-slate-400 block">Total a pagar</span>
           <span className="text-lg font-black text-emerald-400">{formattedAmount}</span>
         </div>

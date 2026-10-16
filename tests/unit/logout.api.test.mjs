@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST as logoutPostHandler, GET as logoutGetHandler } from "../../src/app/api/auth/logout/route.ts";
+import { POST as signoutPostHandler, GET as signoutGetHandler } from "../../src/app/api/auth/signout/route.ts";
 import { GET as sessionGetHandler } from "../../src/app/api/auth/session/route.ts";
 import { middleware } from "../../src/middleware.ts";
 
@@ -142,5 +143,43 @@ describe("HU06-B: API Endpoints - Cierre de Sesión", () => {
     assert.equal(body.authenticated, false);
     assert.equal(body.data, null);
   });
+
+  // -------------------------------------------------------------------------
+  // Cookies: F1C - Route Handler nativo de NextAuth (/api/auth/signout)
+  // -------------------------------------------------------------------------
+  test("Cookies: F1C - POST /api/auth/signout purga todas las cookies y devuelve url para NextAuth", async () => {
+    const request = createMockRequest("http://localhost:3000/api/auth/signout", {
+      method: "POST",
+      cookies: { "next-auth.session-token": "active-jwt-token" },
+    });
+
+    const response = await signoutPostHandler(request);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.success, true);
+    assert.equal(body.url, "/login");
+
+    const setCookieHeaders = response.headers.getSetCookie();
+    assert.ok(setCookieHeaders.length > 0);
+    const sessionCookie = setCookieHeaders.find((h) => h.includes("next-auth.session-token"));
+    assert.ok(sessionCookie);
+    assert.ok(sessionCookie.includes("Max-Age=0") || sessionCookie.includes("max-age=0"));
+  });
+
+  test("Cookies: F1C - GET /api/auth/signout redirige a /login con cookies expiradas", async () => {
+    const request = createMockRequest("http://localhost:3000/api/auth/signout", {
+      method: "GET",
+    });
+
+    const response = await signoutGetHandler(request);
+    assert.ok(response.status === 307 || response.status === 302);
+    const location = response.headers.get("Location");
+    assert.ok(location.includes("/login"));
+
+    const setCookieHeaders = response.headers.getSetCookie();
+    assert.ok(setCookieHeaders.length > 0);
+  });
 });
+
 

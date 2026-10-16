@@ -120,8 +120,13 @@ export function computeOperationalStatus(
 ): ReservationStatus {
   const cleanStatus = statusDb.trim().toLowerCase();
 
-  if (cleanStatus === "cancelled") {
+  // 'expired' (HOLD vencido) se muestra como no confirmada; 'completed' y 'no_show' ya terminaron.
+  if (cleanStatus === "cancelled" || cleanStatus === "expired") {
     return "CANCELLED";
+  }
+
+  if (cleanStatus === "completed" || cleanStatus === "no_show") {
+    return "FINISHED";
   }
 
   if (cleanStatus === "pending") {

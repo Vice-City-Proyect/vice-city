@@ -48,7 +48,7 @@ export function ForgotPasswordForm() {
   };
 
   return (
-    <div className="w-full max-w-md p-8 rounded-3xl bg-club-surface" style={cardStyle}>
+    <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface" style={cardStyle}>
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-club-accent tracking-tight">
           Recuperar contraseña

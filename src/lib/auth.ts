@@ -130,7 +130,15 @@ export async function authenticateUser(
  * @param env Entorno de variables (opcional para pruebas unitarias)
  */
 export function getAuthSecret(env: NodeJS.ProcessEnv = process.env): string {
-  const secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  let secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+  if (!secret && env === process.env && typeof process.loadEnvFile === "function") {
+    try {
+      process.loadEnvFile();
+      secret = env.NEXTAUTH_SECRET || env.JWT_SECRET;
+    } catch {
+      // Si .env no existe, continuar con la validación estricta
+    }
+  }
   if (!secret) {
     if (env.NODE_ENV === "test" || env.npm_lifecycle_event === "test") {
       return "vice-city-unit-tests-isolated-secret-key-32chars";
