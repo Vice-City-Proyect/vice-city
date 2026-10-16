@@ -14,7 +14,15 @@ import {
 } from "@/features/auth/utils/role-home";
 
 function getMiddlewareSecret(): string {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+  let secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+  if (!secret && typeof process.loadEnvFile === "function") {
+    try {
+      process.loadEnvFile();
+      secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+    } catch {
+      // Si .env no existe, continuar con la validación estricta
+    }
+  }
   if (!secret) {
     if (
       process.env.NODE_ENV === "test" ||

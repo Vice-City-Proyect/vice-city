@@ -184,10 +184,14 @@ export async function POST(
         { status: 400 }
       );
     }
-    if (error instanceof ReservationError) {
+    if (
+      error instanceof ReservationError ||
+      (Boolean(error) && typeof error === "object" && "statusCode" in (error as any) && "code" in (error as any))
+    ) {
+      const err = error as ReservationError;
       return NextResponse.json(
-        { success: false, error: error.code, message: error.message },
-        { status: error.statusCode }
+        { success: false, error: err.code, message: err.message },
+        { status: err.statusCode }
       );
     }
 

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { Clock, MapPin } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -13,9 +14,13 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-10 border-b border-white/10 pb-10 md:grid-cols-3">
           <div>
             <span className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-white lg:text-2xl">
-              <span aria-hidden className="text-2xl lg:text-3xl">
-                🦎
-              </span>
+              <Image
+                src="/logo-iguana-mejorado.png"
+                alt="Logo Vice City Iguana Club"
+                width={40}
+                height={40}
+                className="h-8 w-8 rounded-full object-cover lg:h-10 lg:w-10"
+              />
               Vice City <span className="text-club-primary">Iguana</span>
             </span>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">

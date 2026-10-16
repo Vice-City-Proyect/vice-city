@@ -119,12 +119,19 @@ export default function Hero() {
         aria-label="Main navigation"
       >
         {/* Logo */}
-        <Link href="/" className="flex items-baseline">
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/logo-iguana-mejorado.png"
+            alt="Logo Vice City Iguana Club"
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-full object-cover"
+          />
           <span className="text-white font-black text-[15px] tracking-[0.18em] uppercase leading-none">
             Vice City
           </span>
           <span
-            className="font-black text-[15px] tracking-[0.18em] uppercase italic ml-2 leading-none"
+            className="font-black text-[15px] tracking-[0.18em] uppercase italic ml-1 leading-none"
             style={{ color: "#B0BF3F" }}
           >
             Iguana Club

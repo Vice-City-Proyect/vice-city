@@ -14,6 +14,16 @@ export class ReservationError extends Error {
     this.statusCode = statusCode;
     Object.setPrototypeOf(this, ReservationError.prototype);
   }
+
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return (
+      instance !== null &&
+      typeof instance === "object" &&
+      (instance instanceof Error || "message" in instance) &&
+      typeof (instance as any).code === "string" &&
+      typeof (instance as any).statusCode === "number"
+    );
+  }
 }
 
 /**
@@ -29,6 +39,14 @@ export class SlotFullConflictError extends ReservationError {
     this.name = "SlotFullConflictError";
     Object.setPrototypeOf(this, SlotFullConflictError.prototype);
   }
+
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return (
+      Boolean(instance) &&
+      typeof instance === "object" &&
+      (instance as any).code === "SLOT_FULL_CONFLICT"
+    );
+  }
 }
 
 /**
@@ -41,6 +59,14 @@ export class HoldExpiredError extends ReservationError {
     super(message, "HOLD_EXPIRED", 410); // 410 Gone
     this.name = "HoldExpiredError";
     Object.setPrototypeOf(this, HoldExpiredError.prototype);
+  }
+
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return (
+      Boolean(instance) &&
+      typeof instance === "object" &&
+      (instance as any).code === "HOLD_EXPIRED"
+    );
   }
 }
 
@@ -55,6 +81,15 @@ export class InvalidDurationError extends ReservationError {
     this.name = "InvalidDurationError";
     Object.setPrototypeOf(this, InvalidDurationError.prototype);
   }
+
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return (
+      Boolean(instance) &&
+      typeof instance === "object" &&
+      ((instance as any).code === "INVALID_DURATION" ||
+        (instance as any).name === "InvalidDurationError")
+    );
+  }
 }
 
 /**
@@ -65,6 +100,15 @@ export class BookingNotFoundError extends ReservationError {
     super(message, "BOOKING_NOT_FOUND", 404);
     this.name = "BookingNotFoundError";
     Object.setPrototypeOf(this, BookingNotFoundError.prototype);
+  }
+
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return (
+      Boolean(instance) &&
+      typeof instance === "object" &&
+      ((instance as any).code === "BOOKING_NOT_FOUND" ||
+        (instance as any).name === "BookingNotFoundError")
+    );
   }
 }
 

@@ -150,12 +150,15 @@ export async function GET(
       { status: 200 }
     );
   } catch (error: unknown) {
-    if (error instanceof BookingNotFoundError) {
+    if (
+      error instanceof BookingNotFoundError ||
+      (Boolean(error) && typeof error === "object" && (error as any).code === "BOOKING_NOT_FOUND")
+    ) {
       return NextResponse.json(
         {
           success: false,
           error: "BOOKING_NOT_FOUND",
-          message: error.message,
+          message: (error as any).message,
         },
         { status: 404 }
       );

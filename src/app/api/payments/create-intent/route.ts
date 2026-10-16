@@ -118,12 +118,15 @@ export async function POST(request: NextRequest, context?: CreateIntentRouteCont
       );
     }
 
-    if (error instanceof ForbiddenBookingAccessError) {
+    if (
+      error instanceof ForbiddenBookingAccessError ||
+      (Boolean(error) && typeof error === "object" && (error as any).code === "FORBIDDEN_BOOKING_ACCESS")
+    ) {
       return NextResponse.json(
         {
           success: false,
           message: error.message,
-          error: { code: error.code },
+          error: { code: error.code || "FORBIDDEN_BOOKING_ACCESS" },
         },
         { status: 403 }
       );

@@ -8,7 +8,7 @@ import { COMPLEX_HOURS } from '../data/facilities';
 
 const SLIDES = [
   {
-    src: '/Lucia_Caminos_gym.jpg',
+    src: '/lucia-athlete.webp',
     alt: 'Gimnasio Vice City Iguana Club',
     position: 'object-top', // Changed to object-top to ensure the upper part isn't cut by navbar
   },
@@ -54,7 +54,7 @@ export function Hero() {
   };
 
   return (
-    <section className="group relative flex min-h-[90vh] items-center overflow-hidden pb-16 pt-28 lg:pb-24 lg:pt-36">
+    <section className="group relative flex h-screen w-full items-center overflow-hidden">
       {/* Auto-playing Image Slider */}
       <div className="absolute inset-0 bg-black">
         {SLIDES.map((slide, index) => (
@@ -70,7 +70,7 @@ export function Hero() {
               fill
               priority={index === 0}
               sizes="100vw"
-              className={`object-cover ${slide.position}`}
+              className={`object-cover ${slide.position} block`}
             />
           </div>
         ))}
@@ -113,8 +113,8 @@ export function Hero() {
           </p>
 
           <div className="mb-8 sm:mb-10 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="#reservas" size="lg" className="w-full sm:w-auto">
-              Book Your Court
+            <ButtonLink href="/login" size="lg" className="w-full sm:w-auto">
+              Haz tu reserva
               <ChevronRight className="h-5 w-5" />
             </ButtonLink>
             <ButtonLink href="#instalaciones" size="lg" variant="light" className="w-full sm:w-auto">
