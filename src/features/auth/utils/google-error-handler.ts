@@ -13,9 +13,13 @@ export const GOOGLE_AUTH_ERROR_MESSAGES: Record<string, string> = {
   OAuthCreateAccount: "No se pudo registrar la cuenta de usuario asociada a Google.",
   OAuthAccountNotLinked: "Este correo ya está registrado con otro método. Se requiere iniciar sesión con tus credenciales previas para vincular Google.",
   GoogleEmailNotProvided: "No se pudo autenticar con Google porque la cuenta no proporcionó una dirección de correo electrónico.",
+  GoogleEmailNotVerified: "El correo electrónico de tu cuenta no ha sido verificado por Google. Por favor, verifícalo en Google antes de continuar.",
   UserInactive: "Tu cuenta se encuentra inactiva. Por favor, comunícate con la administración del complejo.",
+  OAuthAccountAlreadyLinked: "Esta cuenta de Google ya se encuentra vinculada a otro usuario en el sistema.",
   GoogleAuthFailed: "Ocurrió un error durante la autenticación con Google. Por favor, inténtalo de nuevo.",
   Configuration: "Existe un problema en la configuración del proveedor de Google en el servidor.",
+  GoogleAuthConfigError: "El servicio de autenticación con Google no está configurado en el servidor.",
+  GOOGLE_OAUTH_NOT_CONFIGURED: "El servicio de autenticación con Google no está configurado en el servidor.",
   Default: "Ocurrió un error inesperado al autenticar con Google. Por favor, intenta de nuevo.",
 };
 

@@ -9,8 +9,10 @@ import type { SRSRole } from "../types/next-auth";
 import {
   googleAuthService,
   GoogleEmailNotProvidedError,
+  GoogleEmailNotVerifiedError,
   UserInactiveError,
   EmailNotVerifiedError,
+  GoogleAuthConfigError,
   type GoogleProfile,
 } from "@/features/auth";
 import { linkAccount } from "@/features/users/linked-accounts.repository";
@@ -306,6 +308,50 @@ export function buildAuthProviders(): NextAuthOptions["providers"] {
 }
 
 /**
+ * Valida la existencia y formato de las credenciales de Google OAuth.
+ * Produce un error claro y seguro cuando falten credenciales o contengan placeholders.
+ * Evita imprimir secretos en logs o mensajes de error.
+ */
+export function validateGoogleAuthConfig(env: NodeJS.ProcessEnv = process.env): {
+  clientId: string;
+  clientSecret: string;
+} {
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+
+  if (!clientId || !clientSecret) {
+    throw new GoogleAuthConfigError(
+      "Credenciales de Google OAuth ausentes: GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET deben estar configuradas en las variables de entorno."
+    );
+  }
+
+  if (
+    clientId.includes("placeholder") ||
+    clientSecret.includes("placeholder") ||
+    clientId.includes("tu-google-client-id") ||
+    clientSecret.includes("tu-google-client-secret")
+  ) {
+    throw new GoogleAuthConfigError(
+      "Credenciales de Google OAuth inválidas: se detectaron valores placeholder en GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET. Configure credenciales reales de Google Cloud Console."
+    );
+  }
+
+  return { clientId, clientSecret };
+}
+
+/**
+ * Determina si Google OAuth está configurado válidamente sin lanzar excepciones.
+ */
+export function isGoogleOAuthConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  try {
+    validateGoogleAuthConfig(env);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Configuración completa de NextAuth para sesiones basadas en tokens JWT
  * Soporta autenticación local por credenciales y federada con Google OAuth (HU05-B).
  */
@@ -348,13 +394,21 @@ export const authOptions: NextAuthOptions = {
           // Si la tabla linked_accounts está disponible, registrar persistencia ORM (HU05-BD)
           if (result?.user?.id && account.providerAccountId) {
             try {
-              await linkAccount({
+              const linkFn =
+                (authOptions as unknown as { __linkAccountFn?: typeof linkAccount }).__linkAccountFn ?? linkAccount;
+              const linkResult = await linkFn({
                 userId: result.user.id,
                 provider: "google",
                 providerAccountId: account.providerAccountId,
               });
+              if (
+                !linkResult.success &&
+                linkResult.reason === "ALREADY_LINKED_TO_OTHER_USER"
+              ) {
+                return "/login?error=OAuthAccountAlreadyLinked";
+              }
             } catch {
-              // Silencioso si ya está vinculada o en pruebas unitarias
+              // Silencioso si la tabla no está migrada o en pruebas unitarias
             }
           }
 
@@ -372,6 +426,12 @@ export const authOptions: NextAuthOptions = {
             error?.code === "GOOGLE_EMAIL_NOT_PROVIDED"
           ) {
             return "/login?error=GoogleEmailNotProvided";
+          }
+          if (
+            error instanceof GoogleEmailNotVerifiedError ||
+            error?.code === "GOOGLE_EMAIL_NOT_VERIFIED"
+          ) {
+            return "/login?error=GoogleEmailNotVerified";
           }
           if (
             error instanceof UserInactiveError ||

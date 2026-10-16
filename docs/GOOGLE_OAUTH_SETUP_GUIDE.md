@@ -137,5 +137,27 @@ Una vez desplegada la aplicación y configuradas las variables:
 
 ### 3. Error: `OAuthCallback` o error de firma en NextAuth
 * **Causa:** Falta configurar `NEXTAUTH_SECRET` o `NEXTAUTH_URL` en las variables de entorno de producción.
-* **Solución:** Asegúrate de que `NEXTAUTH_URL` contenga exactamente la URL base del sitio (`https://tu-dominio.com`).
+* **Solución:** Asegúrate de que `NEXTAUTH_URL` contenga exactamente la URL base del sitio (`https://tu-dominio.com`) y que `NEXTAUTH_SECRET` coincida en todos los entornos.
+
+### 4. Error: `GoogleEmailNotVerified`
+* **Causa:** Medida de seguridad contra ataques de suplantación de cuenta (*Pre-Account Takeover*). Google reportó que la cuenta no tiene el correo electrónico verificado (`email_verified: false`).
+* **Solución:** El usuario debe ingresar a Google y completar la verificación de su correo antes de autenticarse en Vice City.
+
+### 5. Error: `OAuthAccountAlreadyLinked` (409 Conflict)
+* **Causa:** La cuenta de Google (`providerAccountId`) ya se encuentra vinculada a otro usuario distinto en la tabla `linked_accounts`.
+* **Solución:** Cada identidad de Google solo puede pertenecer a un único usuario del sistema. Inicia sesión con la cuenta de usuario previamente vinculada.
+
+### 6. Error: `GOOGLE_OAUTH_NOT_CONFIGURED` (503 Service Unavailable)
+* **Causa:** `GOOGLE_CLIENT_ID` o `GOOGLE_CLIENT_SECRET` no están configuradas en `.env` o contienen valores de ejemplo/placeholder (`google_client_id_placeholder`).
+* **Solución:** Configura credenciales reales obtenidas de Google Cloud Console. Si Google OAuth no está configurado, la aplicación continuará funcionando para autenticación local con credenciales sin fallar en el arranque.
+
+---
+
+## 🔒 Mecanismo de Sesión y Compatibilidad con Middleware
+
+Tanto el flujo nativo de NextAuth (`/api/auth/signin/google` -> `/api/auth/callback/google`) como el endpoint alternativo (`POST /api/auth/google`) emiten la cookie de sesión cifrada:
+* `next-auth.session-token` (en HTTP / desarrollo)
+* `__Secure-next-auth.session-token` (en HTTPS / producción)
+
+El middleware global (`src/middleware.ts`) descifra esta cookie utilizando `getToken()` y valida la pertenencia al rol del SRS (`CLIENT`, `ADMIN`, etc.), otorgando acceso inmediato a las rutas protegidas (`/client/*`, `/admin/*`) sin discrepancias entre sesiones.
 
