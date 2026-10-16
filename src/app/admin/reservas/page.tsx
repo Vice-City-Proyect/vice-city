@@ -1,55 +1,178 @@
 'use client';
 
-import { useState } from 'react';
-import { Ban, Eye, Pencil, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, Ban, Eye, Pencil, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Table } from '@/components/ui/Table';
 import { formatCOP, formatDate } from '@/lib/format';
+import { getErrorMessage } from '@/lib/api-client';
 import type { Reservation } from '@/types/reservation';
-import { MOCK_SERVICES } from '@/features/services/data/mock-services';
-import {
-  EMPTY_FILTERS,
-  filterReservations,
-  type ReservationFilters,
-} from '@/features/reservations/data/reservation-filters';
-import { ReservationFiltersBar } from '@/features/reservations/components/ReservationFiltersBar';
+import { fetchServices } from '@/features/services/api/services.api';
+import { AdminReservationFiltersBar, type AdminReservationFilters } from '@/features/reservations/components/AdminReservationFiltersBar';
+import { AdminReservationPagination } from '@/features/reservations/components/AdminReservationPagination';
+import { CancelReservationModal } from '@/features/reservations/components/CancelReservationModal';
 import { ReservationDetailModal } from '@/features/reservations/components/ReservationDetailModal';
 import { ReservationEditModal } from '@/features/reservations/components/ReservationEditModal';
-import { MOCK_RESERVATIONS } from '@/features/reservations/data/mock-reservations';
+import {
+  cancelAdminReservation,
+  fetchAdminReservations,
+  updateAdminReservation,
+} from '@/features/reservations/api/reservations.api';
+import type { AdminReservation } from '@/features/reservations/types/admin-reservations.types';
 
-const SERVICE_OPTIONS = MOCK_SERVICES.map((service) => service.name);
+const PAGE_SIZE = 10;
+
+const EMPTY_FILTERS: AdminReservationFilters = {
+  search: '',
+  date: '',
+  serviceId: '',
+  status: 'ALL',
+  slot: '',
+};
+
+interface ServiceOption {
+  id: string;
+  name: string;
+}
 
 export default function AdminReservationsPage() {
-  const [reservations, setReservations] = useState<Reservation[]>(MOCK_RESERVATIONS);
-  const [filters, setFilters] = useState<ReservationFilters>(EMPTY_FILTERS);
+  const [reservations, setReservations] = useState<AdminReservation[]>([]);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [filters, setFilters] = useState<AdminReservationFilters>(EMPTY_FILTERS);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<Reservation | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
+  const [canceling, setCanceling] = useState<Reservation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [servicesError, setServicesError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [retryServices, setRetryServices] = useState(0);
 
-  const filtered = filterReservations(reservations, filters);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSearch(filters.search);
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [filters.search]);
 
-  function handleCancel(reservation: Reservation) {
-    setReservations((current) =>
-      current.map((item) =>
-        item.id === reservation.id
-          ? { ...item, status: 'CANCELLED', qrStatus: 'CANCELLED' }
-          : item,
-      ),
-    );
+  useEffect(() => {
+    let active = true;
+
+    fetchServices()
+      .then((records) => {
+        if (!active) return;
+        setServices(records.map(({ id, name }) => ({ id, name })));
+        setServicesError(null);
+      })
+      .catch((err: unknown) => {
+        if (active) setServicesError(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (active) setServicesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [retryServices]);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchAdminReservations({
+      page,
+      limit: PAGE_SIZE,
+      status: filters.status,
+      serviceId: filters.serviceId,
+      date: filters.date,
+      slot: filters.slot,
+      search,
+    })
+      .then(({ items, pagination }) => {
+        if (!active) return;
+        setReservations(items);
+        setTotal(pagination.total);
+        setTotalPages(pagination.totalPages);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [page, filters.status, filters.serviceId, filters.date, filters.slot, search, reload]);
+
+  function updateFilters(next: AdminReservationFilters) {
+    if (next.search === filters.search) setLoading(true);
+    setFilters(next);
+    setPage(1);
+  }
+
+  function changePage(nextPage: number) {
+    setLoading(true);
+    setPage(nextPage);
+  }
+
+  function retry() {
+    setError(null);
+    setServicesError(null);
+    setLoading(true);
+    setServicesLoading(true);
+    setReload((current) => current + 1);
+    setRetryServices((current) => current + 1);
+  }
+
+  async function handleSave(updated: Reservation) {
+    if (!editing) return;
+
+    await updateAdminReservation(updated.id, {
+      date: updated.date,
+      startTime: updated.startTime,
+      guests: updated.guests,
+      ...(updated.status !== editing.status ? { status: updated.status } : {}),
+    });
+    setEditing(null);
+    setLoading(true);
+    setReload((current) => current + 1);
+  }
+
+  async function handleCancel(reason: string) {
+    if (!canceling) return;
+
+    await cancelAdminReservation(canceling.id, {
+      status: 'CANCELLED',
+      ...(reason ? { cancellationReason: reason } : {}),
+    });
+    setCanceling(null);
     setSelected(null);
     setEditing(null);
+    setLoading(true);
+    setReload((current) => current + 1);
   }
 
-  function handleSave(updated: Reservation) {
-    setReservations((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
-    setEditing(null);
-    setSelected((current) => (current && current.id === updated.id ? updated : current));
-  }
+  const retryButton = (
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-400/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:bg-red-500/10"
+    >
+      <RefreshCw className="h-3.5 w-3.5" />
+      Reintentar
+    </button>
+  );
 
   return (
     <>
@@ -58,28 +181,37 @@ export default function AdminReservationsPage() {
         title="Reservas del"
         highlightedTitle="complejo"
         description="Consulta, filtra y administra todas las reservas del complejo deportivo."
-        actions={
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            Nueva reserva
-          </Button>
-        }
       />
 
+      {(error || servicesError) && (
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <span className="font-bold">{error ?? servicesError}</span>
+            {retryButton}
+          </div>
+        </div>
+      )}
+
       <Card className="p-5 sm:p-6">
-        <ReservationFiltersBar
+        <AdminReservationFiltersBar
           filters={filters}
-          onChange={setFilters}
-          serviceOptions={SERVICE_OPTIONS}
+          onChange={updateFilters}
+          serviceOptions={services}
         />
 
         <div className="mt-5 flex items-center justify-between gap-4 border-t border-text-main/10 pt-5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-            {filtered.length} reserva(s)
+            {loading ? 'Cargando reservas...' : `${total} reserva(s)`}
           </span>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading || servicesLoading ? (
+          <div className="mt-6 flex items-center gap-3 text-text-muted">
+            <RefreshCw className="h-5 w-5 animate-spin text-club-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider">Cargando...</span>
+          </div>
+        ) : reservations.length === 0 ? (
           <EmptyState
             className="mt-5"
             title="Sin resultados"
@@ -88,7 +220,7 @@ export default function AdminReservationsPage() {
         ) : (
           <div className="mt-4">
             <Table
-              data={filtered}
+              data={reservations}
               rowKey={(row) => row.id}
               minWidth="68rem"
               columns={[
@@ -103,7 +235,10 @@ export default function AdminReservationsPage() {
                   key: 'client',
                   header: 'Cliente',
                   render: (row) => (
-                    <span className="font-bold text-club-accent">{row.clientName}</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-club-accent">{row.clientName}</span>
+                      <span className="text-[11px] text-text-muted">{row.clientEmail}</span>
+                    </div>
                   ),
                 },
                 {
@@ -151,7 +286,7 @@ export default function AdminReservationsPage() {
                       <ActionButton
                         label="Cancelar"
                         disabled={row.status === 'CANCELLED' || row.status === 'FINISHED'}
-                        onClick={() => handleCancel(row)}
+                        onClick={() => setCanceling(row)}
                       >
                         <Ban className="h-4 w-4" />
                       </ActionButton>
@@ -185,7 +320,7 @@ export default function AdminReservationsPage() {
                       <ActionButton
                         label="Cancelar"
                         disabled={row.status === 'CANCELLED' || row.status === 'FINISHED'}
-                        onClick={() => handleCancel(row)}
+                        onClick={() => setCanceling(row)}
                       >
                         <Ban className="h-4 w-4" />
                       </ActionButton>
@@ -195,6 +330,14 @@ export default function AdminReservationsPage() {
               )}
             />
           </div>
+        )}
+
+        {!loading && !servicesLoading && !error && !servicesError && (
+          <AdminReservationPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={changePage}
+          />
         )}
       </Card>
 
@@ -207,6 +350,12 @@ export default function AdminReservationsPage() {
           onSave={handleSave}
         />
       )}
+
+      <CancelReservationModal
+        reservation={canceling}
+        onClose={() => setCanceling(null)}
+        onConfirm={handleCancel}
+      />
     </>
   );
 }

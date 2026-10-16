@@ -53,7 +53,7 @@ export function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="w-full max-w-md p-8 rounded-3xl bg-club-surface text-center space-y-4" style={cardStyle}>
+      <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface text-center space-y-4" style={cardStyle}>
         <h1 className="text-2xl font-bold text-club-accent">Enlace inválido</h1>
         <p className="text-text-muted text-sm">
           Falta el token de recuperación. Solicita un nuevo enlace.
@@ -70,7 +70,7 @@ export function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="w-full max-w-md p-8 rounded-3xl bg-club-surface text-center space-y-4" style={cardStyle}>
+      <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface text-center space-y-4" style={cardStyle}>
         <h1 className="text-2xl font-bold text-club-accent">Contraseña actualizada</h1>
         <p className="text-text-muted text-sm">
           Ya puedes iniciar sesión con tu nueva contraseña.
@@ -86,7 +86,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <div className="w-full max-w-md p-8 rounded-3xl bg-club-surface" style={cardStyle}>
+    <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-club-surface" style={cardStyle}>
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-club-accent tracking-tight">
           Nueva contraseña

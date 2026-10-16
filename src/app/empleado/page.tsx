@@ -10,11 +10,12 @@ import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { StatusBadge, accessKey } from '@/components/ui/StatusBadge';
 import { QuickLinks } from '@/components/common/QuickLinks';
 import { MaintenanceNotice } from '@/components/common/MaintenanceNotice';
-import { formatDate, toISODate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { ROLE_LABELS } from '@/components/layout/app-nav';
 import { EmployeeSummary } from '@/features/employees/components/EmployeeSummary';
 import { AccessControl } from '@/features/employees/components/AccessControl';
-import { MOCK_RESERVATIONS } from '@/features/reservations/data/mock-reservations';
+import { RemoteStatus } from '@/features/reservations/components/RemoteStatus';
+import { useEmployeeSummary } from '@/features/reservations/hooks/use-employee-summary';
 
 type EmployeeRole = 'TICKET_SELLER' | 'QR_VALIDATOR';
 
@@ -35,10 +36,8 @@ const ROLE_ACCESS: Record<EmployeeRole, { href: string; label: string; icon: typ
 export default function EmployeeDashboardPage() {
   const [role, setRole] = useState<EmployeeRole>('TICKET_SELLER');
 
-  const today = toISODate(new Date());
-  const upcoming = MOCK_RESERVATIONS.filter(
-    (reservation) => reservation.date === today && reservation.status !== 'CANCELLED',
-  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const { data, loading, error, reload } = useEmployeeSummary();
+  const upcoming = data?.reservations ?? [];
 
   return (
     <>
@@ -63,11 +62,18 @@ export default function EmployeeDashboardPage() {
       <div className="flex flex-col gap-6">
         <MaintenanceNotice />
 
-        <EmployeeSummary />
+        <RemoteStatus
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          loadingLabel="Cargando el resumen del día..."
+        />
+
+        {data && <EmployeeSummary summary={data} />}
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <div className="xl:col-span-2">
-            <AccessControl />
+            {data && <AccessControl reservations={data.reservations} />}
           </div>
           <QuickLinks
             title={
@@ -100,7 +106,7 @@ export default function EmployeeDashboardPage() {
             </Link>
           </div>
 
-          {upcoming.length === 0 ? (
+          {!data ? null : upcoming.length === 0 ? (
             <EmptyState title="Sin reservas hoy" description="No hay operación registrada para hoy." />
           ) : (
             <ul className="flex flex-col divide-y divide-text-main/10">

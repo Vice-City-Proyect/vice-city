@@ -1,0 +1,316 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vice City API - Gestión de Reservas Administrativas (MR1)",
+    "description": "Especificación OpenAPI 3.0.3 para la gestión administrativa de reservas en Vice City: consulta paginada, filtros, detalle, edición y cancelación lógica.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor de desarrollo local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin - Reservations",
+      "description": "Endpoints administrativos para listar, detallar, editar y cancelar reservas"
+    }
+  ],
+  "paths": {
+    "/api/admin/reservations": {
+      "get": {
+        "tags": ["Admin - Reservations"],
+        "summary": "Listar reservas administrativas con filtros y paginación",
+        "description": "Retorna el listado paginado de reservas consolidando clientes, servicios, estado de pagos y tickets. Exclusivo para administradores.",
+        "operationId": "listAdminReservations",
+        "security": [{ "nextAuthSession": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Número de página (inicia en 1)",
+            "schema": { "type": "integer", "default": 1, "minimum": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Cantidad de registros por página (máximo 100)",
+            "schema": { "type": "integer", "default": 10, "minimum": 1, "maximum": 100 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por estado de la reserva",
+            "schema": {
+              "type": "string",
+              "enum": ["ALL", "PENDING", "CONFIRMED", "IN_PROGRESS", "FINISHED", "CANCELLED", "EXPIRED"]
+            }
+          },
+          {
+            "name": "serviceId",
+            "in": "query",
+            "required": false,
+            "description": "UUID del servicio específico",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de la reserva en formato YYYY-MM-DD (Bogotá)",
+            "schema": { "type": "string", "example": "2026-10-20" }
+          },
+          {
+            "name": "slot",
+            "in": "query",
+            "required": false,
+            "description": "Franja horaria de inicio en formato HH:mm (ej. 10:00)",
+            "schema": { "type": "string", "example": "10:00" }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Búsqueda por nombre o correo de cliente, o código de ticket",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listado de reservas obtenido exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AdminReservation" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Parámetros de consulta inválidos" },
+          "401": { "description": "No autenticado" },
+          "403": { "description": "Acceso denegado: se requiere rol ADMIN" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    },
+    "/api/admin/reservations/{id}": {
+      "get": {
+        "tags": ["Admin - Reservations"],
+        "summary": "Consultar detalle administrativo extendido de una reserva",
+        "description": "Retorna información detallada de una reserva incluyendo desglose de pagos, trazabilidad de tickets y registros de acceso.",
+        "operationId": "getAdminReservationById",
+        "security": [{ "nextAuthSession": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID de la reserva",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle de la reserva obtenido exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/AdminReservationDetail" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Identificador UUID inválido" },
+          "401": { "description": "No autenticado" },
+          "403": { "description": "Acceso denegado: se requiere rol ADMIN" },
+          "404": { "description": "Reserva no encontrada" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      },
+      "patch": {
+        "tags": ["Admin - Reservations"],
+        "summary": "Actualizar, reprogramar o cancelar lógicamente una reserva",
+        "description": "Permite reprogramar horario, modificar aforo/asistentes o cancelar lógicamente la reserva con motivo registrado sin borrar pagos ni tickets.",
+        "operationId": "updateAdminReservation",
+        "security": [{ "nextAuthSession": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID de la reserva a actualizar o cancelar",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateReservationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reserva actualizada o cancelada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Reserva actualizada exitosamente" },
+                    "data": { "$ref": "#/components/schemas/AdminReservationDetail" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Cuerpo inválido, campos no permitidos o duración fuera de regla (1..9h)" },
+          "401": { "description": "No autenticado" },
+          "403": { "description": "Acceso denegado: se requiere rol ADMIN" },
+          "404": { "description": "Reserva no encontrada" },
+          "409": { "description": "Conflicto: aforo insuficiente o solapamiento con otra reserva (SLOT_NOT_AVAILABLE)" },
+          "500": { "description": "Error interno del servidor" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "nextAuthSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "Cookie de sesión JWT emitida por NextAuth con rol ADMIN"
+      }
+    },
+    "schemas": {
+      "AdminReservation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "e2a4b860-9114-41d7-b35a-40a256191f4d" },
+          "code": { "type": "string", "example": "TK-7B93F12A" },
+          "clientId": { "type": "string", "format": "uuid" },
+          "clientName": { "type": "string", "example": "Carlos Mendoza" },
+          "clientEmail": { "type": "string", "format": "email", "example": "carlos.mendoza@example.com" },
+          "clientPhone": { "type": "string", "nullable": true, "example": "+57 300 123 4567" },
+          "serviceId": { "type": "string", "format": "uuid" },
+          "serviceName": { "type": "string", "example": "Cancha Fútbol 5 Sintética" },
+          "category": { "type": "string", "enum": ["POOL", "SOCCER_LARGE", "SOCCER_MICRO", "MULTI_COURT", "GYM", "WET_AREA"] },
+          "resource": { "type": "string", "example": "Cancha Principal A" },
+          "date": { "type": "string", "example": "2026-10-20" },
+          "startTime": { "type": "string", "example": "10:00" },
+          "endTime": { "type": "string", "example": "11:00" },
+          "guests": { "type": "integer", "example": 10 },
+          "hours": { "type": "integer", "example": 1 },
+          "basePrice": { "type": "number", "example": 80000 },
+          "discountType": { "type": "string", "enum": ["NONE", "WEDNESDAY", "FULL_POOL"] },
+          "discountPercent": { "type": "integer", "example": 0 },
+          "total": { "type": "number", "example": 80000 },
+          "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "IN_PROGRESS", "FINISHED", "CANCELLED"] },
+          "paymentStatus": { "type": "string", "enum": ["PENDING", "CONFIRMED"] },
+          "holdState": { "type": "string", "enum": ["NONE", "ACTIVE", "EXPIRED"] },
+          "holdExpiresAt": { "type": "string", "format": "date-time", "nullable": true },
+          "type": { "type": "string", "enum": ["NORMAL", "FULL_POOL"] },
+          "accessStatus": { "type": "string", "enum": ["NOT_ENTERED", "INSIDE"] },
+          "qrStatus": { "type": "string", "enum": ["VALID", "USED", "EXPIRED", "CANCELLED"] },
+          "wristbandColor": { "type": "string", "enum": ["BLUE", "PURPLE", "GREEN", "RED"] },
+          "createdBy": { "type": "string", "enum": ["WEB", "POS"] },
+          "notes": { "type": "string", "nullable": true },
+          "cancellationReason": { "type": "string", "nullable": true },
+          "cancelledAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AdminReservationDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/AdminReservation" },
+          {
+            "type": "object",
+            "properties": {
+              "payment": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "amount": { "type": "number", "example": 80000 },
+                  "currency": { "type": "string", "example": "COP" },
+                  "method": { "type": "string", "example": "STRIPE" },
+                  "status": { "type": "string", "example": "succeeded" },
+                  "providerReference": { "type": "string", "nullable": true },
+                  "paidAt": { "type": "string", "format": "date-time", "nullable": true }
+                }
+              },
+              "ticket": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": { "type": "string", "format": "uuid" },
+                  "code": { "type": "string", "example": "TK-7B93F12A" },
+                  "status": { "type": "string", "example": "valid" },
+                  "usedAt": { "type": "string", "format": "date-time", "nullable": true },
+                  "validFrom": { "type": "string", "format": "date-time", "nullable": true },
+                  "validUntil": { "type": "string", "format": "date-time", "nullable": true }
+                }
+              },
+              "accessLogs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "result": { "type": "string", "example": "GRANTED" },
+                    "reason": { "type": "string", "nullable": true },
+                    "accessPoint": { "type": "string", "nullable": true },
+                    "createdAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "UpdateReservationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "CANCELLED", "FINISHED", "IN_PROGRESS"] },
+          "cancellationReason": { "type": "string", "maxLength": 255, "example": "Cancelada a solicitud del cliente" },
+          "notes": { "type": "string", "maxLength": 500, "nullable": true, "example": "Ajuste de cancha por mantenimiento" },
+          "date": { "type": "string", "example": "2026-10-22" },
+          "startTime": { "type": "string", "example": "14:00" },
+          "endTime": { "type": "string", "example": "15:00" },
+          "guests": { "type": "integer", "minimum": 1, "example": 8 }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 10 },
+          "total": { "type": "integer", "example": 45 },
+          "totalPages": { "type": "integer", "example": 5 }
+        }
+      }
+    }
+  }
+}
+

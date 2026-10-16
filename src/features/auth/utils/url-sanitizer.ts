@@ -22,11 +22,13 @@ export function sanitizeInternalCallbackUrl(url?: string | null): string | null 
   if (!url || typeof url !== 'string') return null;
   const trimmed = url.trim();
 
-  // Disallow root, login, protocol-relative (//), and absolute URLs with schemes
+  // Disallow root, login, API endpoints, protocol-relative (//), and absolute URLs with schemes
   if (
     trimmed === '' ||
     trimmed === '/' ||
     trimmed === '/login' ||
+    trimmed === '/api' ||
+    trimmed.startsWith('/api/') ||
     trimmed.startsWith('//') ||
     /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)
   ) {

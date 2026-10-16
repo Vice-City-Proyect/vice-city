@@ -1,22 +1,30 @@
+'use client';
+
 import Link from 'next/link';
-import { ArrowRight, CalendarClock } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarClock, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusBadge, paymentKey } from '@/components/ui/StatusBadge';
-import { formatCOP, formatDate, toISODate } from '@/lib/format';
-import type { Reservation } from '@/types/reservation';
-import { MOCK_RESERVATIONS } from '../data/mock-reservations';
+import { formatCOP, formatDate, toBogotaISODate } from '@/lib/format';
+import { useMyReservations } from '../hooks/use-my-reservations';
 
-export function ClientNextReservation({ clientId }: { clientId: string }) {
-  const today = toISODate(new Date());
+const NEXT_RESERVATION_STATUSES = ['PENDING', 'CONFIRMED', 'IN_PROGRESS'];
 
-  const next = MOCK_RESERVATIONS.filter(
-    (reservation: Reservation) =>
-      reservation.clientId === clientId &&
-      reservation.date >= today &&
-      reservation.status !== 'CANCELLED' &&
-      reservation.status !== 'FINISHED',
-  ).sort((a, b) => a.date.localeCompare(b.date))[0];
+/**
+ * Tarjeta "Tu próxima reserva": la reserva vigente más cercana del cliente con sesión.
+ * Los datos salen de GET /api/reservations (el backend limita el resultado al usuario).
+ */
+export function ClientNextReservation() {
+  // Se piden varias porque algunas del día pueden haber terminado o no estar confirmadas.
+  const { data, loading, error, reload } = useMyReservations({
+    dateFrom: toBogotaISODate(),
+    order: 'asc',
+    limit: 20,
+  });
+
+  const next = data?.items.find((reservation) =>
+    NEXT_RESERVATION_STATUSES.includes(reservation.status),
+  );
 
   return (
     <Card className="p-5 sm:p-6">
@@ -27,7 +35,27 @@ export function ClientNextReservation({ clientId }: { clientId: string }) {
         <p className="text-xs text-text-muted">Detalle de la reserva más cercana.</p>
       </div>
 
-      {!next ? (
+      {loading ? (
+        <div className="flex items-center gap-3 text-text-muted" role="status">
+          <RefreshCw className="h-5 w-5 animate-spin text-club-primary" />
+          <span className="text-xs font-bold uppercase tracking-wider">Cargando...</span>
+        </div>
+      ) : error ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <span className="font-bold">{error}</span>
+            <button
+              type="button"
+              onClick={reload}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-red-400/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:bg-red-500/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reintentar
+            </button>
+          </div>
+        </div>
+      ) : !next ? (
         <EmptyState
           icon={<CalendarClock className="h-5 w-5" />}
           title="Sin reservas próximas"
@@ -48,7 +76,7 @@ export function ClientNextReservation({ clientId }: { clientId: string }) {
             <p className="text-xs text-text-muted">{next.resource}</p>
           </div>
 
-          <dl className="grid grid-cols-2 gap-4 border-t border-text-main/10 pt-4 text-xs">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 border-t border-text-main/10 pt-4 text-xs">
             <div>
               <dt className="font-bold uppercase tracking-wider text-text-muted">Fecha</dt>
               <dd className="mt-1 font-bold text-text-main">{formatDate(next.date)}</dd>

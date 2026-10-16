@@ -81,48 +81,48 @@ export function Hero() {
       {/* Manual Navigation Controls */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white opacity-0 backdrop-blur-md transition-all hover:bg-white/20 group-hover:opacity-100 sm:left-8"
+        className="absolute left-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 text-white opacity-80 backdrop-blur-md transition-all hover:bg-black/50 sm:left-8 sm:h-12 sm:w-12 sm:opacity-0 sm:group-hover:opacity-100"
         aria-label="Previous slide"
       >
-        <ChevronLeft className="h-6 w-6" />
+        <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white opacity-0 backdrop-blur-md transition-all hover:bg-white/20 group-hover:opacity-100 sm:right-8"
+        className="absolute right-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 text-white opacity-80 backdrop-blur-md transition-all hover:bg-black/50 sm:right-8 sm:h-12 sm:w-12 sm:opacity-0 sm:group-hover:opacity-100"
         aria-label="Next slide"
       >
-        <ChevronRight className="h-6 w-6" />
+        <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
       </button>
 
       {/* Hero Content */}
       <div className="pointer-events-none relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="pointer-events-auto max-w-3xl">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/20 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-md">
-            <span className="h-2 w-2 rounded-full bg-club-primary" />
+          <span className="mb-4 sm:mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/20 px-3.5 py-1 text-[11px] sm:px-4 sm:py-1.5 sm:text-xs font-bold uppercase tracking-widest text-white backdrop-blur-md">
+            <span className="h-2 w-2 rounded-full bg-club-primary shrink-0" />
             Complejo deportivo · Barranquilla
           </span>
 
-          <h1 className="mb-6 text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl drop-shadow-lg">
+          <h1 className="mb-4 sm:mb-6 text-3xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl drop-shadow-lg break-words">
             Entrena. Compite.{' '}
             <span className="text-club-primary">Vive el deporte.</span>
           </h1>
 
-          <p className="mb-9 max-w-2xl text-base leading-relaxed text-white/95 sm:text-lg drop-shadow-md">
+          <p className="mb-6 sm:mb-9 max-w-2xl text-sm leading-relaxed text-white/95 sm:text-lg drop-shadow-md">
             Piscinas semiolímpicas, canchas de fútbol 11 y microfútbol, cancha polideportiva,
             gimnasio y zona húmeda con sauna. Todo tu entrenamiento en un solo complejo.
           </p>
 
-          <div className="mb-10 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="#reservas" size="lg">
+          <div className="mb-8 sm:mb-10 flex flex-col gap-3 sm:flex-row">
+            <ButtonLink href="#reservas" size="lg" className="w-full sm:w-auto">
               Book Your Court
               <ChevronRight className="h-5 w-5" />
             </ButtonLink>
-            <ButtonLink href="#instalaciones" size="lg" variant="light">
+            <ButtonLink href="#instalaciones" size="lg" variant="light" className="w-full sm:w-auto">
               Ver instalaciones
             </ButtonLink>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 border-t border-white/20 pt-6 text-xs font-semibold uppercase tracking-wider text-white/95 sm:grid-cols-3 drop-shadow-md">
+          <div className="grid grid-cols-1 gap-2.5 sm:gap-3 border-t border-white/20 pt-6 text-xs font-semibold uppercase tracking-wider text-white/95 sm:grid-cols-3 drop-shadow-md">
             <span className="flex items-center gap-2">
               <Clock className="h-4 w-4 shrink-0 text-club-primary" />
               {COMPLEX_HOURS}

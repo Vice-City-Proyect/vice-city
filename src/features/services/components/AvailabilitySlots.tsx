@@ -68,7 +68,7 @@ export function AvailabilitySlots({
               Fecha: {availability.date} • Horario de atención: 8:00 AM — 5:00 PM (America/Bogota)
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <span className="text-xs text-zinc-500">Aforo total del servicio</span>
             <p className="text-lg font-bold text-zinc-800">{service.capacity} personas</p>
           </div>
@@ -121,7 +121,7 @@ export function AvailabilitySlots({
                     )}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between">
+                  <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
                     {getStatusBadge(slot)}
                     <span className="text-xs font-semibold text-zinc-700">
                       ${slot.price.toLocaleString("es-CO")}

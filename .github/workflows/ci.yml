@@ -25,9 +25,13 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install dependencies
+      - name: Install dependencies (Strict frozen npm ci)
         id: install
         run: npm ci
+
+      - name: Verify dependencies integrity (package.json & package-lock.json)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: git diff --exit-code package.json package-lock.json
 
       - name: Run ESLint
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

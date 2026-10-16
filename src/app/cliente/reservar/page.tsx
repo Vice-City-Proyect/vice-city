@@ -217,7 +217,13 @@ function ClientReservarPageContent() {
 
 export default function ClientReservarPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+          <div className="text-sm font-medium text-zinc-500">Cargando reserva...</div>
+        </div>
+      }
+    >
       <ClientReservarPageContent />
     </Suspense>
   );

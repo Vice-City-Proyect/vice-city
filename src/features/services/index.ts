@@ -71,6 +71,20 @@ export {
   isTimeSlotPast,
 } from "./utils/date-bogota.util";
 
+// Componentes del Catálogo de Clientes
+export {
+  ClientCatalog,
+} from "./components/ClientCatalog";
+export {
+  ClientServiceCard,
+  mapServiceItemToClientItem,
+  getFallbackImageForService,
+} from "./components/ClientServiceCard";
+export type {
+  ClientCatalogItem,
+  ClientServiceCardProps,
+} from "./components/ClientServiceCard";
+
 // Repositorios, guardias y tipos base de servicios y categorías (HU17, HU18)
 export * from "./types";
 export * from "./categories.repository";
