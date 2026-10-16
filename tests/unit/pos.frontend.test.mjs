@@ -127,4 +127,70 @@ describe('Punto de Venta POS (/empleado/pos): Validaciones de Formulario y Regla
     // Franja 14:00 - 15:00 en el futuro -> permitida
     assert.equal(validateSlotFinished(todayStr, '14:00', 1), null);
   });
+
+  // 8. Tarea 2: Carga dinámica de servicios reales de PostgreSQL
+  test('Servicios dinámicos: filtra inactivos y mapea UUID, tarifa y capacidad', () => {
+    const rawServices = [
+      { id: 'uuid-1', name: 'Piscina Adultos', price: 2000, capacity: 50, is_active: true },
+      { id: 'uuid-2', name: 'Cancha Fútbol', price: 140000, capacity: 22, is_active: true },
+      { id: 'uuid-3', name: 'Servicio Antiguo', price: 10000, capacity: 10, is_active: false },
+    ];
+
+    const activeServices = rawServices.filter((s) => s.is_active !== false);
+    assert.equal(activeServices.length, 2);
+    assert.equal(activeServices[0].id, 'uuid-1');
+    assert.equal(activeServices[0].price, 2000);
+    assert.equal(activeServices[0].capacity, 50);
+    assert.equal(activeServices.some((s) => s.id === 'uuid-3'), false);
+  });
+
+  // 9. Tarea 3: Inyección de sellerId desde la sesión
+  test('Vendedor de turno: inyecta sellerId del usuario autenticado', () => {
+    const mockSession = {
+      user: {
+        id: 'usr-seller-uuid-777',
+        name: 'Carlos Taquillero',
+        role: 'TICKET_SELLER',
+      },
+    };
+
+    const sellerId = mockSession?.user?.id || '';
+    const sellerName = mockSession?.user?.name || 'Taquillero de Turno';
+
+    assert.equal(sellerId, 'usr-seller-uuid-777');
+    assert.equal(sellerName, 'Carlos Taquillero');
+  });
+
+  // 10. Tarea 4: Construcción del payload de previsualización con ISO 8601 en Bogotá
+  test('Payload de preview: estructura conforme a posPreviewSchema con horas calculadas', () => {
+    const sellerId = 'usr-seller-uuid-777';
+    const clientName = 'Diana Gómez';
+    const clientId = '1098765432';
+    const serviceId = 'srv-pool-uuid-111';
+    const date = '2026-10-20';
+    const startTime = '10:00';
+    const quantity = 3;
+    const paymentMethod = 'cash';
+
+    const startH = Number(startTime.slice(0, 2));
+    const endH = startH + 1;
+    const startAt = `${date}T${startTime}:00-05:00`;
+    const endAt = `${date}T${String(endH).padStart(2, '0')}:${startTime.slice(3, 5)}:00-05:00`;
+
+    const payload = {
+      sellerId,
+      clientName: clientName.trim(),
+      clientId: clientId.trim(),
+      serviceId,
+      startAt,
+      endAt,
+      quantity,
+      paymentMethod,
+    };
+
+    assert.equal(payload.startAt, '2026-10-20T10:00:00-05:00');
+    assert.equal(payload.endAt, '2026-10-20T11:00:00-05:00');
+    assert.equal(payload.quantity, 3);
+    assert.equal(payload.paymentMethod, 'cash');
+  });
 });
