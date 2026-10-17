@@ -400,6 +400,7 @@ export function PosSaleForm({
                 setServiceId(selected);
                 const item = services.find((s) => s.id === selected);
                 if (item) {
+                  setServiceName(item.name);
                   setUnitPrice(Number(item.price) || 0);
                 }
               }}
