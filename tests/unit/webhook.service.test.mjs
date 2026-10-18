@@ -222,7 +222,7 @@ describe("Webhook de Stripe: confirmación de reservas", () => {
 
     assert.equal(result.confirmed, false);
     assert.equal(result.reason, "HOLD_EXPIRED");
-    assert.equal(db.state.booking.status, "pending");
+    assert.equal(db.state.booking.status, "expired");
     assert.equal(db.state.payments.length, 1);
     assert.equal(db.state.payments[0].status, "processing");
     assert.equal(db.state.payments[0].raw_response.review_reason, "HOLD_EXPIRED");

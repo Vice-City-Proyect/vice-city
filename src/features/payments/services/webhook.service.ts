@@ -106,6 +106,14 @@ export class StripeWebhookService {
           event.data.object as Stripe.Checkout.Session,
           event.type
         );
+      case "payment_intent.succeeded":
+        return this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+      case "payment_intent.payment_failed":
+      case "payment_intent.canceled":
+        return this.handlePaymentIntentFailed(
+          event.data.object as Stripe.PaymentIntent,
+          event.type
+        );
       default:
         return { received: true, handled: false, type: event.type };
     }
@@ -143,7 +151,7 @@ export class StripeWebhookService {
     );
   }
 
-  private async handleCheckoutCompleted(
+  public async handleCheckoutCompleted(
     session: Stripe.Checkout.Session
   ): Promise<WebhookResult> {
     const type = "checkout.session.completed";
@@ -201,10 +209,39 @@ export class StripeWebhookService {
           return { kind: "already_recorded" };
         }
 
+        // Determinar el momento efectivo del pago reportado por Stripe
+        const paidAtStripe =
+          typeof (session as any).payment_intent === "object" &&
+          (session as any).payment_intent?.created
+            ? new Date((session as any).payment_intent.created * 1000)
+            : session.created
+            ? new Date(session.created * 1000)
+            : null;
+
+        const effectivePaymentTime = paidAtStripe ?? now;
         const holdExpired = booking.expires_at
-          ? new Date(booking.expires_at).getTime() <= now.getTime()
+          ? effectivePaymentTime.getTime() > new Date(booking.expires_at).getTime()
           : false;
-        const notPayable = booking.status !== "pending" || holdExpired;
+
+        // Si la reserva expiró en BD pero el usuario pagó a tiempo en Stripe, verificar si el horario sigue libre
+        let isRecoverable = false;
+        if (booking.status === "expired" && !holdExpired) {
+          const conflicting = await tx.bookings.findFirst({
+            where: {
+              service_id: booking.service_id,
+              id: { not: booking.id },
+              status: { in: ["confirmed", "pending"] },
+              start_at: { lt: booking.end_at },
+              end_at: { gt: booking.start_at },
+            },
+          });
+          if (!conflicting) {
+            isRecoverable = true;
+          }
+        }
+
+        const isPayable = (booking.status === "pending" && !holdExpired) || isRecoverable;
+        const notPayable = !isPayable;
         const amountMismatch = !notPayable && !this.paidAmountMatches(session, booking);
 
         // HOLD vencido, reserva no pendiente o monto cobrado distinto al de la reserva:
@@ -223,6 +260,23 @@ export class StripeWebhookService {
               raw_response: { ...this.summarizeSession(session), review_reason: reason },
             },
           });
+
+          // Si el HOLD venció y la reserva seguía pendiente, marcarla como expired para liberar el horario
+          if (booking.status === "pending" && holdExpired) {
+            await tx.bookings.update({
+              where: { id: bookingId },
+              data: {
+                status: "expired",
+                updated_at: now,
+                metadata: {
+                  ...meta,
+                  review_reason: reason,
+                  late_payment_at: now.toISOString(),
+                },
+              },
+            });
+          }
+
           return { kind: "review_needed", reason, paymentId: payment.id };
         }
 
@@ -234,10 +288,13 @@ export class StripeWebhookService {
         };
 
         // Confirmación atómica (compare-and-set): solo una entrega concurrente del mismo
-        // evento puede pasar la reserva de "pending" a "confirmed"; las demás no duplican
+        // evento puede pasar la reserva a "confirmed"; las demás no duplican
         // pago ni ticket.
         const claimed = await tx.bookings.updateMany({
-          where: { id: bookingId, status: "pending" },
+          where: {
+            id: bookingId,
+            status: isRecoverable ? "expired" : "pending",
+          },
           data: {
             status: "confirmed",
             expires_at: null,
@@ -398,6 +455,311 @@ export class StripeWebhookService {
     return { received: true, handled: true, type, confirmed: false, reason: "PAYMENT_FAILED" };
   }
 
+  private async handlePaymentIntentFailed(
+    pi: Stripe.PaymentIntent,
+    type: string
+  ): Promise<WebhookResult> {
+    let bookingId =
+      ((pi.metadata?.bookingId || pi.metadata?.booking_id) as string) || null;
+    const now = this.nowFn();
+
+    if (!bookingId) {
+      const payment = await this.db.payments.findFirst({
+        where: { provider_reference: pi.id },
+      });
+      if (payment) {
+        bookingId = payment.booking_id;
+      }
+    }
+
+    if (!bookingId) {
+      return { received: true, handled: false, type, reason: "MISSING_BOOKING_ID" };
+    }
+
+    await this.db.$transaction(async (tx: any) => {
+      const booking = await tx.bookings.findUnique({ where: { id: bookingId } });
+      if (!booking) return;
+
+      const approvedPayment = await tx.payments.findFirst({
+        where: { booking_id: bookingId, status: "approved" },
+      });
+      if (approvedPayment || booking.status === "confirmed") {
+        return; // Nunca degradar un pago exitoso ni una reserva confirmada
+      }
+
+      const alreadyRecorded = await tx.payments.findFirst({
+        where: { booking_id: bookingId, provider_reference: pi.id },
+      });
+      if (!alreadyRecorded) {
+        await tx.payments.create({
+          data: {
+            booking_id: bookingId,
+            amount: Number(booking.total_amount),
+            currency: (pi.currency || "cop").toUpperCase(),
+            method: "card",
+            status: "failed",
+            provider: "stripe",
+            provider_reference: pi.id,
+            raw_response: { id: pi.id, status: pi.status, type },
+          },
+        });
+      }
+
+      if (booking.status === "pending") {
+        const meta = (booking.metadata as Record<string, any>) || {};
+        await tx.bookings.update({
+          where: { id: bookingId },
+          data: {
+            status: "expired",
+            updated_at: now,
+            metadata: { ...meta, stripe_payment_status: type },
+          },
+        });
+      }
+    });
+
+    return { received: true, handled: true, type, confirmed: false, reason: "PAYMENT_FAILED" };
+  }
+
+  private async handlePaymentIntentSucceeded(
+    pi: Stripe.PaymentIntent
+  ): Promise<WebhookResult> {
+    const type = "payment_intent.succeeded";
+    let bookingId =
+      ((pi.metadata?.bookingId || pi.metadata?.booking_id) as string) || null;
+    const now = this.nowFn();
+
+    if (!bookingId) {
+      const payment = await this.db.payments.findFirst({
+        where: { provider_reference: pi.id },
+      });
+      if (payment) {
+        bookingId = payment.booking_id;
+      }
+    }
+
+    if (!bookingId) {
+      return { received: true, handled: false, type, reason: "MISSING_BOOKING_ID" };
+    }
+
+    const providerReference = pi.id;
+
+    const outcome = await this.db.$transaction(
+      async (tx: any): Promise<TransactionOutcome> => {
+        const booking = await tx.bookings.findUnique({
+          where: { id: bookingId },
+          include: { services: true, users: true },
+        });
+
+        if (!booking) {
+          return { kind: "not_found" };
+        }
+
+        const meta = (booking.metadata as Record<string, any>) || {};
+
+        const existingPayment = await tx.payments.findFirst({
+          where: { booking_id: bookingId, status: "approved" },
+        });
+
+        if (existingPayment || booking.status === "confirmed") {
+          return { kind: "already", booking };
+        }
+
+        const existingReview = await tx.payments.findFirst({
+          where: {
+            booking_id: bookingId,
+            provider_reference: providerReference,
+            status: REVIEW_STATUS,
+          },
+        });
+        if (existingReview) {
+          return { kind: "already_recorded" };
+        }
+
+        // Determinar el momento efectivo del pago reportado por Stripe
+        const paidAtStripe = pi.created ? new Date(pi.created * 1000) : null;
+        const effectivePaymentTime = paidAtStripe ?? now;
+        const holdExpired = booking.expires_at
+          ? effectivePaymentTime.getTime() > new Date(booking.expires_at).getTime()
+          : false;
+
+        // Si la reserva expiró en BD pero el usuario pagó a tiempo en Stripe, verificar si el horario sigue libre
+        let isRecoverable = false;
+        if (booking.status === "expired" && !holdExpired) {
+          const conflicting = await tx.bookings.findFirst({
+            where: {
+              service_id: booking.service_id,
+              id: { not: booking.id },
+              status: { in: ["confirmed", "pending"] },
+              start_at: { lt: booking.end_at },
+              end_at: { gt: booking.start_at },
+            },
+          });
+          if (!conflicting) {
+            isRecoverable = true;
+          }
+        }
+
+        const isPayable = (booking.status === "pending" && !holdExpired) || isRecoverable;
+        const notPayable = !isPayable;
+
+        const expected = toStripeMinorUnits(Number(booking.total_amount));
+        const currency = String(pi.currency ?? "").toLowerCase();
+        const amountReceived = pi.amount_received ?? pi.amount;
+        const amountMismatch =
+          !notPayable &&
+          (amountReceived !== expected || currency !== STRIPE_CURRENCY.toLowerCase());
+
+        if (notPayable || amountMismatch) {
+          const reason: ReviewReason = notPayable ? "HOLD_EXPIRED" : "AMOUNT_MISMATCH";
+          const payment = await tx.payments.create({
+            data: {
+              booking_id: bookingId,
+              amount: Number(booking.total_amount),
+              currency: "COP",
+              method: "card",
+              status: REVIEW_STATUS,
+              provider: "stripe",
+              provider_reference: providerReference,
+              raw_response: {
+                id: pi.id,
+                amount_received: amountReceived,
+                currency: pi.currency,
+                review_reason: reason,
+              },
+            },
+          });
+
+          if (booking.status === "pending" && holdExpired) {
+            await tx.bookings.update({
+              where: { id: bookingId },
+              data: {
+                status: "expired",
+                updated_at: now,
+                metadata: {
+                  ...meta,
+                  review_reason: reason,
+                  late_payment_at: now.toISOString(),
+                },
+              },
+            });
+          }
+
+          return { kind: "review_needed", reason, paymentId: payment.id };
+        }
+
+        const confirmedMetadata = {
+          ...meta,
+          stripe_payment_intent: pi.id,
+          paid_at: now.toISOString(),
+        };
+
+        const claimed = await tx.bookings.updateMany({
+          where: {
+            id: bookingId,
+            status: isRecoverable ? "expired" : "pending",
+          },
+          data: {
+            status: "confirmed",
+            expires_at: null,
+            updated_at: now,
+            metadata: confirmedMetadata,
+          },
+        });
+        if (claimed.count === 0) {
+          return { kind: "raced" };
+        }
+
+        await tx.payments.create({
+          data: {
+            booking_id: bookingId,
+            amount: Number(booking.total_amount),
+            currency: "COP",
+            method: "card",
+            status: "approved",
+            provider: "stripe",
+            provider_reference: providerReference,
+            paid_at: now,
+            raw_response: {
+              id: pi.id,
+              amount_received: amountReceived,
+              status: pi.status,
+            },
+          },
+        });
+
+        const ticket = await createTicketForBooking(tx, {
+          bookingId,
+          holderName: booking.users?.full_name ?? null,
+          validFrom: booking.start_at,
+          validUntil: booking.end_at,
+          metadata: { stripe_payment_intent: pi.id },
+        });
+
+        return {
+          kind: "confirmed",
+          booking: {
+            ...booking,
+            status: "confirmed",
+            expires_at: null,
+            updated_at: now,
+            metadata: confirmedMetadata,
+          },
+          ticket,
+        };
+      }
+    );
+
+    if (outcome.kind === "confirmed" || outcome.kind === "already") {
+      try {
+        await this.deliverConfirmation(outcome.booking, outcome.ticket?.code);
+      } catch (error: unknown) {
+        console.error("[BOOKING_EMAIL_FAILED] reserva confirmada, correo pendiente", {
+          bookingId,
+          message: error instanceof Error ? error.message : "error desconocido",
+        });
+      }
+      return {
+        received: true,
+        handled: true,
+        type,
+        confirmed: true,
+        reason: outcome.kind === "already" ? "ALREADY_CONFIRMED" : "CONFIRMED",
+      };
+    }
+
+    if (outcome.kind === "raced") {
+      return {
+        received: true,
+        handled: true,
+        type,
+        confirmed: true,
+        reason: "ALREADY_CONFIRMED",
+      };
+    }
+
+    if (outcome.kind === "already_recorded") {
+      return {
+        received: true,
+        handled: true,
+        type,
+        confirmed: false,
+        reason: "ALREADY_RECORDED",
+      };
+    }
+
+    if (outcome.kind === "review_needed") {
+      console.error("[STRIPE_PAYMENT_REVIEW_REQUIRED] cobro sin confirmar: revisión manual", {
+        paymentId: outcome.paymentId,
+        bookingId,
+        reason: outcome.reason,
+      });
+      return { received: true, handled: true, type, confirmed: false, reason: outcome.reason };
+    }
+
+    return { received: true, handled: false, type, reason: "BOOKING_NOT_FOUND" };
+  }
+
   /**
    * Envía el correo de confirmación una única vez (idempotente).
    */
@@ -433,6 +795,107 @@ export class StripeWebhookService {
     });
 
     return true;
+  }
+
+  /**
+   * Reconcilia el estado de pago de una reserva directamente con Stripe.
+   * Se utiliza como mecanismo de contingencia cuando el webhook aún no ha llegado
+   * (por latencia de red o entornos de desarrollo local sin túnel).
+   */
+  async syncCheckoutSession(
+    bookingIdOrSessionId: string
+  ): Promise<WebhookResult & { booking?: any; ticket?: any }> {
+    const isSessionId = bookingIdOrSessionId.startsWith("cs_");
+    const stripe = this.stripe ?? getStripeClient();
+
+    let bookingId: string = bookingIdOrSessionId;
+    let sessionId: string | null = isSessionId ? bookingIdOrSessionId : null;
+
+    if (isSessionId) {
+      try {
+        const session = await stripe.checkout.sessions.retrieve(bookingIdOrSessionId);
+        bookingId =
+          (session.metadata?.booking_id as string) ||
+          (session.client_reference_id as string);
+        if (!bookingId) {
+          return { received: true, handled: false, type: "sync", reason: "MISSING_BOOKING_ID" };
+        }
+      } catch {
+        return { received: true, handled: false, type: "sync", reason: "STRIPE_RETRIEVE_ERROR" };
+      }
+    }
+
+    const booking = await this.db.bookings.findUnique({
+      where: { id: bookingId },
+      include: { services: true, users: true, payments: true, tickets: true },
+    });
+
+    if (!booking) {
+      return { received: true, handled: false, type: "sync", reason: "BOOKING_NOT_FOUND" };
+    }
+
+    if (booking.status === "confirmed") {
+      return {
+        received: true,
+        handled: true,
+        confirmed: true,
+        type: "sync",
+        reason: "ALREADY_CONFIRMED",
+        booking,
+        ticket: booking.tickets?.[0] ?? null,
+      };
+    }
+
+    if (!sessionId) {
+      sessionId = (booking.metadata as any)?.stripe_session_id || null;
+    }
+
+    if (!sessionId) {
+      return { received: true, handled: false, type: "sync", reason: "NO_STRIPE_SESSION" };
+    }
+
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["payment_intent"],
+      });
+    } catch {
+      return { received: true, handled: false, type: "sync", reason: "STRIPE_RETRIEVE_ERROR" };
+    }
+
+    if (session.payment_status === "paid") {
+      const result = await this.handleCheckoutCompleted(session);
+      const updated = await this.db.bookings.findUnique({
+        where: { id: booking.id },
+        include: { services: true, users: true, payments: true, tickets: true },
+      });
+      return {
+        ...result,
+        booking: updated,
+        ticket: updated?.tickets?.[0] ?? null,
+      };
+    }
+
+    if (session.status === "expired") {
+      const result = await this.handleCheckoutFailed(session, "checkout.session.expired");
+      const updated = await this.db.bookings.findUnique({
+        where: { id: booking.id },
+        include: { services: true, users: true, payments: true, tickets: true },
+      });
+      return {
+        ...result,
+        booking: updated,
+      };
+    }
+
+    return {
+      received: true,
+      handled: true,
+      confirmed: false,
+      type: "sync",
+      reason: "PAYMENT_NOT_COMPLETED",
+      booking,
+    };
   }
 }
 

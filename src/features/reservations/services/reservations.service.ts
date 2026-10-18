@@ -123,6 +123,22 @@ export class ReservationsService {
     const booking = await this.db.$transaction(async (tx) => {
       await this.acquireServiceLock(tx, serviceId);
 
+      // Expirar atómicamente reservas pendientes con HOLD vencido en la BD
+      // Esto libera la restricción de exclusión en PostgreSQL ("bookings_no_overlap")
+      const currentNow = this.nowFn();
+      if (typeof tx.bookings?.updateMany === "function") {
+        await tx.bookings.updateMany({
+          where: {
+            status: { in: ["pending", "PENDING"] },
+            expires_at: { lte: currentNow },
+          },
+          data: {
+            status: "expired",
+            updated_at: currentNow,
+          },
+        });
+      }
+
       // Re-verificar disponibilidad dentro de la transacción (estado consonante).
       const txAvailability = new AvailabilityService({ db: tx });
       await txAvailability.assertAvailable({ service, startAt, endAt, quantity });
