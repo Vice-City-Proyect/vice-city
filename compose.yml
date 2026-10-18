@@ -1,0 +1,40 @@
+# ==============================================================================
+# Docker Compose - Vice City Project
+# Despliegue en VPS Ubuntu detrás de Nginx reverse proxy
+# ==============================================================================
+
+services:
+  vice-city:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Solo expuesto en localhost para ser servido exclusivamente por Nginx
+    ports:
+      - "127.0.0.1:3000:3000"
+    # Carga de variables de entorno de producción desde .env local (no versionado)
+    env_file:
+      - .env
+    restart: unless-stopped
+    # Comprobación de salud nativa con Node.js fetch (sin requerir curl/wget)
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    # Límites adaptados a VPS con 2 vCPU y ~3.7 GiB RAM
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
