@@ -118,26 +118,16 @@ function EmployeeQrScannerContent() {
 
   const [cameraActive, setCameraActive] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
-  const [cameraSupported, setCameraSupported] = useState(false);
-  const [barcodeDetectorSupported, setBarcodeDetectorSupported] = useState(false);
-  const [isSecureContext, setIsSecureContext] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const cameraSupported =
+    typeof navigator === 'undefined' ||
+    (!!navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+  const isSecureContext =
+    typeof window === 'undefined' ? true : (window.isSecureContext ?? true);
 
   useEffect(() => {
     isMountedRef.current = true;
-
-    const hasMedia =
-      typeof navigator !== 'undefined' &&
-      !!navigator.mediaDevices &&
-      typeof navigator.mediaDevices.getUserMedia === 'function';
-    const hasBarcode =
-      typeof window !== 'undefined' && 'BarcodeDetector' in window;
-    const secure =
-      typeof window !== 'undefined' ? (window.isSecureContext ?? true) : true;
-
-    setCameraSupported(hasMedia);
-    setBarcodeDetectorSupported(hasBarcode);
-    setIsSecureContext(secure);
 
     if (initialCode) {
       handleConsult(initialCode);

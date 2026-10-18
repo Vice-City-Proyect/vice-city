@@ -29,7 +29,6 @@ export default function ClientReservationsPage() {
   const { data, loading, error, reload } = useMyReservations({ limit: PAGE_LIMIT, order: 'desc' });
   const [section, setSection] = useState<SectionKey>('UPCOMING');
   const [selected, setSelected] = useState<Reservation | null>(null);
-  const [syncingCheckout, setSyncingCheckout] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -38,7 +37,6 @@ export default function ClientReservationsPage() {
     const bookingIdParam = urlParams.get('bookingId');
 
     if (checkoutParam === 'success' && bookingIdParam) {
-      setSyncingCheckout(true);
       fetch('/api/payments/checkout/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,9 +49,6 @@ export default function ClientReservationsPage() {
         })
         .catch(() => {
           reload();
-        })
-        .finally(() => {
-          setSyncingCheckout(false);
         });
     } else if (checkoutParam === 'cancelled') {
       window.history.replaceState({}, '', '/cliente/reservas');
