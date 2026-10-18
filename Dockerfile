@@ -43,6 +43,8 @@ COPY . .
 # Variables de entorno para compilación Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Valor temporal únicamente para la compilación
+ENV NEXTAUTH_SECRET=build-only-temporary-secret-not-for-runtime
 
 # Generación explícita del cliente Prisma antes de compilar Next.js
 RUN npx prisma generate
