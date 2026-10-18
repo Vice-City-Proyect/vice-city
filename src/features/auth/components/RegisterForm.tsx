@@ -183,7 +183,7 @@ export default function RegisterForm() {
           ¿No recibiste el correo? Haz clic aquí para reenviarlo
         </button>
         <Link 
-          href="/login"
+          href="/login?registered=1"
           className="mt-4 px-6 py-2.5 bg-club-primary text-btn-text rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-club-primary-hover transition-colors"
         >
           Ir a Iniciar Sesión

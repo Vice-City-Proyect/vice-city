@@ -12,6 +12,7 @@ import { FormField } from '@/components/ui/FormField';
 import {
   validateLoginForm,
   isLoginFormValid,
+  resolveLoginErrorMessage,
   type LoginValidationErrors,
 } from '../utils/login-validation';
 import {
@@ -24,6 +25,12 @@ import { ResendConfirmationModal } from './ResendConfirmationModal';
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   GoogleEmailNotProvided:
     'Tu cuenta de Google no compartió un correo electrónico. Usa otro método de acceso.',
+  GoogleEmailNotVerified:
+    'Debes confirmar tu correo electrónico antes de iniciar sesión.',
+  EmailNotVerified:
+    'Debes confirmar tu correo electrónico antes de iniciar sesión.',
+  CredentialsSignin:
+    'Correo o contraseña incorrectos. Verifica tus datos.',
   UserInactive:
     'Tu cuenta está desactivada. Contacta al administrador del complejo.',
   GoogleAuthFailed:
@@ -125,8 +132,7 @@ export function LoginForm() {
 
   const errorCode = searchParams.get('error');
   const oauthError = errorCode
-    ? OAUTH_ERROR_MESSAGES[errorCode] ||
-      'No se pudo completar el inicio de sesión. Intenta nuevamente.'
+    ? OAUTH_ERROR_MESSAGES[errorCode] || resolveLoginErrorMessage(errorCode)
     : null;
 
   const urlNotice =
@@ -191,7 +197,7 @@ export function LoginForm() {
       });
 
       if (!result || result.error) {
-        setSubmitError('Correo o contraseña incorrectos. Verifica tus datos.');
+        setSubmitError(resolveLoginErrorMessage(result?.error));
         return;
       }
 
