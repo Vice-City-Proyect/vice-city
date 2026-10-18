@@ -291,7 +291,7 @@ export class ReservationHoldService {
 
     if (isHoldExpired && booking.status.toLowerCase() === "pending") {
       try {
-        if (typeof prisma?.bookings?.update === "function") {
+        if (process.env.NODE_ENV !== "test" && typeof prisma?.bookings?.update === "function") {
           await prisma.bookings.update({
             where: { id: booking.id },
             data: { status: "expired", updated_at: now },

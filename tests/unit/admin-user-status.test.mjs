@@ -1,4 +1,4 @@
-import { test, describe, beforeEach } from "node:test";
+import { test, describe, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { GET, PATCH, DELETE } from "../../src/app/api/admin/users/[id]/route.ts";
@@ -231,6 +231,17 @@ describe("API /api/admin/users/[id] - Activar / Desactivar usuarios", () => {
     assert.equal(body.success, true);
     assert.equal(body.data.email, "cliente@vicecity.com");
     assert.equal(body.data.role, "CLIENT");
+  });
+
+  after(() => {
+    prisma.users.findUnique = originalFindUnique;
+    prisma.users.update = originalUpdate;
+    prisma.users.count = originalCount;
+    if (originalAuditCreate) {
+      prisma.audit_logs.create = originalAuditCreate;
+    } else if (prisma.audit_logs) {
+      delete prisma.audit_logs.create;
+    }
   });
 });
 

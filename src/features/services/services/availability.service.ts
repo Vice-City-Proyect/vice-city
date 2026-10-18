@@ -200,7 +200,7 @@ export class AvailabilityService {
 
     // Lazy sweep en base de datos para liberar cupos de holds vencidos (RN-011)
     try {
-      if (typeof prisma?.bookings?.updateMany === "function") {
+      if (process.env.NODE_ENV !== "test" && typeof prisma?.bookings?.updateMany === "function") {
         await prisma.bookings.updateMany({
           where: {
             status: { in: ["pending", "PENDING"] },

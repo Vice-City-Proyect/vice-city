@@ -456,22 +456,32 @@ describe("TAREA 4: Ciclo de Vida de Reservas, HOLD y Stripe Checkout", () => {
   // 7. Webhook con firma inválida es rechazado
   // =========================================================================
   it("7. Webhook con firma inválida es rechazado con InvalidStripeSignatureError", async () => {
-    const { client } = createMockDb({});
-    const webhookService = new StripeWebhookService({
-      db: client,
-      stripe: {
-        webhooks: {
-          constructEvent: () => {
-            throw new Error("Invalid signature");
+    const originalSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_dummy";
+    try {
+      const { client } = createMockDb({});
+      const webhookService = new StripeWebhookService({
+        db: client,
+        stripe: {
+          webhooks: {
+            constructEvent: () => {
+              throw new Error("Invalid signature");
+            },
           },
         },
-      },
-    });
+      });
 
-    await assert.rejects(
-      () => webhookService.handleRaw("{}", "t=123,v1=tampered_sig"),
-      InvalidStripeSignatureError
-    );
+      await assert.rejects(
+        () => webhookService.handleRaw("{}", "t=123,v1=tampered_sig"),
+        InvalidStripeSignatureError
+      );
+    } finally {
+      if (originalSecret === undefined) {
+        delete process.env.STRIPE_WEBHOOK_SECRET;
+      } else {
+        process.env.STRIPE_WEBHOOK_SECRET = originalSecret;
+      }
+    }
   });
 
   // =========================================================================
