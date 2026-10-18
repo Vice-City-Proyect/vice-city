@@ -1,0 +1,86 @@
+name: Vice City CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validar proyecto
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar lint si existe
+        run: npm run lint --if-present
+
+      - name: Ejecutar pruebas si existe el script
+        run: npm test --if-present
+
+  deploy:
+    name: Desplegar en VPS
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configurar acceso SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Actualizar y desplegar
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+            "$VPS_USER@$VPS_HOST" \
+            "bash -s -- '$VPS_DEPLOY_PATH'" <<'REMOTE'
+          set -euo pipefail
+
+          DEPLOY_PATH="$1"
+          cd "$DEPLOY_PATH"
+
+          if [ ! -f .env ]; then
+            echo "ERROR: Falta el archivo .env en el VPS."
+            exit 1
+          fi
+
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "ERROR: Hay cambios locales en el repositorio del VPS."
+            git status --short
+            echo "Revisa esos cambios antes de desplegar."
+            exit 1
+          fi
+
+          git fetch origin main
+          git pull --ff-only origin main
+
+          docker compose -f compose.yml config -q
+          docker compose -f compose.yml up -d --build
+
+          echo "Despliegue completado."
+          REMOTE

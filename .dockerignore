@@ -1,0 +1,49 @@
+# ==============================================================================
+# Docker Ignore Configuration - Vice City Project
+# ==============================================================================
+
+# Git & Version Control
+.git
+.gitignore
+.github
+
+# Node dependencies & local caches
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js build output
+.next
+out
+build
+dist
+.swc
+
+# Local Environment Variables & Secrets (CRÍTICO: nunca incluir credenciales)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
+
+# Tests and Coverage
+tests
+coverage
+
+# Documentation and Deploy manifests (not needed in container runtime)
+docs
+deploy
+*.md
+
+# Editor and Agent caches
+.agents
+.gemini
+.idea
+.vscode
+.DS_Store
+*.pem
+.Dockerfile
+
