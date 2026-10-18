@@ -7,6 +7,7 @@
 export {
   ReservationHoldService,
   reservationHoldService,
+  expireStaleBookings,
   HOLD_DURATION_MINUTES,
   HOLD_DURATION_MS,
 } from "./services/reservation-hold.service";

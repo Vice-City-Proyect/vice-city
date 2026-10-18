@@ -312,8 +312,8 @@ function futureSlot(hour = 10, daysAhead = 2) {
 }
 
 /** Día futuro que no sea lunes (mantenimiento) para pruebas de negocio. */
-function futureNonMonday(hour = 10) {
-  for (let i = 1; ; i++) {
+function futureNonMonday(hour = 10, minDaysAhead = 1) {
+  for (let i = minDaysAhead; ; i++) {
     const d = futureSlot(hour, i);
     if (d.getDay() !== 1) return d;
   }
@@ -355,7 +355,7 @@ describe("Disponibilidad de reservas (aforo, franjas, reglas de operación)", ()
   });
 
   it("Anticipación mayor a 15 días es rechazada", async () => {
-    const start = futureSlot(10, 16);
+    const start = futureNonMonday(10, 16);
     const end = new Date(start.getTime() + 3600 * 1000);
     const svc = buildService();
     await assert.rejects(

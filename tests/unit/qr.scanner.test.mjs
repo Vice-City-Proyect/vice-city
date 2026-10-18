@@ -34,6 +34,13 @@ function createMockPrisma({ tickets = [], failAuditLog = false } = {}) {
     auditLogsStore,
     tickets: {
       findUnique: async ({ where }) => ticketsStore.find((t) => t.code === where.code) || null,
+      findFirst: async ({ where }) => {
+        if (where?.code?.equals) {
+          const target = where.code.equals.toLowerCase();
+          return ticketsStore.find((t) => t.code.toLowerCase() === target) || null;
+        }
+        return ticketsStore.find((t) => t.code === where?.code) || null;
+      },
       updateMany: async ({ where, data }) => {
         if (data.status !== undefined && !VALID_TICKET_STATUS.includes(data.status)) {
           throw new Error(`tickets_status_valid: valor no permitido '${data.status}'`);
@@ -410,6 +417,28 @@ describe("HU13: Escáner QR - Validación y Control de Acceso Backend (VCP-57)",
       () => db.access_logs.create({ data: { ticket_id: "id", result: "INVALID_RESULT" } }),
       /access_logs_result_valid/
     );
+  });
+
+  it("Criterio 13: Insensible a mayúsculas/minúsculas - consultar en MAYÚSCULAS un código guardado en minúsculas es válido y autoriza el ingreso", async () => {
+    // Ticket guardado con código hexadecimal en minúsculas (ej: generado por crypto.randomBytes)
+    const { service, ticket } = setup({
+      code: "247ae24514589d30c5e7b2438fa918b4",
+      start: "10:00",
+      end: "11:00",
+    });
+
+    const now = bogota("2026-10-14", "10:15");
+    // Consulta enviando el código en mayúsculas (como cuando se escribe en el teclado)
+    const uppercaseCode = "247AE24514589D30C5E7B2438FA918B4";
+    const validation = await service.validateQRCode(uppercaseCode, "QR_VALIDATOR", now);
+
+    assert.equal(validation.code, "247ae24514589d30c5e7b2438fa918b4");
+    assert.equal(validation.accessValidation.canEnter, true);
+
+    // Confirmación enviando el código en mayúsculas también actualiza y autoriza
+    const entry = await service.confirmEntry(uppercaseCode, "val-1", "QR_VALIDATOR", "Torniquete 1", null, now);
+    assert.equal(entry.status, "USED");
+    assert.equal(entry.code, "247ae24514589d30c5e7b2438fa918b4");
   });
 });
 

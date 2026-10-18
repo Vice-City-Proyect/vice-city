@@ -342,6 +342,20 @@ export class PosSaleService {
 
     // 5. Transacción atómica
     const executeSaleTransaction = async (tx: any) => {
+      // Expirar atómicamente reservas pendientes con HOLD vencido en la BD
+      if (typeof tx.bookings?.updateMany === "function") {
+        await tx.bookings.updateMany({
+          where: {
+            status: { in: ["pending", "PENDING"] },
+            expires_at: { lte: now },
+          },
+          data: {
+            status: "expired",
+            updated_at: now,
+          },
+        });
+      }
+
       // a. Resolver usuario cliente
       let clientUser = await tx.users.findFirst({
         where: { document_id: clientId },

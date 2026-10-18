@@ -141,7 +141,23 @@ export class ReservationHoldService {
         throw new AdvanceBookingLimitError(maxAdvance);
       }
 
-      // 6.2. Calcular cupos ocupados (reservas confirmed + reservas pending activas con hold vigentes)
+      // 6.2. Expirar atómicamente reservas pendientes con HOLD vencido en la BD
+      // Esto libera la restricción de exclusión en PostgreSQL ("bookings_no_overlap")
+      // impidiendo que la BD rechace la nueva reserva.
+      if (typeof tx.bookings?.updateMany === "function") {
+        await tx.bookings.updateMany({
+          where: {
+            status: { in: ["pending", "PENDING"] },
+            expires_at: { lte: now },
+          },
+          data: {
+            status: "expired",
+            updated_at: now,
+          },
+        });
+      }
+
+      // 6.3. Calcular cupos ocupados (reservas confirmed + reservas pending activas con hold vigentes)
       let activeBookings: any[];
       if (this.findActiveBookingsFn) {
         activeBookings = await this.findActiveBookingsFn(
@@ -167,10 +183,16 @@ export class ReservationHoldService {
         });
       }
 
-      const occupiedCapacity = activeBookings.reduce(
-        (sum, b) => sum + (b.quantity || 1),
-        0
-      );
+      const occupiedCapacity = activeBookings.reduce((sum, b) => {
+        const status = String(b.status || "").toLowerCase();
+        if (status === "expired" || status === "cancelled" || status === "no_show") {
+          return sum;
+        }
+        if (status === "pending" && b.expires_at && new Date(b.expires_at) <= now) {
+          return sum;
+        }
+        return sum + (b.quantity || 1);
+      }, 0);
 
       const availableCapacity = service.capacity - occupiedCapacity;
 
@@ -267,6 +289,19 @@ export class ReservationHoldService {
       expiresAt !== null &&
       expiresAt.getTime() <= now.getTime();
 
+    if (isHoldExpired && booking.status.toLowerCase() === "pending") {
+      try {
+        if (process.env.NODE_ENV !== "test" && typeof prisma?.bookings?.update === "function") {
+          await prisma.bookings.update({
+            where: { id: booking.id },
+            data: { status: "expired", updated_at: now },
+          });
+        }
+      } catch {
+        // Ignorar si prisma es mock o no modificable
+      }
+    }
+
     const remainingSeconds =
       expiresAt && !isHoldExpired
         ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
@@ -290,6 +325,39 @@ export class ReservationHoldService {
       createdAt: new Date(booking.created_at).toISOString(),
       updatedAt: new Date(booking.updated_at).toISOString(),
     };
+  }
+
+  /**
+   * Ejecuta la expiración manual o programada de reservas con HOLD vencido.
+   */
+  async expireStaleHolds(now: Date = this.mockNow ?? new Date()): Promise<number> {
+    return expireStaleBookings(prisma, now);
+  }
+}
+
+/**
+ * Expira atómicamente en la BD todas las reservas pendientes cuyo HOLD de 10 min venció.
+ * Libera de inmediato la restricción de exclusión 'bookings_no_overlap' en PostgreSQL.
+ */
+export async function expireStaleBookings(
+  db: any,
+  now: Date = new Date()
+): Promise<number> {
+  if (typeof db?.bookings?.updateMany !== "function") return 0;
+  try {
+    const result = await db.bookings.updateMany({
+      where: {
+        status: { in: ["pending", "PENDING"] },
+        expires_at: { lte: now },
+      },
+      data: {
+        status: "expired",
+        updated_at: now,
+      },
+    });
+    return result.count ?? 0;
+  } catch {
+    return 0;
   }
 }
 

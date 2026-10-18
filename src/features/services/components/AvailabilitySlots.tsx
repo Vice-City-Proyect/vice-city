@@ -23,31 +23,31 @@ export function AvailabilitySlots({
     switch (slot.status) {
       case "AVAILABLE":
         return (
-          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-            {slot.remainingCapacity} cupos disponibles
+          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 truncate">
+            {slot.remainingCapacity} {slot.remainingCapacity === 1 ? "cupo" : "cupos"}
           </span>
         );
       case "IN_PROGRESS":
         return (
-          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20">
-            ⏳ En curso ({slot.remainingCapacity} cupos)
+          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20 truncate">
+            ⏳ En curso ({slot.remainingCapacity})
           </span>
         );
       case "FULL":
         return (
-          <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/10">
+          <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-inset ring-rose-600/10">
             Agotado
           </span>
         );
       case "PAST":
         return (
-          <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500">
+          <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">
             Finalizada
           </span>
         );
       case "MAINTENANCE":
         return (
-          <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
+          <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
             Mantenimiento
           </span>
         );
@@ -58,19 +58,19 @@ export function AvailabilitySlots({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <h3 className="text-lg font-bold text-zinc-900">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 shadow-sm min-w-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:flex-col lg:items-start xl:flex-row xl:items-center">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-zinc-900 break-words">
               Disponibilidad: {service.name}
             </h3>
-            <p className="text-xs text-zinc-500">
-              Fecha: {availability.date} • Horario de atención: 8:00 AM — 5:00 PM (America/Bogota)
+            <p className="mt-1 text-xs text-zinc-500">
+              Fecha: <span className="font-medium text-zinc-700">{availability.date}</span> • Horario: 8:00 AM — 5:00 PM
             </p>
           </div>
-          <div className="text-left sm:text-right">
-            <span className="text-xs text-zinc-500">Aforo total del servicio</span>
-            <p className="text-lg font-bold text-zinc-800">{service.capacity} personas</p>
+          <div className="shrink-0 rounded-lg bg-zinc-50 p-2 sm:p-2.5 sm:text-right border border-zinc-100 lg:w-full xl:w-auto">
+            <span className="block text-[11px] text-zinc-500">Aforo total del servicio</span>
+            <p className="text-base sm:text-lg font-bold text-zinc-800">{service.capacity} personas</p>
           </div>
         </div>
 
@@ -78,10 +78,10 @@ export function AvailabilitySlots({
         {isMaintenanceDay && (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🛠️</span>
+              <span className="text-lg shrink-0" aria-hidden="true">🛠️</span>
               <p className="font-semibold text-sm">Cerrado por Mantenimiento Semanal</p>
             </div>
-            <p className="mt-1 text-xs text-amber-800">
+            <p className="mt-1 text-xs text-amber-800 break-words">
               {maintenanceReason ||
                 "El complejo deportivo realiza mantenimiento general los lunes (o martes posterior a festivo). No hay servicio disponible en esta fecha."}
             </p>
@@ -90,7 +90,7 @@ export function AvailabilitySlots({
 
         {/* Grilla de Franjas Horarias */}
         {!isMaintenanceDay && (
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+          <div className="mt-5 sm:mt-6 grid grid-cols-1 gap-2.5 sm:gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {slots.map((slot) => {
               const isSelected =
                 selectedSlot?.startTime === slot.startTime &&
@@ -102,28 +102,30 @@ export function AvailabilitySlots({
                   type="button"
                   disabled={!slot.canBePurchased}
                   onClick={() => onSelectSlot?.(slot)}
-                  className={`flex flex-col justify-between rounded-lg border p-4 text-left transition-all ${
+                  className={`group flex flex-col justify-between rounded-lg border p-3 sm:p-3.5 text-left transition-all min-w-0 ${
                     isSelected
-                      ? "border-sky-600 bg-sky-50/50 ring-2 ring-sky-500"
+                      ? "border-sky-600 bg-sky-50/60 ring-2 ring-sky-500 shadow-sm"
                       : slot.canBePurchased
-                      ? "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
+                      ? "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm cursor-pointer"
                       : "cursor-not-allowed border-zinc-100 bg-zinc-50/70 opacity-60"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-zinc-900">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="font-semibold text-xs sm:text-sm text-zinc-900 whitespace-nowrap">
                       {slot.startTime} — {slot.endTime}
                     </span>
                     {slot.isCurrentSlot && (
-                      <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">
+                      <span className="shrink-0 text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
                         AHORA
                       </span>
                     )}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-                    {getStatusBadge(slot)}
-                    <span className="text-xs font-semibold text-zinc-700">
+                  <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-2 min-w-0">
+                    <div className="min-w-0 shrink">
+                      {getStatusBadge(slot)}
+                    </div>
+                    <span className="text-xs font-bold text-zinc-800 whitespace-nowrap shrink-0">
                       ${slot.price.toLocaleString("es-CO")}
                     </span>
                   </div>

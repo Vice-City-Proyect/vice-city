@@ -81,17 +81,34 @@ export class AvailabilityService {
       (async (serviceId: string, dateStr: string) => {
         const startOfDay = new Date(`${dateStr}T00:00:00-05:00`);
         const endOfDay = new Date(`${dateStr}T23:59:59-05:00`);
+        const now = this.getEffectiveNow();
 
         return prisma.bookings.findMany({
           where: {
             service_id: serviceId,
             start_at: { gte: startOfDay, lte: endOfDay },
-            status: {
-              in: ["confirmed", "pending"], // reservas confirmadas o en hold de pago
-            },
+            OR: [
+              { status: { in: ["confirmed", "CONFIRMED"] } },
+              {
+                status: { in: ["pending", "PENDING"] },
+                OR: [
+                  { expires_at: null },
+                  { expires_at: { gt: now } },
+                ],
+              },
+            ],
           },
         });
       });
+  }
+
+  private getEffectiveNow(): Date {
+    if (this.mockNowBogota?.dateStr) {
+      const hours = String(this.mockNowBogota.hours ?? 0).padStart(2, "0");
+      const minutes = String(this.mockNowBogota.minutes ?? 0).padStart(2, "0");
+      return new Date(`${this.mockNowBogota.dateStr}T${hours}:${minutes}:00-05:00`);
+    }
+    return new Date();
   }
 
   /**
@@ -179,6 +196,26 @@ export class AvailabilityService {
       };
     }
 
+    const effectiveNow = this.getEffectiveNow();
+
+    // Lazy sweep en base de datos para liberar cupos de holds vencidos (RN-011)
+    try {
+      if (process.env.NODE_ENV !== "test" && typeof prisma?.bookings?.updateMany === "function") {
+        await prisma.bookings.updateMany({
+          where: {
+            status: { in: ["pending", "PENDING"] },
+            expires_at: { lte: effectiveNow },
+          },
+          data: {
+            status: "expired",
+            updated_at: effectiveNow,
+          },
+        });
+      }
+    } catch {
+      // Ignorar si la BD no está disponible o es un entorno de pruebas/mock
+    }
+
     // 5. Consultar reservas existentes para el servicio y fecha vía ORM
     const existingBookings = await this.findBookingsForServiceDateFn(
       serviceId,
@@ -194,7 +231,8 @@ export class AvailabilityService {
         slot.startTime,
         slot.endTime,
         dateStr,
-        existingBookings
+        existingBookings,
+        effectiveNow
       );
 
       const remainingCapacity = Math.max(0, service.capacity - occupiedCapacity);
@@ -267,12 +305,14 @@ export class AvailabilityService {
 
   /**
    * Suma la cantidad de cupos ocupados por reservas que se traslapan con la franja [startTime, endTime].
+   * Ignora reservas expiradas, canceladas o pendientes cuyo HOLD de 10 min ya venció (RN-011).
    */
   private calculateOccupiedCapacity(
     slotStartTime: string,
     slotEndTime: string,
     dateStr: string,
-    bookings: any[]
+    bookings: any[],
+    now: Date = new Date()
   ): number {
     const slotStart = new Date(`${dateStr}T${slotStartTime}:00-05:00`).getTime();
     const slotEnd = new Date(`${dateStr}T${slotEndTime}:00-05:00`).getTime();
@@ -280,6 +320,20 @@ export class AvailabilityService {
     let totalOccupied = 0;
 
     for (const booking of bookings) {
+      const status = String(booking.status || "").toLowerCase();
+      // Ignorar reservas que ya no ocupan cupo
+      if (status === "expired" || status === "cancelled" || status === "no_show") {
+        continue;
+      }
+
+      // Si es una reserva en HOLD (pending), verificar si ya expiró
+      if (status === "pending" && booking.expires_at) {
+        const expiresAt = new Date(booking.expires_at).getTime();
+        if (expiresAt <= now.getTime()) {
+          continue;
+        }
+      }
+
       const bStart = new Date(booking.start_at).getTime();
       const bEnd = new Date(booking.end_at).getTime();
 

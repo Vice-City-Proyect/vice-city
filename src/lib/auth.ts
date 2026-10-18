@@ -281,7 +281,22 @@ export function buildAuthProviders(): NextAuthOptions["providers"] {
         password: { label: "Contraseña", type: "password" },
       },
       async authorize(credentials) {
-        return authenticateUser(credentials, defaultPrisma);
+        try {
+          return await authenticateUser(credentials, defaultPrisma);
+        } catch (error: any) {
+          if (
+            error instanceof EmailNotVerifiedError ||
+            error?.code === "EMAIL_NOT_VERIFIED" ||
+            error?.name === "EmailNotVerifiedError" ||
+            (typeof error?.message === "string" &&
+              error.message.toLowerCase().includes("confirmar tu correo"))
+          ) {
+            throw new Error(
+              "Debes confirmar tu correo electrónico antes de iniciar sesión."
+            );
+          }
+          throw error;
+        }
       },
     }),
   ];

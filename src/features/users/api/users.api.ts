@@ -132,3 +132,37 @@ export function updateEmployeeRecord(
     }
   );
 }
+
+export interface UpdateAdminUserPayload {
+  full_name?: string;
+  phone?: string | null;
+  document_id?: string | null;
+  is_active?: boolean;
+}
+
+/**
+ * Actualiza el estado (activo/inactivo) o los datos de cualquier usuario desde el panel de admin.
+ */
+export function updateAdminUser(
+  userId: string,
+  payload: UpdateAdminUserPayload
+): Promise<BackendUserRecord> {
+  return apiRequest<BackendUserRecord>(
+    `/api/admin/users/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+/**
+ * Activa o desactiva a cualquier usuario del sistema (clientes, empleados, administradores).
+ */
+export function toggleAdminUserStatus(
+  userId: string,
+  isActive: boolean
+): Promise<BackendUserRecord> {
+  return updateAdminUser(userId, { is_active: isActive });
+}
+
