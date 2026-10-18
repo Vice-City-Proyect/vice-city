@@ -53,31 +53,14 @@ export function TicketQRCodeCard({
         </span>
       </div>
 
-      {/* Tarjeta de Código QR Simulado */}
+      {/* Tarjeta de Código QR Real y Escaneable */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center shadow-inner mb-6 text-slate-900">
-        {/* Renderizado de Matriz QR Estilizada */}
-        <div className="w-48 h-48 bg-slate-900 rounded-xl p-3 flex flex-col justify-between items-center shadow-md">
-          <div className="flex justify-between w-full">
-            <div className="w-10 h-10 border-4 border-white rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded" />
-            </div>
-            <div className="w-10 h-10 border-4 border-white rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded" />
-            </div>
-          </div>
-
-          <div className="text-center font-mono text-[9px] text-emerald-400 font-bold tracking-widest bg-slate-800 px-2 py-1 rounded border border-emerald-500/30">
-            {ticketCode.slice(0, 12)}...
-          </div>
-
-          <div className="flex justify-between w-full items-end">
-            <div className="w-10 h-10 border-4 border-white rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded" />
-            </div>
-            <div className="w-8 h-8 bg-emerald-500/20 border-2 border-emerald-400 rounded-lg flex items-center justify-center text-[10px]">
-              🎟️
-            </div>
-          </div>
+        <div className="w-48 h-48 bg-white rounded-xl p-2 flex items-center justify-center shadow-md border border-slate-200">
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=${encodeURIComponent(ticketCode)}`}
+            alt={`Código QR ${ticketCode}`}
+            className="w-44 h-44 object-contain"
+          />
         </div>
 
         <span className="text-xs font-mono font-bold tracking-widest mt-3 text-slate-700 bg-slate-100 px-3 py-1 rounded-full break-all text-center max-w-full">

@@ -33,12 +33,14 @@ function formatRange(startAt: Date, endAt: Date): string {
 }
 
 export function bookingConfirmationHtml(data: BookingEmailData): string {
-  const qrBlock = data.qrDataUrl
-    ? `<div style="text-align:center;margin:24px 0;">
-         <img src="${data.qrDataUrl}" alt="Código QR de tu ticket" width="220" height="220" style="border-radius:12px;border:1px solid #e2e8f0;" />
-         <p style="font-family:monospace;font-size:13px;color:#0f172a;font-weight:bold;margin-top:8px;">${data.ticketCode}</p>
-       </div>`
-    : "";
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(data.ticketCode)}`;
+
+  const qrBlock = `
+    <div style="text-align:center;margin:24px 0;background:#f8fafc;padding:20px;border-radius:16px;border:1px solid #e2e8f0;">
+      <img src="${qrImageUrl}" alt="Código QR del ticket" width="220" height="220" style="display:inline-block;border-radius:12px;border:1px solid #cbd5e1;background:#ffffff;padding:8px;" />
+      <p style="font-family:monospace;font-size:14px;color:#0f172a;font-weight:bold;margin:12px 0 4px;letter-spacing:1px;">${data.ticketCode}</p>
+      <p style="font-size:11px;color:#64748b;margin:0;">Presenta este código en portería o ingrésalo manualmente</p>
+    </div>`;
 
   return `
   <div style="background:#f1f5f9;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">

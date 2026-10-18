@@ -75,8 +75,11 @@ export class QRScannerService {
   ): Promise<QRValidationResponse> {
     this.ensureValidatorRole(validatorRole);
 
-    const ticket = await this.db.tickets.findUnique({
-      where: { code },
+    const trimmedCode = code.trim();
+
+    // Búsqueda resiliente: coincidencia exacta o insensible a mayúsculas/minúsculas
+    let ticket = await this.db.tickets.findUnique({
+      where: { code: trimmedCode },
       include: {
         bookings: {
           include: {
@@ -87,6 +90,21 @@ export class QRScannerService {
         },
       },
     });
+
+    if (!ticket && typeof (this.db.tickets as any).findFirst === "function") {
+      ticket = await (this.db.tickets as any).findFirst({
+        where: {
+          code: { equals: trimmedCode, mode: "insensitive" },
+        },
+        include: {
+          bookings: {
+            users: true,
+            services: true,
+            service_schedules: true,
+          },
+        },
+      });
+    }
 
     if (!ticket) {
       throw new TicketNotFoundError();
@@ -192,12 +210,14 @@ export class QRScannerService {
       throw new OutOfScheduleError(validationResult.accessValidation.message);
     }
 
+    const canonicalCode = validationResult.code;
+
     // 2. Transacción Atómica: UPDATE condicional para evitar concurrencia
     return await this.db.$transaction(async (tx) => {
       // Intentar actualizar solo si el ticket sigue en estado 'valid'
       const updateResult = await tx.tickets.updateMany({
         where: {
-          code,
+          code: canonicalCode,
           status: TICKET_STATUS.VALID,
         },
         data: {
@@ -245,7 +265,7 @@ export class QRScannerService {
           entity: "tickets",
           entity_id: validationResult.ticketId,
           details: {
-            code,
+            code: canonicalCode,
             accessPoint,
             isLateEntry: validationResult.accessValidation.isLateEntry,
             reasonCode: validationResult.accessValidation.reasonCode,
@@ -256,7 +276,7 @@ export class QRScannerService {
 
       return {
         ticketId: validationResult.ticketId,
-        code,
+        code: canonicalCode,
         status: "USED",
         usedAt: now.toISOString(),
         accessLogId: log.id,
