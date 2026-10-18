@@ -25,6 +25,8 @@ import {
   createEmployeeRecord,
   fetchAllAdminUsers,
   updateEmployeeRecord,
+  updateAdminUser,
+  toggleAdminUserStatus,
   type CreateEmployeePayload,
 } from '@/features/users/api/users.api';
 import { applyUserUpdate } from '@/features/users/api/user-update-plan';
@@ -87,14 +89,13 @@ export default function AdminUsersPage() {
 
   async function handleToggle(user: User) {
     setError(null);
-    if (!isEmployeeRole(user.role)) {
-      setError(
-        'Solo los empleados (Vendedor de tiquetes / Validador QR) pueden activarse o desactivarse con los endpoints actuales.'
-      );
-      return;
-    }
+    setNotice(null);
     try {
-      await updateEmployeeRecord(user.id, { is_active: user.status !== 'ACTIVE' });
+      const nextActive = user.status !== 'ACTIVE';
+      await toggleAdminUserStatus(user.id, nextActive);
+      setNotice(
+        `Usuario ${user.name} ${nextActive ? 'activado' : 'desactivado'} correctamente.`
+      );
       await loadData();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -114,17 +115,32 @@ export default function AdminUsersPage() {
     const original = users.find((item) => item.id === updated.id);
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const plan = await applyUserUpdate(updated, original, {
         changeRole: changeUserRole,
         updateEmployee: updateEmployeeRecord,
       });
 
+      // Si no es un empleado pero se modificaron datos o estado, persistir vía updateAdminUser
+      if (!isEmployeeRole(updated.role)) {
+        const fieldsChanged =
+          !!original &&
+          (original.name !== updated.name || (original.phone ?? '') !== (updated.phone ?? ''));
+        const statusChanged = !!original && original.status !== updated.status;
+
+        if (fieldsChanged || statusChanged) {
+          await updateAdminUser(updated.id, {
+            full_name: fieldsChanged ? updated.name : undefined,
+            phone: fieldsChanged ? updated.phone || null : undefined,
+            is_active: statusChanged ? updated.status === 'ACTIVE' : undefined,
+          });
+        }
+      }
+
       setEditing(null);
       await loadData();
-      if (plan.notice) {
-        setError(plan.notice);
-      }
+      setNotice(`Usuario ${updated.name} actualizado correctamente.`);
     } catch (err) {
       setError(getErrorMessage(err));
       // La operación pudo aplicarse de forma parcial (p. ej. rol persistido pero
