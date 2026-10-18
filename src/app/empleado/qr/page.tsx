@@ -833,9 +833,16 @@ function EmployeeQrScannerContent() {
                   value={`${ticketData.schedule.startTime} – ${ticketData.schedule.endTime}`}
                   mono
                 />
-                <Info label="Código" value={ticketData.code} mono />
+                <div className="flex flex-col gap-1 sm:col-span-2 min-w-0">
+                  <dt className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                    Código de tiquete
+                  </dt>
+                  <dd className="font-mono text-xs font-bold text-text-main break-all rounded-xl bg-club-surface/90 border border-text-main/15 px-3 py-2 select-all tracking-wider shadow-inner">
+                    {ticketData.code}
+                  </dd>
+                </div>
                 {wristband && (
-                  <div className="flex flex-col gap-1 sm:col-span-2">
+                  <div className="flex flex-col gap-1 sm:col-span-2 min-w-0">
                     <dt className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
                       Pulsera correspondiente
                     </dt>
@@ -932,11 +939,15 @@ function Info({
   mono?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 min-w-0">
       <dt className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
         {label}
       </dt>
-      <dd className={`font-bold text-text-main ${mono ? 'font-mono' : ''}`}>
+      <dd
+        className={`font-bold text-text-main ${
+          mono ? 'font-mono break-all' : 'break-words'
+        }`}
+      >
         {value}
       </dd>
     </div>
